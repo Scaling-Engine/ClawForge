@@ -8,7 +8,11 @@ ClawForge applies the architectural patterns from [Stripe's Minions](https://str
 
 ## Why ClawForge
 
-Stripe ships 1,000+ AI-authored PRs per week with their Minions system. That architecture requires a 100M-line monorepo, custom devbox infrastructure, and deep AWS integration. ClawForge brings the same patterns to teams that want agent-powered development without enterprise infrastructure.
+Stripe ships 1,000+ AI-authored PRs per week with their Minions system. [OpenClaw](https://github.com/openclaw/openclaw) connects 20+ chat platforms to AI agents running on your machine. ClawForge occupies the space between them: Stripe-grade architecture patterns — containerized execution, context hydration, quality gates — without enterprise infrastructure, and with the production isolation that local-first tools can't provide.
+
+### vs. Stripe Minions
+
+Stripe's architecture requires a 100M-line monorepo, custom devbox infrastructure, and deep AWS integration. ClawForge brings the same patterns to teams running Docker Compose on a VPS.
 
 | Capability | Stripe Minions | ClawForge |
 |---|---|---|
@@ -17,9 +21,27 @@ Stripe ships 1,000+ AI-authored PRs per week with their Minions system. That arc
 | Execution model | Pre-warmed devboxes (10s startup) | Docker containers (cold-start now, warm volumes planned) |
 | Tool access | 400+ MCP tools via internal Toolshed | `--allowedTools` whitelist (per-instance MCP planned) |
 | Quality gates | Local lint (<5s) + max 2 CI runs | `--allowedTools` + secret filtering (lint/CI gates planned) |
+| Context hydration | Pre-fetch MCP tools on likely links | Repo context injection now, MCP pre-hydration planned |
 | Isolation | Devbox per run | Docker network per instance |
 | Merge policy | Human review for complex PRs | Two-stage gate: blocked-paths + ALLOWED_PATHS whitelist |
 | Infrastructure | AWS, internal platform | Docker Compose on any VPS |
+
+### vs. OpenClaw
+
+OpenClaw is a local-first gateway — it connects chat platforms to AI agents running natively on your machine. Great for personal productivity. ClawForge is built for production team workflows where isolation, audit trails, and multi-repo targeting matter.
+
+| Capability | OpenClaw | ClawForge |
+|---|---|---|
+| Architecture | Local gateway daemon (WebSocket) | Docker containers per job (isolated) |
+| Execution | Native on host machine | Containerized — nothing touches the host |
+| Audit trail | Process logs, session output | Every action is a git commit, every change is a PR |
+| Isolation | Permission boundaries, allowlists | Docker network per instance, separate DBs and secrets |
+| Coding agent | Delegates to Codex/Claude/Pi/OpenCode | Claude Code CLI with structured GSD workflows |
+| Multi-repo | Single workdir per session | Cross-repo targeting with `REPOS.json` + `target.json` |
+| Context between jobs | Persistent local state | Repo-as-memory (`.planning/*`) + thread-scoped job outcomes |
+| Merge workflow | No native PR/merge pipeline | Two-stage merge gate with auto-merge and blocked-paths |
+| Team use | Single-user, local machine | Multi-instance, multi-user, shared VPS |
+| Channel support | 20+ platforms | Slack, Telegram, Web Chat (focused, deep integration) |
 
 ---
 
@@ -44,19 +66,25 @@ ClawForge runs **two completely separate AI agents** that never share context. T
   │                         │   layers)     │  Knows: the repo,       │
   │  Knows: conversation    │               │  job.md prompt,         │
   │  history, user prefs,   │               │  GSD skills (30 cmds),  │
-  │  prior job outcomes     │               │  CLAUDE.md rules        │
-  │                         │               │                         │
-  │  Can't: read code,      │               │  Can't: see Slack,      │
-  │  edit files, run tests  │               │  read messages, talk    │
-  │                         │               │  to user, access DB     │
+  │  prior job outcomes,    │               │  CLAUDE.md rules        │
+  │  project state *        │               │                         │
+  │                         │               │  Can't: see Slack,      │
+  │  Can't: edit files,     │               │  read messages, talk    │
+  │  run tests directly     │               │  to user, access DB     │
   └─────────────────────────┘               └─────────────────────────┘
 
   Always-on (PM2)                           Per-job (container
   Scope: conversation + routing             starts → works → exits)
+
+  * Context hydration: before writing job.md, Layer 1 reads project
+    state (roadmap, current phase, blockers) from target repos via
+    GitHub API — Stripe's "pre-hydration" pattern applied to the
+    two-layer model.
 ```
 
 **The only link between them is `job.md`** — a text file pushed to a git branch. Layer 1 writes it. Layer 2 reads it. That's the entire interface.
 
+- **Context hydration** — Before writing job.md, Layer 1 pulls project state (roadmap, current phase, blockers) from the target repo via GitHub API. The conversational agent *understands the codebase* before dispatching work — [Stripe's pre-hydration pattern](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents) applied to the two-layer model
 - The conversational agent's quality at *describing* work determines the coding agent's success
 - Each coding job starts fresh — no accumulated state, no context bleed between jobs
 - Job outcomes flow back as summaries (PR → webhook → Layer 1 memory)
