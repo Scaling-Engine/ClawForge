@@ -2,15 +2,20 @@
 
 ## Milestones
 
-- ✅ **v1.0 GSD Verification & Hardening** — Phases 1-4 (shipped 2026-02-24)
-- ✅ **v1.1 Agent Intelligence & Pipeline Hardening** — Phases 5-8 (shipped 2026-02-25)
-- ✅ **v1.2 Cross-Repo Job Targeting** — Phases 9-12 (shipped 2026-02-27)
-- 🚧 **v1.3 Instance Generator** — Phases 13-17 (in progress)
+- v1.0 GSD Verification & Hardening — Phases 1-4 (shipped 2026-02-24)
+- v1.1 Agent Intelligence & Pipeline Hardening — Phases 5-8 (shipped 2026-02-25)
+- v1.2 Cross-Repo Job Targeting — Phases 9-12 (shipped 2026-02-27)
+- v1.3 Instance Generator — Phases 13-17 (in progress)
+- v1.4 Docker Engine Foundation — Phases 18-21 (planned)
+- v1.5 Persistent Workspaces — Phases 22-25 (planned)
+- v1.6 MCP Tool Layer — Phases 26-28 (planned)
+- v1.7 Smart Execution — Phases 29-31 (planned)
+- v1.8 Multi-Agent Clusters — Phases 32-34 (future)
 
 ## Phases
 
 <details>
-<summary>✅ v1.0 GSD Verification & Hardening (Phases 1-4) — SHIPPED 2026-02-24</summary>
+<summary>v1.0 GSD Verification & Hardening (Phases 1-4) — SHIPPED 2026-02-24</summary>
 
 - [x] Phase 1: Foundation Fix (2/2 plans) — completed 2026-02-24
 - [x] Phase 2: Output Observability (2/2 plans) — completed 2026-02-24
@@ -20,7 +25,7 @@
 </details>
 
 <details>
-<summary>✅ v1.1 Agent Intelligence & Pipeline Hardening (Phases 5-8) — SHIPPED 2026-02-25</summary>
+<summary>v1.1 Agent Intelligence & Pipeline Hardening (Phases 5-8) — SHIPPED 2026-02-25</summary>
 
 - [x] Phase 5: Pipeline Hardening (2/2 plans) — completed 2026-02-25
 - [x] Phase 6: Smart Job Prompts (1/1 plan) — completed 2026-02-25
@@ -30,86 +35,90 @@
 </details>
 
 <details>
-<summary>✅ v1.2 Cross-Repo Job Targeting (Phases 9-12) — SHIPPED 2026-02-27</summary>
+<summary>v1.2 Cross-Repo Job Targeting (Phases 9-12) — SHIPPED 2026-02-27</summary>
 
-- [x] Phase 9: Config Layer + Tool Schema + Entrypoint Foundation (3/3 plans) — completed 2026-02-26
+- [x] Phase 9: Config + Tool Schema + Entrypoint Foundation (3/3 plans) — completed 2026-02-26
 - [x] Phase 10: Actions Workflow + Container Execution + Cross-Repo PR (3/3 plans) — completed 2026-02-27
 - [x] Phase 11: Notification Pipeline + DB Schema (3/3 plans) — completed 2026-02-27
 - [x] Phase 12: Regression Verification (1/1 plan) — completed 2026-02-27
 
 </details>
 
-### 🚧 v1.3 Instance Generator (In Progress)
+### v1.3 Instance Generator (In Progress)
 
-**Milestone Goal:** Archie can create fully-configured ClawForge instances through a guided conversation, generating all instance files as a PR with an operator setup checklist.
+**Goal:** Archie creates fully-configured ClawForge instances through guided conversation, generating all files as a PR with operator setup instructions.
 
-- [x] **Phase 13: Tool Infrastructure** - Register `createInstanceJobTool` stub with Zod schema; install `yaml` dependency (completed 2026-02-27)
-- [ ] **Phase 14: Intake Flow** - Teach Archie multi-turn instance creation intake via EVENT_HANDLER.md with approval gate and cancellation
-- [ ] **Phase 15: Job Prompt Completeness** - Build `buildInstanceJobDescription()` with instructions for all 7 artifacts, literal AGENT.md template, and semantic validation checklist
-- [ ] **Phase 16: PR Pipeline and Auto-Merge Exclusion** - Exclude `instances/` from auto-merge; confirm PR title convention and body delivery
-- [ ] **Phase 17: End-to-End Validation** - Run real multi-turn conversation through PR creation and verify all artifacts correct
+- [x] **Phase 13: Tool Infrastructure** — Register createInstanceJobTool stub with Zod schema (completed 2026-02-27)
+- [ ] **Phase 14: Intake Flow** — Multi-turn instance creation intake via EVENT_HANDLER.md
+- [ ] **Phase 15: Job Prompt Completeness** — buildInstanceJobDescription() generates all 7 artifacts
+  Plans:
+  - [ ] 15-01-PLAN.md — Create buildInstanceJobDescription() with tests and wire into tools.js
+- [ ] **Phase 16: PR Pipeline and Auto-Merge Exclusion** — Merge policy for instance PRs
+- [ ] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation
 
-## Phase Details
+---
 
-### Phase 13: Tool Infrastructure
-**Goal**: `createInstanceJobTool` is registered in the agent tools array with a validated Zod schema, establishing the structured config contract that all downstream work depends on
-**Depends on**: Phase 12 (v1.2 complete)
-**Requirements**: INTAKE-01
-**Success Criteria** (what must be TRUE):
-  1. Sending "create a new instance" to Archie produces a tool-call attempt to `create_instance_job` (not an error about unknown tool)
-  2. Calling `create_instance_job` with a valid config object dispatches a job without crashing the agent
-  3. Calling `create_instance_job` with a missing required field returns a Zod validation error with the field name, not a silent failure
-  4. Agent server restart after adding the tool does not corrupt existing SQLite checkpoint threads
-**Plans**: 1 plan
-Plans:
-- [ ] 13-01-PLAN.md — Register createInstanceJobTool stub in tools.js + agent.js, install yaml
+### v1.4 Docker Engine Foundation (Planned)
 
-### Phase 14: Intake Flow
-**Goal**: Archie recognizes instance creation intent and gathers all required configuration across 3-4 turns, with an approval gate before dispatch and clean cancellation handling
-**Depends on**: Phase 13
-**Requirements**: INTAKE-02, INTAKE-03, INTAKE-04, INTAKE-05
-**Success Criteria** (what must be TRUE):
-  1. Operator saying "create an instance for Jim" triggers Archie to begin asking for instance name, purpose, allowed repos, and enabled channels — grouped into no more than 4 turns
-  2. Operator volunteering a Slack user ID or Telegram chat ID mid-intake causes Archie to capture it without asking a separate question about it
-  3. Archie presents a full configuration summary and waits for explicit "yes" before dispatching the job
-  4. Operator saying "cancel" or "never mind" at any point during intake resets the conversation without leaving partial state that contaminates the next unrelated message
-**Plans**: 2 plans
-Plans:
-- [ ] 14-01-PLAN.md — Add Instance Creation Intake section to instances/noah/config/EVENT_HANDLER.md
-- [ ] 14-02-PLAN.md — Human verify Archie intake behavior across 4 behavioral scenarios
+**Goal:** Replace GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls. Containers start in seconds instead of minutes. GH Actions retained as fallback for CI-integrated repos.
 
-### Phase 15: Job Prompt Completeness
-**Goal**: `buildInstanceJobDescription()` produces a job prompt that causes Claude Code to correctly generate all 7 instance artifacts with semantically valid content scoped to the operator's stated purpose
-**Depends on**: Phase 14
-**Requirements**: SCAF-01, SCAF-02, SCAF-03, SCAF-04
-**Success Criteria** (what must be TRUE):
-  1. A dispatched instance job produces all 6 files under `instances/{name}/`: Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, REPOS.json, .env.example
-  2. The job updates `docker-compose.yml` with a new service block using comment-preserving YAML modification (existing commented TLS blocks remain intact)
-  3. Generated SOUL.md and AGENT.md reflect the operator's stated instance purpose — not generic boilerplate copied from the noah instance
-  4. Generated REPOS.json and EVENT_HANDLER.md are scoped to only the gathered allowed repos and enabled channels
-  5. Generated AGENT.md contains exact tool name casing matching `--allowedTools` (e.g., `Read` not `read`) so Claude Code jobs do not silently run with no tools
-**Plans**: TBD
+**Source:** Pull `dockerApi()` pattern from thepopebot `lib/tools/docker.js`. Adapt for ClawForge's multi-instance isolation model.
 
-### Phase 16: PR Pipeline and Auto-Merge Exclusion
-**Goal**: Instance scaffolding PRs land with an operator setup checklist in the body and are blocked from auto-merge, ensuring every instance config receives manual review before reaching main
-**Depends on**: Phase 15
-**Requirements**: DELIV-01, DELIV-02
-**Success Criteria** (what must be TRUE):
-  1. A PR created by an instance job contains an operator setup checklist with exact GitHub secret names (with correct `AGENT_` prefix), Slack app scopes, PAT permissions, and post-merge commands specific to the new instance
-  2. An instance scaffolding PR is not auto-merged by `auto-merge.yml` — it remains open for operator review even when all other auto-merge conditions are met
-  3. Running `docker compose config` after applying the PR diff produces no YAML errors
-**Plans**: TBD
+- [ ] **Phase 18: Docker Engine API Client** — Port dockerApi() Unix socket client, inspectContainer(), removeContainer(), detectNetwork(). Add to lib/tools/docker.js. No behavioral change yet — just the client library.
+- [ ] **Phase 19: Headless Job Containers** — createHeadlessCodeContainer() that runs claude -p, commits, creates PR, exits. Wire into createJob() as alternative dispatch path. Feature-flagged per instance via REPOS.json `dispatch: "docker" | "actions"`.
+- [ ] **Phase 20: Volume Management** — Named volumes per repo (volumeName pattern). Containers mount volume instead of cloning fresh. First run clones into volume; subsequent runs do git pull. Warm start target: <15s.
+- [ ] **Phase 21: Migration & Fallback** — Dual-dispatch mode: Docker Engine for repos that don't need CI, GH Actions for repos that do. Instance-level config. Regression test both paths. Deprecation path for pure-Actions dispatch.
 
-### Phase 17: End-to-End Validation
-**Goal**: A complete real-world run from multi-turn Slack conversation through PR creation confirms the full instance generator pipeline works correctly with all artifacts verified
-**Depends on**: Phase 16
-**Requirements**: DELIV-03
-**Success Criteria** (what must be TRUE):
-  1. A multi-turn Slack conversation with Archie (intent → questions → approval) dispatches a job that runs through GitHub Actions to completion without manual intervention
-  2. The resulting PR contains all 7 artifacts (6 instance files + docker-compose.yml update) with no Dockerfile COPY path errors, no REPOS.json schema violations, and no shell-expansion hazards in SOUL.md
-  3. The PR body checklist is instance-specific (correct secret names, correct scopes) and the PR is not auto-merged
-  4. Running the PR diff through `docker compose config` validates successfully
-**Plans**: TBD
+---
+
+### v1.5 Persistent Workspaces (Planned)
+
+**Goal:** Interactive code workspaces where operators can open a browser terminal connected to a persistent Docker container with their repo. Claude Code runs interactively (not just one-shot). The "devbox" experience.
+
+**Source:** Pull `lib/code/` module from thepopebot — actions.js, terminal-view.jsx, ws-proxy.js. Adapt auth for ClawForge's multi-instance model.
+
+- [ ] **Phase 22: Workspace Container Lifecycle** — createCodeWorkspaceContainer() with ttyd, container recovery (inspect/restart/recreate), workspace DB table (id, instance_id, repo, branch, status). Server actions for CRUD.
+- [ ] **Phase 23: WebSocket Terminal Proxy** — ws-proxy.js that authenticates WebSocket upgrade requests, proxies to container's ttyd port. xterm.js frontend component. Route: /code/{workspaceId}.
+- [ ] **Phase 24: Workspace-Job Integration** — Headless jobs can run against workspace volumes (shared state). Operator starts interactive workspace, dispatches headless tasks that operate on same codebase. Feature branch support per workspace.
+- [ ] **Phase 25: Workspace Polish** — Container auto-stop after idle timeout. Workspace list/star/rename UI. Resource limits per container. Cleanup of orphaned volumes.
+
+---
+
+### v1.6 MCP Tool Layer (Planned)
+
+**Goal:** Per-instance MCP server configuration so agents get curated tool access beyond Claude Code built-ins. This is the "Toolshed" equivalent — each instance gets the tools relevant to its purpose.
+
+**Source:** Original design — thepopebot doesn't have this yet. Inspired by Stripe's 400-tool Toolshed via MCP.
+
+- [ ] **Phase 26: MCP Server Config** — Instance-level MCP_SERVERS.json defining which MCP servers to start in job containers. Schema: server name, command, args, env vars. Validated at container creation time.
+- [ ] **Phase 27: Container MCP Runtime** — Entrypoint starts configured MCP servers before Claude Code. Claude Code's `--mcp-config` flag points to generated config. Server health check before job starts. Graceful shutdown on job completion.
+- [ ] **Phase 28: Context Hydration** — Pre-run MCP tools on "likely-looking links" in job prompts before execution (Stripe pattern). Extract URLs/references from task description, call relevant MCP tools, inject results into prompt context. Configurable per instance.
+
+---
+
+### v1.7 Smart Execution (Planned)
+
+**Goal:** Quality gates before and after agent work. Local heuristic checks (<5s), CI-aware test feedback, and configurable merge policies. Agents produce higher-quality PRs with fewer review cycles.
+
+**Source:** Inspired by Stripe's deterministic interleaving (agent creativity + forced lint/test phases) and "at most 2 CI runs" policy.
+
+- [ ] **Phase 29: Pre-CI Quality Gates** — Entrypoint runs lint + typecheck after Claude Code completes but before committing. Configurable per repo in REPOS.json (lint_command, typecheck_command). Failures fed back to Claude for self-correction (one retry). Target: <5s for heuristic checks.
+- [ ] **Phase 30: CI Feedback Loop** — After PR creation, poll CI status. If tests fail, feed failure output back to Claude Code for a fix attempt. At most 2 CI runs (configurable). PR marked as draft until CI passes or retries exhausted.
+- [ ] **Phase 31: Merge Policy Engine** — Per-repo merge policies in REPOS.json: auto-merge (current), require-review, require-ci-pass, require-approval. Replaces current path-based auto-merge.yml with policy-driven decisions.
+
+---
+
+### v1.8 Multi-Agent Clusters (Future)
+
+**Goal:** Coordinated groups of agents that can split complex tasks, work in parallel, and merge results. A "team lead" agent decomposes work and distributes to worker agents.
+
+**Source:** Pull cluster DB schema from thepopebot (tables: clusters, cluster_roles, cluster_workers). Build our own runtime — thepopebot's is UI/DB only with no execution layer yet.
+
+- [ ] **Phase 32: Cluster Schema & Management** — DB tables for clusters, roles, workers. Server actions for CRUD. Instance-level cluster ownership. Trigger config model (cron, webhook, manual).
+- [ ] **Phase 33: Cluster Runtime** — Lead agent decomposes task into sub-tasks, dispatches to worker containers (via Docker Engine API from v1.4). Workers operate on shared volume or separate branches. Result collection and conflict detection.
+- [ ] **Phase 34: Cluster Coordination** — Inter-worker dependency resolution. Sequential vs parallel task dispatch. Merge conflict resolution when multiple workers modify same repo. Aggregated PR with all worker contributions.
+
+---
 
 ## Progress
 
@@ -128,7 +137,27 @@ Plans:
 | 11. Notification Pipeline + DB Schema | v1.2 | 3/3 | Complete | 2026-02-27 |
 | 12. Regression Verification | v1.2 | 1/1 | Complete | 2026-02-27 |
 | 13. Tool Infrastructure | v1.3 | 1/1 | Complete | 2026-02-27 |
-| 14. Intake Flow | 1/2 | In Progress|  | - |
-| 15. Job Prompt Completeness | v1.3 | 0/TBD | Not started | - |
+| 14. Intake Flow | v1.3 | 1/2 | In Progress | - |
+| 15. Job Prompt Completeness | v1.3 | 0/1 | Planned | - |
 | 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 0/TBD | Not started | - |
 | 17. End-to-End Validation | v1.3 | 0/TBD | Not started | - |
+| 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
+| 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
+| 20. Volume Management | v1.4 | 0/TBD | Not started | - |
+| 21. Migration & Fallback | v1.4 | 0/TBD | Not started | - |
+| 22. Workspace Container Lifecycle | v1.5 | 0/TBD | Not started | - |
+| 23. WebSocket Terminal Proxy | v1.5 | 0/TBD | Not started | - |
+| 24. Workspace-Job Integration | v1.5 | 0/TBD | Not started | - |
+| 25. Workspace Polish | v1.5 | 0/TBD | Not started | - |
+| 26. MCP Server Config | v1.6 | 0/TBD | Not started | - |
+| 27. Container MCP Runtime | v1.6 | 0/TBD | Not started | - |
+| 28. Context Hydration | v1.6 | 0/TBD | Not started | - |
+| 29. Pre-CI Quality Gates | v1.7 | 0/TBD | Not started | - |
+| 30. CI Feedback Loop | v1.7 | 0/TBD | Not started | - |
+| 31. Merge Policy Engine | v1.7 | 0/TBD | Not started | - |
+| 32. Cluster Schema & Management | v1.8 | 0/TBD | Not started | - |
+| 33. Cluster Runtime | v1.8 | 0/TBD | Not started | - |
+| 34. Cluster Coordination | v1.8 | 0/TBD | Not started | - |
+
+---
+*Last updated: 2026-03-04 — added v1.4-v1.8 milestones based on Stripe minions analysis + thepopebot upstream review*
