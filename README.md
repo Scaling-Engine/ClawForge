@@ -137,6 +137,52 @@ The merge gate runs two checks: blocked-paths (instance scaffolding PRs always r
 
 ## Architecture
 
+### Two Agents, Two Contexts, One Conversation
+
+ClawForge runs **two completely separate AI agents** that never share context directly. This is the core design.
+
+```
+  LAYER 1: CONVERSATIONAL                    LAYER 2: EXECUTION
+  ─────────────────────────                  ─────────────────────
+
+  ┌─────────────────────────┐               ┌─────────────────────────┐
+  │     "Archie"            │               │     Claude Code CLI     │
+  │                         │               │                         │
+  │  LangGraph ReAct Agent  │               │  Autonomous coder       │
+  │  Anthropic / OpenAI /   │   job.md      │  Always Anthropic       │
+  │  Google (configurable)  │ ────────────▶ │  (Claude via CLI)       │
+  │                         │  (text file   │                         │
+  │  Persistent memory      │   is the      │  No memory between jobs │
+  │  (SQLite + checkpoints) │   ONLY link)  │  (fresh clone each run) │
+  │                         │               │                         │
+  │  Knows: conversation    │               │  Knows: job.md prompt   │
+  │  history, user prefs,   │               │  + full repo contents   │
+  │  prior job outcomes,    │               │  + GSD skills (30 cmds) │
+  │  tool schemas           │               │  + CLAUDE.md rules      │
+  │                         │               │                         │
+  │  Can't: read code,      │               │  Can't: see Slack,      │
+  │  edit files, run tests  │               │  read messages, talk    │
+  │                         │               │  to user, access DB     │
+  │  4 tools (dispatch +    │               │                         │
+  │  status + specs +       │               │  Full toolset (Read,    │
+  │  create instance)       │               │  Write, Edit, Bash,     │
+  │                         │               │  Glob, Grep, etc.)      │
+  └─────────────────────────┘               └─────────────────────────┘
+
+  Runs: always-on (PM2)                     Runs: per-job (container
+  Lives: event handler container                  starts → works → exits)
+  Scope: conversation + routing             Scope: one repo, one task
+```
+
+**The key insight:** The Slack agent (Layer 1) is a *conversational coordinator* — it talks to you, decides when to dispatch work, and routes results back. It never touches code. The Docker agent (Layer 2) is an *autonomous coder* — it gets a text prompt (`job.md`), does the work, and exits. It never sees your conversation.
+
+**The only link between them is `job.md`** — a text file pushed to a git branch. Layer 1 writes it. Layer 2 reads it. That's the entire interface. This means:
+
+- The conversational agent's quality at *describing* work determines the coding agent's success
+- Job outcomes flow back as summaries (Layer 2 → PR → notification webhook → Layer 1 memory)
+- Each coding job starts fresh — no accumulated state, no context bleed between jobs
+- Prior job context is injected by Layer 1 into the *next* job.md when you're in the same thread
+
 ### Two-Layer Design
 
 | Layer | What | Tech |
