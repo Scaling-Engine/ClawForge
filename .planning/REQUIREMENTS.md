@@ -9,7 +9,7 @@ Requirements for the Instance Generator milestone. Each maps to roadmap phases.
 
 ### Intake
 
-- [ ] **INTAKE-01**: Operator can trigger instance creation by describing intent in natural language to Archie ("create an instance for Jim", "set up a new agent", etc.)
+- [x] **INTAKE-01**: Operator can trigger instance creation by describing intent in natural language to Archie ("create an instance for Jim", "set up a new agent", etc.)
 - [ ] **INTAKE-02**: Archie collects required configuration (name/slug, purpose, allowed repos, enabled channels) across 3-4 conversational turns — groups related questions, does not ask one field per turn
 - [ ] **INTAKE-03**: Archie captures optional fields (Slack user IDs, Telegram chat ID) if volunteered without requiring a dedicated question turn
 - [ ] **INTAKE-04**: Archie presents a configuration summary and requires explicit operator approval before dispatching the job
@@ -60,17 +60,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INTAKE-01 | Phase 13 | Pending |
-| INTAKE-02 | Phase 14 | Pending |
-| INTAKE-03 | Phase 14 | Pending |
-| INTAKE-04 | Phase 14 | Pending |
-| INTAKE-05 | Phase 14 | Pending |
-| SCAF-01 | Phase 15 | Pending |
-| SCAF-02 | Phase 15 | Pending |
-| SCAF-03 | Phase 15 | Pending |
-| SCAF-04 | Phase 15 | Pending |
-| DELIV-01 | Phase 16 | Complete |
-| DELIV-02 | Phase 16 | Complete |
+| INTAKE-01 | Phase 13 | Complete (verified) |
+| INTAKE-02 | Phase 14 | Complete (awaiting verification) |
+| INTAKE-03 | Phase 14 | Complete (awaiting verification) |
+| INTAKE-04 | Phase 14 | Complete (awaiting verification) |
+| INTAKE-05 | Phase 14 | Complete (awaiting verification) |
+| SCAF-01 | Phase 15 | Complete (awaiting verification) |
+| SCAF-02 | Phase 15 | Complete (awaiting verification) |
+| SCAF-03 | Phase 15 | Complete (awaiting verification) |
+| SCAF-04 | Phase 15 | Complete (awaiting verification) |
+| DELIV-01 | Phase 16 + 16.1 | Complete (integration fix in 16.1) |
+| DELIV-02 | Phase 16 | Complete (verified) |
 | DELIV-03 | Phase 17 | Pending |
 
 **Coverage:**
@@ -80,4 +80,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 — traceability populated after roadmap creation (Phases 13-17)*
+*Last updated: 2026-03-05 — traceability updated from v1.3 milestone audit; Phase 16.1 added for entrypoint sync*

@@ -5,7 +5,7 @@
 - v1.0 GSD Verification & Hardening — Phases 1-4 (shipped 2026-02-24)
 - v1.1 Agent Intelligence & Pipeline Hardening — Phases 5-8 (shipped 2026-02-25)
 - v1.2 Cross-Repo Job Targeting — Phases 9-12 (shipped 2026-02-27)
-- v1.3 Instance Generator — Phases 13-17 (in progress)
+- v1.3 Instance Generator — Phases 13-17 + 16.1 (in progress)
 - v1.4 Docker Engine Foundation — Phases 18-21 (planned)
 - v1.5 Persistent Workspaces — Phases 22-25 (planned)
 - v1.6 MCP Tool Layer — Phases 26-28 (planned)
@@ -56,7 +56,9 @@
 - [x] **Phase 16: PR Pipeline and Auto-Merge Exclusion** — Merge policy for instance PRs (completed 2026-03-05)
   **Plans:** 1 plan
   Plans:
-  - [ ] 16-01-PLAN.md — Add blocked-paths exclusion to auto-merge workflow + entrypoint --body-file fix
+  - [x] 16-01-PLAN.md — Add blocked-paths exclusion to auto-merge workflow + entrypoint --body-file fix
+- [ ] **Phase 16.1: Entrypoint Sync** — Propagate --body-file from templates/entrypoint.sh to docker/job/entrypoint.sh
+  **Gap Closure:** Closes integration gap from v1.3 audit (DELIV-01)
 - [ ] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation
 
 ---
@@ -140,9 +142,10 @@
 | 11. Notification Pipeline + DB Schema | v1.2 | 3/3 | Complete | 2026-02-27 |
 | 12. Regression Verification | v1.2 | 1/1 | Complete | 2026-02-27 |
 | 13. Tool Infrastructure | v1.3 | 1/1 | Complete | 2026-02-27 |
-| 14. Intake Flow | v1.3 | 1/2 | In Progress | - |
-| 15. Job Prompt Completeness | v1.3 | 0/1 | Planned | - |
-| 16. PR Pipeline and Auto-Merge Exclusion | 1/1 | Complete    | 2026-03-05 | - |
+| 14. Intake Flow | v1.3 | 2/2 | Complete | 2026-03-04 |
+| 15. Job Prompt Completeness | v1.3 | 1/1 | Complete | 2026-03-04 |
+| 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 1/1 | Complete | 2026-03-05 |
+| 16.1. Entrypoint Sync | v1.3 | 0/1 | Not started | - |
 | 17. End-to-End Validation | v1.3 | 0/TBD | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
@@ -163,4 +166,4 @@
 | 34. Cluster Coordination | v1.8 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-05 — Phase 16 plan created (1 plan)*
+*Last updated: 2026-03-05 — Gap closure Phase 16.1 added from v1.3 audit*
