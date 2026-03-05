@@ -146,7 +146,7 @@ ClawForge runs **two completely separate AI agents** that never share context di
   ─────────────────────────                  ─────────────────────
 
   ┌─────────────────────────┐               ┌─────────────────────────┐
-  │     "Archie"            │               │     Claude Code CLI     │
+  │   Event Handler Agent   │               │     Claude Code CLI     │
   │                         │               │                         │
   │  LangGraph ReAct Agent  │               │  Autonomous coder       │
   │  Anthropic / OpenAI /   │   job.md      │  Always Anthropic       │
@@ -174,7 +174,7 @@ ClawForge runs **two completely separate AI agents** that never share context di
   Scope: conversation + routing             Scope: one repo, one task
 ```
 
-**The key insight:** The Slack agent (Layer 1) is a *conversational coordinator* — it talks to you, decides when to dispatch work, and routes results back. It never touches code. The Docker agent (Layer 2) is an *autonomous coder* — it gets a text prompt (`job.md`), does the work, and exits. It never sees your conversation.
+**The key insight:** The conversational agent (Layer 1) is a *coordinator* — it talks to you, decides when to dispatch work, and routes results back. It never touches code. The Docker agent (Layer 2) is an *autonomous coder* — it gets a text prompt (`job.md`), does the work, and exits. It never sees your conversation.
 
 **The only link between them is `job.md`** — a text file pushed to a git branch. Layer 1 writes it. Layer 2 reads it. That's the entire interface. This means:
 
@@ -188,8 +188,8 @@ ClawForge runs **two completely separate AI agents** that never share context di
 Neither agent is born knowing about your product. Each layer gets context through different mechanisms, loaded at different times.
 
 ```
-  LAYER 1: WHAT ARCHIE KNOWS                LAYER 2: WHAT CLAUDE CODE KNOWS
-  ───────────────────────────                ─────────────────────────────────
+  LAYER 1: WHAT THE HANDLER KNOWS           LAYER 2: WHAT CLAUDE CODE KNOWS
+  ───────────────────────────────            ─────────────────────────────────
 
   Loaded at startup (baked in):              Loaded per-job (fresh each time):
   ┌─────────────────────────────┐            ┌─────────────────────────────┐
@@ -227,14 +227,14 @@ Neither agent is born knowing about your product. Each layer gets context throug
     status from the same thread. Injected into job.md automatically.
 ```
 
-**Layer 1 (Archie) is context-poor but memory-rich.** It knows how to talk to you and what tools to dispatch, but it can't read code or see project state. Its knowledge of the product comes from: (1) what you tell it in conversation, (2) prior job outcomes stored in the DB, and (3) the `get_system_technical_specs` tool which reads CLAUDE.md on demand. It does NOT have access to the roadmap, phase status, or `.planning/` directory.
+**Layer 1 (Event Handler) is context-poor but memory-rich.** It knows how to talk to you and what tools to dispatch, but it can't read code or see project state. Its knowledge of the product comes from: (1) what you tell it in conversation, (2) prior job outcomes stored in the DB, and (3) the `get_system_technical_specs` tool which reads CLAUDE.md on demand. It does NOT have access to the roadmap, phase status, or `.planning/` directory.
 
 **Layer 2 (Claude Code) is context-rich but memory-less.** Every job starts with a fresh clone — it sees the entire repo including `.planning/STATE.md`, `ROADMAP.md`, `REQUIREMENTS.md`, and all phase plans. GSD skills read these files to understand where the project is and what to do next. But when the container exits, all that context is gone. The next job starts fresh.
 
 **The feedback loop that builds product memory:**
 
 ```
-  You ──"build feature X"──▶ Archie ──job.md──▶ Claude Code
+  You ──"build feature X"──▶ Handler ──job.md──▶ Claude Code
                                                      │
                                               reads .planning/*
                                               knows roadmap, state
@@ -243,7 +243,7 @@ Neither agent is born knowing about your product. Each layer gets context throug
                                               commits + PR + SUMMARY.md
                                               updates STATE.md, ROADMAP.md
                                                      │
-  You ◀──notification──── Archie ◀──webhook────────────┘
+  You ◀──notification──── Handler ◀──webhook────────────┘
                             │
                      stores outcome in DB
                      (thread_id, summary,
@@ -254,7 +254,7 @@ Neither agent is born knowing about your product. Each layer gets context throug
                      into job.md automatically
 ```
 
-The **repo itself is the long-term memory**. Claude Code writes to `.planning/STATE.md` and `ROADMAP.md` during every phase execution. The next job reads those files and picks up where the last one left off. Archie doesn't need to remember the roadmap — Claude Code reads it fresh from the repo every time.
+The **repo itself is the long-term memory**. Claude Code writes to `.planning/STATE.md` and `ROADMAP.md` during every phase execution. The next job reads those files and picks up where the last one left off. The event handler doesn't need to remember the roadmap — Claude Code reads it fresh from the repo every time.
 
 This is why GSD skills matter: they're the structured workflows that read `.planning/*`, maintain state across jobs, and ensure continuity. Without GSD, each job would be truly isolated. With GSD, the `.planning/` directory acts as a persistent brain that survives across container lifecycles.
 
@@ -359,13 +359,9 @@ clawforge/
 │   └── triggers.js ─────────── TRIGGERS.json loader + fire-and-forget executor
 ├── config/ ──────────────────── Base config (SOUL.md, EVENT_HANDLER.md, AGENT.md)
 ├── instances/
-│   ├── noah/ ────────────────── Noah's instance (Slack + Telegram + Web)
-│   │   ├── Dockerfile
-│   │   ├── config/ ──────────── SOUL.md, EVENT_HANDLER.md, AGENT.md
-│   │   └── .env.example
-│   └── strategyES/ ──────────── StrategyES instance (Slack only, Jim-restricted)
+│   └── example/ ────────────── Example instance (copy to create your own)
 │       ├── Dockerfile
-│       ├── config/
+│       ├── config/ ──────────── SOUL.md, EVENT_HANDLER.md, AGENT.md
 │       └── .env.example
 ├── templates/ ───────────────── Scaffolding templates
 │   ├── docker/
@@ -416,13 +412,13 @@ Each instance runs in its own Docker network with its own environment, database,
             ┌──────────────┘       └──────────────┐
             ▼                                     ▼
   ┌─────────────────────┐            ┌─────────────────────┐
-  │     noah-net        │            │  strategyES-net      │
-  │                     │            │                      │
-  │  ● Own .env         │            │  ● Own .env          │
-  │  ● Own SQLite DB    │            │  ● Own SQLite DB     │
-  │  ● Own Slack app    │            │  ● Own Slack app     │
-  │  ● Can't see SES    │            │  ● Can't see Noah    │
-  └─────────────────────┘            └──────────────────────┘
+  │   instance-a-net    │            │   instance-b-net    │
+  │                     │            │                     │
+  │  ● Own .env         │            │  ● Own .env         │
+  │  ● Own SQLite DB    │            │  ● Own SQLite DB    │
+  │  ● Own Slack app    │            │  ● Own Slack app    │
+  │  ● Can't see B      │            │  ● Can't see A      │
+  └─────────────────────┘            └─────────────────────┘
 ```
 
 ---
@@ -450,16 +446,16 @@ Jobs can target any repo in `config/REPOS.json`. The agent resolves natural lang
 {
   "repos": [
     {
-      "owner": "ScalingEngine",
-      "slug": "neurostory",
-      "name": "NeuroStory",
-      "aliases": ["ns"]
+      "owner": "your-org",
+      "slug": "your-app",
+      "name": "Your App",
+      "aliases": ["app"]
     }
   ]
 }
 ```
 
-Usage in conversation: *"Create a landing page for NeuroStory"* — the agent resolves "NeuroStory" to the repo and targets the job accordingly.
+Usage in conversation: *"Create a landing page for Your App"* — the agent resolves the name to the repo and targets the job accordingly.
 
 ---
 
@@ -493,50 +489,12 @@ When a job completes, the notification routes back to the exact conversation whe
 
 ---
 
-## Roadmap
+## Instance Creation
+
+Operators can create new agent instances entirely through chat. Describe what you need, answer a few intake questions, and ClawForge scaffolds the full configuration as a PR.
 
 ```
-     SHIPPED                          IN PROGRESS              PLANNED
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━▶
-
-  v1.0                v1.1              v1.2              v1.3
-  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-  │ GSD Hardening  │  │ Agent Intel  │  │ Cross-Repo   │  │  Instance    │
-  │                │  │ & Pipeline   │  │ Job Targeting │  │  Generator   │
-  │ Phases 1-4     │  │ Phases 5-8   │  │ Phases 9-12  │  │ Phases 13-17 │
-  │ 2026-02-24     │  │ 2026-02-25   │  │ 2026-02-27   │  │ in progress  │
-  └────────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
-
-  v1.4                v1.5              v1.6              v1.7          v1.8
-  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ ┌──────────┐
-  │ Docker Engine  │  │ Persistent   │  │  MCP Tool    │  │  Smart   │ │  Multi-  │
-  │ Foundation     │  │ Workspaces   │  │  Layer       │  │Execution │ │  Agent   │
-  │ Phases 18-21   │  │ Phases 22-25 │  │ Phases 26-28 │  │  29-31   │ │ Clusters │
-  └────────────────┘  └──────────────┘  └──────────────┘  └──────────┘ └──────────┘
-```
-
-### Milestones
-
-| Version | Milestone | Phases | Status |
-|---------|-----------|--------|--------|
-| v1.0 | GSD Verification & Hardening | 1-4 | Shipped 2026-02-24 |
-| v1.1 | Agent Intelligence & Pipeline Hardening | 5-8 | Shipped 2026-02-25 |
-| v1.2 | Cross-Repo Job Targeting | 9-12 | Shipped 2026-02-27 |
-| v1.3 | Instance Generator | 13-17 | In progress |
-| v1.4 | Docker Engine Foundation | 18-21 | Planned |
-| v1.5 | Persistent Workspaces | 22-25 | Planned |
-| v1.6 | MCP Tool Layer | 26-28 | Planned |
-| v1.7 | Smart Execution | 29-31 | Planned |
-| v1.8 | Multi-Agent Clusters | 32-34 | Future |
-
-### What Each Milestone Delivers
-
-**v1.0-v1.2 (Shipped)** — Foundation. Claude Code CLI in Docker containers, git-commit audit trail, PR-based delivery, multi-channel support (Slack/Telegram/Web), cross-repo job targeting, notification routing back to originating thread.
-
-**v1.3 (In Progress)** — Instance creation via chat. Operators describe a new agent instance in conversation, Archie scaffolds the full config (Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, docker-compose entry, REPOS.json, .env.example) and opens a PR with setup instructions.
-
-```
- Operator                     Archie                    GitHub
+ Operator                     Agent                     GitHub
     │                           │                          │
     │  "create instance for X"  │                          │
     │ ────────────────────────▶ │                          │
@@ -557,6 +515,51 @@ When a job completes, the notification routes back to the exact conversation whe
     │  Operator reviews PR, merges, runs setup commands    │
 ```
 
+The scaffolded PR includes: Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, docker-compose entry, REPOS.json, and .env.example.
+
+---
+
+## Roadmap
+
+```
+     SHIPPED                          IN PROGRESS              PLANNED
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━▶
+
+  v1.0                v1.1              v1.2              v1.3
+  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+  │ GSD Hardening  │  │ Agent Intel  │  │ Cross-Repo   │  │  Instance    │
+  │                │  │ & Pipeline   │  │ Job Targeting │  │  Generator   │
+  │ Phases 1-4     │  │ Phases 5-8   │  │ Phases 9-12  │  │ Phases 13-17 │
+  └────────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+
+  v1.4                v1.5              v1.6              v1.7          v1.8
+  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ ┌──────────┐
+  │ Docker Engine  │  │ Persistent   │  │  MCP Tool    │  │  Smart   │ │  Multi-  │
+  │ Foundation     │  │ Workspaces   │  │  Layer       │  │Execution │ │  Agent   │
+  │ Phases 18-21   │  │ Phases 22-25 │  │ Phases 26-28 │  │  29-31   │ │ Clusters │
+  └────────────────┘  └──────────────┘  └──────────────┘  └──────────┘ └──────────┘
+```
+
+### Milestones
+
+| Version | Milestone | Status |
+|---------|-----------|--------|
+| v1.0 | GSD Verification & Hardening | Shipped |
+| v1.1 | Agent Intelligence & Pipeline Hardening | Shipped |
+| v1.2 | Cross-Repo Job Targeting | Shipped |
+| v1.3 | Instance Generator | In progress |
+| v1.4 | Docker Engine Foundation | Planned |
+| v1.5 | Persistent Workspaces | Planned |
+| v1.6 | MCP Tool Layer | Planned |
+| v1.7 | Smart Execution | Planned |
+| v1.8 | Multi-Agent Clusters | Future |
+
+### What Each Milestone Delivers
+
+**v1.0-v1.2 (Shipped)** — Foundation. Claude Code CLI in Docker containers, git-commit audit trail, PR-based delivery, multi-channel support (Slack/Telegram/Web), cross-repo job targeting, notification routing back to originating thread.
+
+**v1.3 (In Progress)** — Instance creation via chat. Operators describe a new agent instance in conversation, the event handler scaffolds the full config (Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, docker-compose entry, REPOS.json, .env.example) and opens a PR with setup instructions.
+
 **v1.4 (Planned)** — Docker Engine API replaces GitHub Actions for job dispatch. Containers start in seconds instead of minutes. Actions retained as fallback for CI-integrated repos.
 
 **v1.5 (Planned)** — Persistent interactive workspaces. Browser-based terminal (ttyd + xterm.js) connected to long-running containers. Operators can work interactively with Claude Code, not just fire-and-forget jobs.
@@ -571,7 +574,7 @@ When a job completes, the notification routes back to the exact conversation whe
 
 ## Acknowledgements
 
-Built on [thepopebot](https://github.com/stephengpope/thepopebot) by Stephen Pope. Adapted for Claude Code CLI by Noah Wessel / [Scaling Engine](https://scalingengine.com).
+Built on [thepopebot](https://github.com/stephengpope/thepopebot) by Stephen Pope.
 
 ---
 
@@ -579,7 +582,7 @@ Built on [thepopebot](https://github.com/stephengpope/thepopebot) by Stephen Pop
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | Full system diagrams, 10-step flow, container internals |
+| [Architecture](docs/ARCHITECTURE.md) | Full system diagrams, 12-step flow, container internals |
 | [Configuration](docs/CONFIGURATION.md) | Environment variables, GitHub secrets, repo variables |
 | [Customization](docs/CUSTOMIZATION.md) | Personality files, skills, agent behavior |
 | [Chat Integrations](docs/CHAT_INTEGRATIONS.md) | Slack, Telegram, Web Chat setup |
