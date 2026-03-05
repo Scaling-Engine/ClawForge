@@ -183,6 +183,81 @@ ClawForge runs **two completely separate AI agents** that never share context di
 - Each coding job starts fresh — no accumulated state, no context bleed between jobs
 - Prior job context is injected by Layer 1 into the *next* job.md when you're in the same thread
 
+### How Each Layer Gets Context
+
+Neither agent is born knowing about your product. Each layer gets context through different mechanisms, loaded at different times.
+
+```
+  LAYER 1: WHAT ARCHIE KNOWS                LAYER 2: WHAT CLAUDE CODE KNOWS
+  ───────────────────────────                ─────────────────────────────────
+
+  Loaded at startup (baked in):              Loaded per-job (fresh each time):
+  ┌─────────────────────────────┐            ┌─────────────────────────────┐
+  │                             │            │                             │
+  │  EVENT_HANDLER.md           │            │  AGENT.md                   │
+  │  ├─ Your role & personality │            │  ├─ Tool inventory          │
+  │  ├─ Available repos list    │            │  ├─ GSD command reference   │
+  │  ├─ MCP integrations        │            │  └─ Working directory rules │
+  │  ├─ GSD command reference   │            │                             │
+  │  ├─ Job creation protocol   │            │  job.md (the task prompt)   │
+  │  ├─ Instance intake flow    │            │  ├─ What to do              │
+  │  └─ Conversational rules    │            │  ├─ Prior job context *     │
+  │                             │            │  └─ target.json (which repo)│
+  │  SOUL.md                    │            │                             │
+  │  └─ Identity & style        │            │  CLAUDE.md (from the repo)  │
+  └─────────────────────────────┘            │  └─ Project-specific rules  │
+                                             │                             │
+  Accumulated over time:                     │  The entire repo:           │
+  ┌─────────────────────────────┐            │  ├─ All source code         │
+  │                             │            │  ├─ .planning/              │
+  │  SQLite + LangGraph         │            │  │  ├─ STATE.md             │
+  │  ├─ Full conversation       │            │  │  ├─ ROADMAP.md          │
+  │  │  history (all threads)   │            │  │  ├─ REQUIREMENTS.md     │
+  │  ├─ Checkpointed agent      │            │  │  └─ phases/*/PLAN.md    │
+  │  │  state (resumable)       │            │  ├─ package.json, configs  │
+  │  └─ Job outcomes (per       │            │  └─ everything else        │
+  │     thread, for continuity) │            │                             │
+  │                             │            │  GSD skills (30 commands)   │
+  │  get_system_technical_specs │            │  └─ Structured workflows    │
+  │  └─ On-demand CLAUDE.md     │            │     that read .planning/*   │
+  │     read (architecture)     │            │     and maintain state      │
+  └─────────────────────────────┘            └─────────────────────────────┘
+
+  * Prior job context = last merged PR's summary, files changed, and
+    status from the same thread. Injected into job.md automatically.
+```
+
+**Layer 1 (Archie) is context-poor but memory-rich.** It knows how to talk to you and what tools to dispatch, but it can't read code or see project state. Its knowledge of the product comes from: (1) what you tell it in conversation, (2) prior job outcomes stored in the DB, and (3) the `get_system_technical_specs` tool which reads CLAUDE.md on demand. It does NOT have access to the roadmap, phase status, or `.planning/` directory.
+
+**Layer 2 (Claude Code) is context-rich but memory-less.** Every job starts with a fresh clone — it sees the entire repo including `.planning/STATE.md`, `ROADMAP.md`, `REQUIREMENTS.md`, and all phase plans. GSD skills read these files to understand where the project is and what to do next. But when the container exits, all that context is gone. The next job starts fresh.
+
+**The feedback loop that builds product memory:**
+
+```
+  You ──"build feature X"──▶ Archie ──job.md──▶ Claude Code
+                                                     │
+                                              reads .planning/*
+                                              knows roadmap, state
+                                              executes with full context
+                                                     │
+                                              commits + PR + SUMMARY.md
+                                              updates STATE.md, ROADMAP.md
+                                                     │
+  You ◀──notification──── Archie ◀──webhook────────────┘
+                            │
+                     stores outcome in DB
+                     (thread_id, summary,
+                      changed files, PR URL)
+                            │
+                     next job in same thread
+                     gets prior context injected
+                     into job.md automatically
+```
+
+The **repo itself is the long-term memory**. Claude Code writes to `.planning/STATE.md` and `ROADMAP.md` during every phase execution. The next job reads those files and picks up where the last one left off. Archie doesn't need to remember the roadmap — Claude Code reads it fresh from the repo every time.
+
+This is why GSD skills matter: they're the structured workflows that read `.planning/*`, maintain state across jobs, and ensure continuity. Without GSD, each job would be truly isolated. With GSD, the `.planning/` directory acts as a persistent brain that survives across container lifecycles.
+
 ### Two-Layer Design
 
 | Layer | What | Tech |
