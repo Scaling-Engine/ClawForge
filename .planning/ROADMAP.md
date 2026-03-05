@@ -57,11 +57,11 @@
   **Plans:** 1 plan
   Plans:
   - [x] 16-01-PLAN.md — Add blocked-paths exclusion to auto-merge workflow + entrypoint --body-file fix
-- [ ] **Phase 16.1: Entrypoint Sync** — Propagate --body-file from templates/entrypoint.sh to docker/job/entrypoint.sh
+- [x] **Phase 16.1: Entrypoint Sync** — Propagate --body-file from templates/entrypoint.sh to docker/job/entrypoint.sh (completed 2026-03-05)
   **Gap Closure:** Closes integration gap from v1.3 audit (DELIV-01)
   **Plans:** 1 plan
   Plans:
-  - [ ] 16.1-01-PLAN.md — Replace --body "$PR_BODY" with --body-file in deployed entrypoint.sh
+  - [x] 16.1-01-PLAN.md — Replace --body "$PR_BODY" with --body-file in deployed entrypoint.sh
 - [ ] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation
 
 ---
@@ -148,7 +148,7 @@
 | 14. Intake Flow | v1.3 | 2/2 | Complete | 2026-03-04 |
 | 15. Job Prompt Completeness | v1.3 | 1/1 | Complete | 2026-03-04 |
 | 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 1/1 | Complete | 2026-03-05 |
-| 16.1. Entrypoint Sync | v1.3 | 0/1 | Not started | - |
+| 16.1. Entrypoint Sync | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 17. End-to-End Validation | v1.3 | 0/TBD | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
@@ -169,4 +169,4 @@
 | 34. Cluster Coordination | v1.8 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-05 — Gap closure Phase 16.1 added from v1.3 audit*
+*Last updated: 2026-03-05 — Phase 16.1 completed (entrypoint --body-file sync)*

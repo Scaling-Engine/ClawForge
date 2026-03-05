@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Instance Generator
 status: verifying
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-05T05:26:59.249Z"
-last_activity: 2026-02-27 — Phase 14 Plan 01 executed (Instance Creation Intake section added to EVENT_HANDLER.md)
+stopped_at: Completed 16.1-01-PLAN.md
+last_updated: "2026-03-05T06:00:40Z"
+last_activity: 2026-03-05 — Phase 16.1 Plan 01 executed (entrypoint.sh --body-file sync)
 progress:
   total_phases: 12
   completed_phases: 12
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 ## Current Position
 
-Phase: 14 of 17 (Intake Flow)
-Plan: 1 of 2 complete (Plan 14-01 done, Plan 14-02 pending human verify)
-Status: Wave 1 complete — awaiting human verification checkpoint (Plan 14-02)
-Last activity: 2026-02-27 — Phase 14 Plan 01 executed (Instance Creation Intake section added to EVENT_HANDLER.md)
+Phase: 16.1 (Entrypoint Sync) — complete
+Plan: 1 of 1 complete
+Status: Phase 16.1 complete — ready for Phase 17 (End-to-End Validation)
+Last activity: 2026-03-05 — Phase 16.1 Plan 01 executed (entrypoint.sh --body-file sync)
 
 Progress: [██████████] 100%
 
@@ -55,6 +55,7 @@ Progress: [██████████] 100%
 
 *Updated after each plan completion*
 | Phase 16 P01 | 1min | 2 tasks | 3 files |
+| Phase 16.1 P01 | 0.5min | 1 task | 1 file |
 
 ## Accumulated Context
 
@@ -79,11 +80,11 @@ Progress: [██████████] 100%
 
 - [v1.3 pre-work]: StrategyES instance REPOS.json content needs operator confirmation (carried from v1.2)
 - [v1.3 pre-work]: Fine-grained PAT scope update is an operator action — must be documented in .env.example before any cross-repo job runs (carried from v1.2)
-- [Phase 15]: PR body delivery mechanism (--body-file vs --body inline) must be confirmed against entrypoint.sh before writing job prompt instructions
+- [Phase 15]: PR body delivery mechanism — RESOLVED: Phase 16.1 confirmed both template and deployed entrypoint.sh use --body-file
 - [Phase 15]: yaml package parseDocument() + addIn() API against actual docker-compose.yml (nested Traefik command arrays) warrants a focused test before job prompt includes it
 
 ## Session Continuity
 
-Last session: 2026-03-05T05:25:11.905Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-03-05T06:00:40Z
+Stopped at: Completed 16.1-01-PLAN.md
 Resume file: None
