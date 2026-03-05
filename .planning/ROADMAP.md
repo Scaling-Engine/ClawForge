@@ -54,6 +54,9 @@
   Plans:
   - [ ] 15-01-PLAN.md — Create buildInstanceJobDescription() with tests and wire into tools.js
 - [ ] **Phase 16: PR Pipeline and Auto-Merge Exclusion** — Merge policy for instance PRs
+  **Plans:** 1 plan
+  Plans:
+  - [ ] 16-01-PLAN.md — Add blocked-paths exclusion to auto-merge workflow + entrypoint --body-file fix
 - [ ] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation
 
 ---
@@ -139,7 +142,7 @@
 | 13. Tool Infrastructure | v1.3 | 1/1 | Complete | 2026-02-27 |
 | 14. Intake Flow | v1.3 | 1/2 | In Progress | - |
 | 15. Job Prompt Completeness | v1.3 | 0/1 | Planned | - |
-| 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 0/TBD | Not started | - |
+| 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 0/1 | Planned | - |
 | 17. End-to-End Validation | v1.3 | 0/TBD | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
@@ -160,4 +163,4 @@
 | 34. Cluster Coordination | v1.8 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-04 — added v1.4-v1.8 milestones based on Stripe minions analysis + thepopebot upstream review*
+*Last updated: 2026-03-05 — Phase 16 plan created (1 plan)*
