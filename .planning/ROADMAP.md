@@ -142,7 +142,7 @@
 | 13. Tool Infrastructure | v1.3 | 1/1 | Complete | 2026-02-27 |
 | 14. Intake Flow | v1.3 | 1/2 | In Progress | - |
 | 15. Job Prompt Completeness | v1.3 | 0/1 | Planned | - |
-| 16. PR Pipeline and Auto-Merge Exclusion | 1/1 | Complete   | 2026-03-05 | - |
+| 16. PR Pipeline and Auto-Merge Exclusion | 1/1 | Complete    | 2026-03-05 | - |
 | 17. End-to-End Validation | v1.3 | 0/TBD | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
