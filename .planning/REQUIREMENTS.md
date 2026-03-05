@@ -24,8 +24,8 @@ Requirements for the Instance Generator milestone. Each maps to roadmap phases.
 
 ### Delivery
 
-- [ ] **DELIV-01**: PR body includes an instance-specific operator setup checklist (exact GitHub secret names, Slack app scopes, PAT permissions, post-merge commands)
-- [ ] **DELIV-02**: Instance scaffolding PRs are excluded from auto-merge and require manual operator review before merge
+- [x] **DELIV-01**: PR body includes an instance-specific operator setup checklist (exact GitHub secret names, Slack app scopes, PAT permissions, post-merge commands)
+- [x] **DELIV-02**: Instance scaffolding PRs are excluded from auto-merge and require manual operator review before merge
 - [ ] **DELIV-03**: End-to-end validation run succeeds: multi-turn conversation → approval → job dispatch → PR with all 7 artifacts verified correct
 
 ## Future Requirements
@@ -69,8 +69,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCAF-02 | Phase 15 | Pending |
 | SCAF-03 | Phase 15 | Pending |
 | SCAF-04 | Phase 15 | Pending |
-| DELIV-01 | Phase 16 | Pending |
-| DELIV-02 | Phase 16 | Pending |
+| DELIV-01 | Phase 16 | Complete |
+| DELIV-02 | Phase 16 | Complete |
 | DELIV-03 | Phase 17 | Pending |
 
 **Coverage:**

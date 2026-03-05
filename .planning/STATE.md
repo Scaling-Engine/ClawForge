@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.3
+milestone_name: Instance Generator
+status: verifying
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-03-05T05:25:11.907Z"
+last_activity: 2026-02-27 — Phase 14 Plan 01 executed (Instance Creation Intake section added to EVENT_HANDLER.md)
+progress:
+  total_phases: 12
+  completed_phases: 12
+  total_plans: 18
+  completed_plans: 18
+  percent: 100
+---
+
 # Project State
 
 ## Project Reference
@@ -14,7 +30,7 @@ Plan: 1 of 2 complete (Plan 14-01 done, Plan 14-02 pending human verify)
 Status: Wave 1 complete — awaiting human verification checkpoint (Plan 14-02)
 Last activity: 2026-02-27 — Phase 14 Plan 01 executed (Instance Creation Intake section added to EVENT_HANDLER.md)
 
-Progress: [████████████░░░░░░░░] 60% (12/17 phases complete across all milestones)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -38,6 +54,7 @@ Progress: [████████████░░░░░░░░] 60% (12
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 16 P01 | 1min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -52,6 +69,7 @@ Progress: [████████████░░░░░░░░] 60% (12
 - [v1.3 roadmap]: yaml@^2.8.2 is the only new dependency — ESM-native, comment-preserving for docker-compose.yml modification
 - [v1.3 roadmap]: Instance scaffolding PRs excluded from auto-merge — broken configs must be reviewed before reaching main
 - [v1.3 roadmap]: Literal AGENT.md template must be embedded in job prompt — tool name casing is case-sensitive in --allowedTools; LLM cannot infer correct casing reliably
+- [Phase 16]: Blocked-paths check runs before ALLOWED_PATHS so even ALLOWED_PATHS=/ cannot bypass instance protection
 
 ### Pending Todos
 
@@ -66,6 +84,6 @@ Progress: [████████████░░░░░░░░] 60% (12
 
 ## Session Continuity
 
-Last session: 2026-02-27
-Stopped at: v1.3 roadmap created — Phases 13-17 defined, REQUIREMENTS.md traceability updated
+Last session: 2026-03-05T05:25:11.905Z
+Stopped at: Completed 16-01-PLAN.md
 Resume file: None

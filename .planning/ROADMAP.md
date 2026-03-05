@@ -53,7 +53,7 @@
 - [ ] **Phase 15: Job Prompt Completeness** — buildInstanceJobDescription() generates all 7 artifacts
   Plans:
   - [ ] 15-01-PLAN.md — Create buildInstanceJobDescription() with tests and wire into tools.js
-- [ ] **Phase 16: PR Pipeline and Auto-Merge Exclusion** — Merge policy for instance PRs
+- [x] **Phase 16: PR Pipeline and Auto-Merge Exclusion** — Merge policy for instance PRs (completed 2026-03-05)
   **Plans:** 1 plan
   Plans:
   - [ ] 16-01-PLAN.md — Add blocked-paths exclusion to auto-merge workflow + entrypoint --body-file fix
@@ -142,7 +142,7 @@
 | 13. Tool Infrastructure | v1.3 | 1/1 | Complete | 2026-02-27 |
 | 14. Intake Flow | v1.3 | 1/2 | In Progress | - |
 | 15. Job Prompt Completeness | v1.3 | 0/1 | Planned | - |
-| 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 0/1 | Planned | - |
+| 16. PR Pipeline and Auto-Merge Exclusion | 1/1 | Complete   | 2026-03-05 | - |
 | 17. End-to-End Validation | v1.3 | 0/TBD | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
