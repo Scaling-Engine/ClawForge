@@ -88,6 +88,21 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - Cross-repo jobs touching multiple repos — requires transaction model; use sequential single-repo jobs
 - Installing ClawForge workflows in target repos — creates tight coupling
 
+## Long-Term Vision
+
+**Target:** Stripe-level coding agent platform (1,000+ AI-authored PRs/week) using Docker Compose instead of AWS/k8s.
+
+**Full plan:** `.planning/VISION.md` — gap analysis (Stripe vs ClawForge vs thepopebot), architecture evolution, decision rationale
+
+**Milestone map (v1.4-v1.8):**
+- **v1.4 Docker Engine Foundation** — Replace GH Actions dispatch with direct Docker API (pull from thepopebot `lib/tools/docker.js`)
+- **v1.5 Persistent Workspaces** — Interactive "devbox" containers with browser terminal (pull from thepopebot `lib/code/`)
+- **v1.6 MCP Tool Layer** — Per-instance MCP server configs, curated tool subsets (Stripe "Toolshed" equivalent)
+- **v1.7 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
+- **v1.8 Multi-Agent Clusters** — Coordinated agent groups (pull cluster schema from thepopebot, build runtime)
+
+**Sources:** Stripe minions blog (stripe.dev/blog/minions), thepopebot upstream (stephengpope/thepopebot), analyzed 2026-03-04
+
 ## Context
 
 - **Codebase mapped**: `.planning/codebase/` has 7 documents covering architecture, stack, conventions, concerns

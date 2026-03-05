@@ -265,9 +265,14 @@ fi
 
 # Create PR only if Claude succeeded AND produced commits
 if [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ]; then
+    # Use custom PR body if agent created one, otherwise default
+    PR_BODY="Automated job by ClawForge"
+    if [ -f /tmp/pr-body.md ]; then
+        PR_BODY=$(cat /tmp/pr-body.md)
+    fi
     gh pr create \
         --title "clawforge: job ${JOB_ID}" \
-        --body "Automated job by ClawForge" \
+        --body "$PR_BODY" \
         --base main || true
 else
     echo "Skipping PR: CLAUDE_EXIT=${CLAUDE_EXIT}, HAS_NEW_COMMIT=${HAS_NEW_COMMIT}"

@@ -30,11 +30,7 @@ GH_USER_EMAIL=$(echo "$GH_USER_JSON" | jq -r '.email // "\(.id)+\(.login)@users.
 git config --global user.name "$GH_USER_NAME"
 git config --global user.email "$GH_USER_EMAIL"
 
-# EXEC-04 compliance: gh auth setup-git (line 26) handles all git credential resolution.
-# REPO_URL is set by Actions workflow as "https://github.com/owner/repo.git" — no PAT interpolated.
-# PAT flows only via GH_TOKEN env var (from SECRETS JSON), consumed by gh CLI. Never in clone URLs.
-
-# 5. Clone the job branch (clawforge repo — always /job)
+# 5. Clone the job branch
 if [ -n "$REPO_URL" ]; then
     git clone --single-branch --branch "$BRANCH" --depth 1 "$REPO_URL" /job
 else
@@ -42,56 +38,7 @@ else
     exit 1
 fi
 
-# 5b. Detect cross-repo job and clone target repo if applicable (EXEC-01)
-WORK_DIR="/job"
-TARGET_REPO_URL=""
-TARGET_REPO_SLUG=""
-
-if [ -f "/job/logs/${JOB_ID}/target.json" ]; then
-    TARGET_REPO_URL=$(jq -r '.repo_url' "/job/logs/${JOB_ID}/target.json")
-    TARGET_REPO_SLUG=$(jq -r '.owner + "/" + .slug' "/job/logs/${JOB_ID}/target.json")
-    echo "Cross-repo job detected. Target: ${TARGET_REPO_SLUG}"
-
-    # Clone target repo with failure guard (EXEC-03)
-    # set -e disabled around clone to capture exit code before writing error artifact
-    set +e
-    git clone --single-branch --depth 1 "$TARGET_REPO_URL" /workspace 2>&1
-    CLONE_EXIT=$?
-    set -e
-
-    if [ "$CLONE_EXIT" -ne 0 ]; then
-        # Write clone-error.md failure artifact to clawforge job branch (EXEC-03)
-        CLONE_ERROR_FILE="/job/logs/${JOB_ID}/clone-error.md"
-        cat > "${CLONE_ERROR_FILE}" << EOF
-# Clone Failure — Job ${JOB_ID}
-
-**Stage:** clone
-**Target:** ${TARGET_REPO_URL}
-**Exit code:** ${CLONE_EXIT}
-**Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-The target repository could not be cloned. Verify AGENT_GH_TOKEN has repo scope on the target repository.
-EOF
-        echo "clone-error.md written to ${CLONE_ERROR_FILE}"
-        git -C /job add -A
-        git -C /job commit -m "clawforge: job ${JOB_ID} clone-error.md" || true
-        git -C /job push origin || true
-        exit 1
-    fi
-
-    WORK_DIR="/workspace"
-    echo "Target repo cloned to /workspace. WORK_DIR=/workspace"
-
-    # Create clawforge/{uuid} branch in target repo before Claude runs (PR-05)
-    # All Claude's commits will land on this branch; pushed to remote in section 12b
-    git -C /workspace checkout -b "clawforge/${JOB_ID}"
-    echo "Created branch clawforge/${JOB_ID} in target repo"
-fi
-
-export TARGET_REPO_URL
-export TARGET_REPO_SLUG
-
-cd "$WORK_DIR"
+cd /job
 
 # Create temp directory (gitignored)
 mkdir -p /job/tmp
@@ -135,21 +82,14 @@ EOF
 
 echo "=== PREFLIGHT COMPLETE ==="
 
-# 7. Build system prompt from config files (with /defaults/ fallback for cross-repo jobs)
+# 7. Build system prompt from config files
 SYSTEM_PROMPT=""
-SOUL_FILE="/job/config/SOUL.md"
-AGENT_FILE="/job/config/AGENT.md"
-
-# Fall back to baked-in defaults when working in a foreign repo (EXEC-02)
-[ ! -f "$SOUL_FILE" ]  && SOUL_FILE="/defaults/SOUL.md"
-[ ! -f "$AGENT_FILE" ] && AGENT_FILE="/defaults/AGENT.md"
-
-if [ -f "$SOUL_FILE" ]; then
-    SYSTEM_PROMPT=$(cat "$SOUL_FILE")
+if [ -f "/job/config/SOUL.md" ]; then
+    SYSTEM_PROMPT=$(cat /job/config/SOUL.md)
     SYSTEM_PROMPT="${SYSTEM_PROMPT}\n\n"
 fi
-if [ -f "$AGENT_FILE" ]; then
-    SYSTEM_PROMPT="${SYSTEM_PROMPT}$(cat "$AGENT_FILE")"
+if [ -f "/job/config/AGENT.md" ]; then
+    SYSTEM_PROMPT="${SYSTEM_PROMPT}$(cat /job/config/AGENT.md)"
 fi
 
 # Resolve {{datetime}} variable
@@ -162,18 +102,14 @@ if [ -f "/job/logs/${JOB_ID}/job.md" ]; then
 fi
 
 # 8b. Read repo context for prompt enrichment
-# Derive context repo slug — use target repo slug for cross-repo jobs
-if [ -n "$TARGET_REPO_SLUG" ]; then
-    REPO_SLUG="$TARGET_REPO_SLUG"
-else
-    REPO_SLUG=$(echo "$REPO_URL" | sed 's|https://[^/]*/||' | sed 's|\.git$||')
-fi
+# Derive target repo slug from REPO_URL (e.g., "ScalingEngine/clawforge")
+REPO_SLUG=$(echo "$REPO_URL" | sed 's|https://[^/]*/||' | sed 's|\.git$||')
 
-# Read CLAUDE.md from WORK_DIR (capped at ~2000 tokens = 8000 chars)
+# Read CLAUDE.md (capped at ~2000 tokens = 8000 chars)
 REPO_CLAUDE_MD=""
 REPO_CLAUDE_MD_TRUNCATED=false
-if [ -f "${WORK_DIR}/CLAUDE.md" ]; then
-    RAW_CLAUDE_MD=$(cat "${WORK_DIR}/CLAUDE.md")
+if [ -f "/job/CLAUDE.md" ]; then
+    RAW_CLAUDE_MD=$(cat /job/CLAUDE.md)
     CHAR_COUNT=${#RAW_CLAUDE_MD}
     if [ "$CHAR_COUNT" -gt 8000 ]; then
         REPO_CLAUDE_MD=$(printf '%s' "$RAW_CLAUDE_MD" | head -c 8000)
@@ -185,12 +121,12 @@ fi
 
 # Read package.json dependencies only (devDeps excluded to keep Stack concise)
 REPO_STACK=""
-if [ -f "${WORK_DIR}/package.json" ]; then
+if [ -f "/job/package.json" ]; then
     REPO_STACK=$(jq -r '
         (.dependencies // {})
         | to_entries[]
         | "\(.key): \(.value)"
-    ' "${WORK_DIR}/package.json" 2>/dev/null || echo "[unable to parse package.json]")
+    ' /job/package.json 2>/dev/null || echo "[unable to parse package.json]")
 fi
 
 # 8c. Derive GSD routing hint from task keywords
@@ -215,16 +151,6 @@ echo -e "$SYSTEM_PROMPT" > /tmp/system-prompt.md
 ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-Read,Write,Edit,Bash,Glob,Grep,Task,Skill}"
 
 # 11. Run Claude Code with job description
-
-# Build cross-repo context note for FULL_PROMPT
-CROSS_REPO_NOTE=""
-if [ -n "$TARGET_REPO_SLUG" ]; then
-    CROSS_REPO_NOTE="
-
-## Cross-Repo Context
-
-You are operating on **${TARGET_REPO_SLUG}** (not the ClawForge repository). Your working directory is the root of that repository. All files you create, edit, or read are in ${TARGET_REPO_SLUG}. Commits will be pushed to a branch named \`clawforge/${JOB_ID}\` on that repository. A pull request will be created on ${TARGET_REPO_SLUG} automatically after your work is committed."
-fi
 
 # Build Repository Documentation section
 if [ -n "$REPO_CLAUDE_MD" ]; then
@@ -271,7 +197,7 @@ ${JOB_DESCRIPTION}
 ## GSD Hint
 
 Recommended: /gsd:${GSD_HINT}
-Reason: ${GSD_HINT_REASON}${CROSS_REPO_NOTE}"
+Reason: ${GSD_HINT_REASON}"
 
 echo "Running Claude Code with job ${JOB_ID}..."
 echo "FULL_PROMPT length: ${#FULL_PROMPT}"
@@ -321,90 +247,7 @@ fi
   fi
 } > "${OBS_FILE}"
 
-# 12. Commit all changes to clawforge job branch
-cd /job
-
-# 12b. Cross-repo: push Claude's work to target repo and create PR on target repo
-if [ -n "$TARGET_REPO_SLUG" ]; then
-    # Push the clawforge/{uuid} branch (created in section 5b) to the remote target repo
-    git -C /workspace push origin "clawforge/${JOB_ID}" || true
-    echo "Pushed clawforge/${JOB_ID} to ${TARGET_REPO_SLUG}"
-
-    # Detect target repo's actual default branch (PR-03) — do not hardcode main
-    DEFAULT_BRANCH=$(gh repo view "$TARGET_REPO_SLUG" --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
-    DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
-    echo "Target default branch: ${DEFAULT_BRANCH}"
-
-    # Build PR body via file to avoid shell quoting hazards with multi-line strings (PR-04)
-    JOB_DESCRIPTION_FIRST_LINE=$(echo "$JOB_DESCRIPTION" | head -1 | cut -c1-72)
-    CLAWFORGE_REPO=$(echo "$REPO_URL" | sed 's|https://[^/]*/||' | sed 's|\.git$||')
-    cat > /tmp/pr-body.md << EOF
-> **ClawForge AI-Generated PR** — This pull request was created autonomously by [ClawForge](https://github.com/${CLAWFORGE_REPO}) (job \`${JOB_ID}\`). All AI-generated changes should be reviewed carefully before merging.
-
-## Job Description
-
-${JOB_DESCRIPTION}
-
-## Originating Job
-
-- **ClawForge repo:** \`${CLAWFORGE_REPO}\`
-- **Job branch:** \`${BRANCH}\`
-- **Job ID:** \`${JOB_ID}\`
-
-## Changes Summary
-
-_Claude Code completed the task above. Review the diff for the full list of changes._
-EOF
-
-    # Create PR on target repo (PR-02, PR-04, PR-05) — regular open PR, no draft, no labels
-    set +e
-    PR_OUTPUT=$(gh pr create \
-        --repo "$TARGET_REPO_SLUG" \
-        --head "clawforge/${JOB_ID}" \
-        --base "$DEFAULT_BRANCH" \
-        --title "clawforge: ${JOB_DESCRIPTION_FIRST_LINE}" \
-        --body-file /tmp/pr-body.md 2>&1)
-    PR_EXIT=$?
-    set -e
-
-    if [ "$PR_EXIT" -ne 0 ]; then
-        # Write pr-error.md to clawforge job branch so failure is observable
-        cat > "${LOG_DIR}/pr-error.md" << EOF
-# PR Creation Failure — Job ${JOB_ID}
-
-**Stage:** pr-creation
-**Target:** ${TARGET_REPO_SLUG}
-**Branch:** clawforge/${JOB_ID}
-**Exit code:** ${PR_EXIT}
-**Output:** ${PR_OUTPUT}
-**Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-EOF
-        git -C /job add -A
-        echo "pr-error.md committed to clawforge job branch"
-        git -C /job commit -m "clawforge: job ${JOB_ID} pr-error.md" || true
-        git -C /job push origin || true
-        exit 1
-    fi
-
-    # Extract PR URL (gh pr create outputs the URL as the last line)
-    PR_URL=$(echo "$PR_OUTPUT" | tail -1)
-    PR_NUMBER=$(gh pr view "$PR_URL" --json number -q '.number' 2>/dev/null || echo "")
-
-    # Write pr-result.json sidecar BEFORE final git add so it is included in the clawforge commit
-    # This file is the trigger for notify-pr-complete.yml cross-repo push path (Phase 10-03)
-    cat > "${LOG_DIR}/pr-result.json" << EOF
-{
-  "target_repo": "${TARGET_REPO_SLUG}",
-  "pr_url": "${PR_URL}",
-  "pr_number": "${PR_NUMBER}",
-  "branch": "clawforge/${JOB_ID}",
-  "job_id": "${JOB_ID}"
-}
-EOF
-    echo "Cross-repo PR created: ${PR_URL}"
-    echo "pr-result.json written to ${LOG_DIR}"
-fi
-
+# 12. Commit all changes and conditionally create PR
 # Record HEAD before commit to detect if commit produces new changes
 HEAD_BEFORE=$(git rev-parse HEAD)
 
@@ -420,16 +263,19 @@ if [ "$HEAD_BEFORE" != "$HEAD_AFTER" ]; then
     HAS_NEW_COMMIT=true
 fi
 
-# Same-repo PR creation (unchanged from v1.1) — only when not a cross-repo job
-if [ -z "$TARGET_REPO_SLUG" ]; then
-    if [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ]; then
-        gh pr create \
-            --title "clawforge: job ${JOB_ID}" \
-            --body "Automated job by ClawForge" \
-            --base main || true
-    else
-        echo "Skipping PR: CLAUDE_EXIT=${CLAUDE_EXIT}, HAS_NEW_COMMIT=${HAS_NEW_COMMIT}"
+# Create PR only if Claude succeeded AND produced commits
+if [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ]; then
+    # Use custom PR body if agent created one, otherwise default
+    PR_BODY="Automated job by ClawForge"
+    if [ -f /tmp/pr-body.md ]; then
+        PR_BODY=$(cat /tmp/pr-body.md)
     fi
+    gh pr create \
+        --title "clawforge: job ${JOB_ID}" \
+        --body "$PR_BODY" \
+        --base main || true
+else
+    echo "Skipping PR: CLAUDE_EXIT=${CLAUDE_EXIT}, HAS_NEW_COMMIT=${HAS_NEW_COMMIT}"
 fi
 
 echo "Done. Job ID: ${JOB_ID} (exit: ${CLAUDE_EXIT})"
