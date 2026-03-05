@@ -308,6 +308,82 @@ When a job completes, the notification routes back to the exact conversation whe
 
 ---
 
+## Roadmap
+
+```
+     SHIPPED                          IN PROGRESS              PLANNED
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━▶
+
+  v1.0                v1.1              v1.2              v1.3
+  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+  │ GSD Hardening  │  │ Agent Intel  │  │ Cross-Repo   │  │  Instance    │
+  │                │  │ & Pipeline   │  │ Job Targeting │  │  Generator   │
+  │ Phases 1-4     │  │ Phases 5-8   │  │ Phases 9-12  │  │ Phases 13-17 │
+  │ 2026-02-24     │  │ 2026-02-25   │  │ 2026-02-27   │  │ in progress  │
+  └────────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+
+  v1.4                v1.5              v1.6              v1.7          v1.8
+  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ ┌──────────┐
+  │ Docker Engine  │  │ Persistent   │  │  MCP Tool    │  │  Smart   │ │  Multi-  │
+  │ Foundation     │  │ Workspaces   │  │  Layer       │  │Execution │ │  Agent   │
+  │ Phases 18-21   │  │ Phases 22-25 │  │ Phases 26-28 │  │  29-31   │ │ Clusters │
+  └────────────────┘  └──────────────┘  └──────────────┘  └──────────┘ └──────────┘
+```
+
+### Milestones
+
+| Version | Milestone | Phases | Status |
+|---------|-----------|--------|--------|
+| v1.0 | GSD Verification & Hardening | 1-4 | Shipped 2026-02-24 |
+| v1.1 | Agent Intelligence & Pipeline Hardening | 5-8 | Shipped 2026-02-25 |
+| v1.2 | Cross-Repo Job Targeting | 9-12 | Shipped 2026-02-27 |
+| v1.3 | Instance Generator | 13-17 | In progress |
+| v1.4 | Docker Engine Foundation | 18-21 | Planned |
+| v1.5 | Persistent Workspaces | 22-25 | Planned |
+| v1.6 | MCP Tool Layer | 26-28 | Planned |
+| v1.7 | Smart Execution | 29-31 | Planned |
+| v1.8 | Multi-Agent Clusters | 32-34 | Future |
+
+### What Each Milestone Delivers
+
+**v1.0-v1.2 (Shipped)** — Foundation. Claude Code CLI in Docker containers, git-commit audit trail, PR-based delivery, multi-channel support (Slack/Telegram/Web), cross-repo job targeting, notification routing back to originating thread.
+
+**v1.3 (In Progress)** — Instance creation via chat. Operators describe a new agent instance in conversation, Archie scaffolds the full config (Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, docker-compose entry, REPOS.json, .env.example) and opens a PR with setup instructions.
+
+```
+ Operator                     Archie                    GitHub
+    │                           │                          │
+    │  "create instance for X"  │                          │
+    │ ────────────────────────▶ │                          │
+    │                           │                          │
+    │  ◀── intake questions ──▶ │  (3-4 turns)            │
+    │                           │                          │
+    │  "approved"               │                          │
+    │ ────────────────────────▶ │                          │
+    │                           │── push job/* branch ───▶ │
+    │                           │                          │── Actions: run-job.yml
+    │                           │                          │── Claude Code container
+    │                           │                          │── scaffold 7 artifacts
+    │                           │                     PR ◀─┤  (blocked from auto-merge)
+    │                           │  ◀── notification ─────  │
+    │  ◀── "PR ready for       │                          │
+    │       review" ───────────┤                          │
+    │                           │                          │
+    │  Operator reviews PR, merges, runs setup commands    │
+```
+
+**v1.4 (Planned)** — Docker Engine API replaces GitHub Actions for job dispatch. Containers start in seconds instead of minutes. Actions retained as fallback for CI-integrated repos.
+
+**v1.5 (Planned)** — Persistent interactive workspaces. Browser-based terminal (ttyd + xterm.js) connected to long-running containers. Operators can work interactively with Claude Code, not just fire-and-forget jobs.
+
+**v1.6 (Planned)** — Per-instance MCP server configuration. Each agent gets curated tool access (databases, APIs, services) via MCP servers started alongside Claude Code in the job container.
+
+**v1.7 (Planned)** — Quality gates. Lint + typecheck before commit, CI feedback loops (at most 2 retries), per-repo merge policies replacing the current path-based auto-merge.
+
+**v1.8 (Future)** — Multi-agent coordination. A lead agent decomposes complex tasks, dispatches to worker containers operating on shared volumes or separate branches, then aggregates results into a single PR.
+
+---
+
 ## Acknowledgements
 
 Built on [thepopebot](https://github.com/stephengpope/thepopebot) by Stephen Pope. Adapted for Claude Code CLI by Noah Wessel / [Scaling Engine](https://scalingengine.com).
