@@ -63,6 +63,10 @@
   Plans:
   - [x] 16.1-01-PLAN.md — Replace --body "$PR_BODY" with --body-file in deployed entrypoint.sh
 - [ ] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation
+  **Requirements:** [DELIV-03]
+  **Plans:** 1 plan
+  Plans:
+  - [ ] 17-01-PLAN.md — Pre-validation checks, verification script, and live E2E pipeline test
 
 ---
 
@@ -149,7 +153,7 @@
 | 15. Job Prompt Completeness | v1.3 | 1/1 | Complete | 2026-03-04 |
 | 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 16.1. Entrypoint Sync | v1.3 | Complete    | 2026-03-05 | 2026-03-05 |
-| 17. End-to-End Validation | v1.3 | 0/TBD | Not started | - |
+| 17. End-to-End Validation | v1.3 | 0/1 | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
 | 20. Volume Management | v1.4 | 0/TBD | Not started | - |
@@ -169,4 +173,4 @@
 | 34. Cluster Coordination | v1.8 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-05 — Phase 16.1 completed (entrypoint --body-file sync)*
+*Last updated: 2026-03-05 — Phase 17 planned (1 plan, E2E validation)*
