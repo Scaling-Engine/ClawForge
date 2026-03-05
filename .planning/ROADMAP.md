@@ -59,6 +59,9 @@
   - [x] 16-01-PLAN.md — Add blocked-paths exclusion to auto-merge workflow + entrypoint --body-file fix
 - [ ] **Phase 16.1: Entrypoint Sync** — Propagate --body-file from templates/entrypoint.sh to docker/job/entrypoint.sh
   **Gap Closure:** Closes integration gap from v1.3 audit (DELIV-01)
+  **Plans:** 1 plan
+  Plans:
+  - [ ] 16.1-01-PLAN.md — Replace --body "$PR_BODY" with --body-file in deployed entrypoint.sh
 - [ ] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation
 
 ---
