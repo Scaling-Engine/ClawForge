@@ -1,84 +1,137 @@
 # ClawForge
 
-**Secure Claude Code Agent Gateway** — Talk to an AI agent in Slack, Telegram, or Web Chat. It dispatches autonomous coding jobs via Claude Code CLI in Docker-isolated containers. Every action is a git commit, every change is a PR.
+**Production agent infrastructure for Claude Code** — multi-channel conversational interface, Docker-isolated execution, deterministic quality gates, and a git-native audit trail. Every action is a commit, every change is a PR.
 
-Forked from [stephengpope/thepopebot](https://github.com/stephengpope/thepopebot), adapted to use Claude Code CLI with [GSD](https://github.com/get-shit-done-cc/get-shit-done-cc) workflow skills.
+Combines [thepopebot](https://github.com/stephengpope/thepopebot)'s multi-channel Docker execution model with [Stripe's agent infrastructure](https://stripe.com/blog/how-we-built-the-ai-agent-infrastructure-behind-stripe) patterns (deterministic interleaving, context hydration, quality gates) and [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) + [GSD](https://github.com/get-shit-done-cc/get-shit-done-cc) as the execution engine.
 
 ---
 
 ## How It Works
 
 ```
-                           C L A W F O R G E
+                              C L A W F O R G E
 
   ┌─────────┐   ┌─────────┐   ┌─────────┐
-  │  Slack   │   │Telegram │   │Web Chat │        CHANNELS
+  │  Slack   │   │Telegram │   │Web Chat │              CHANNELS
   └────┬─────┘   └────┬─────┘   └────┬─────┘
        │              │              │
        └──────────────┼──────────────┘
                       │ webhooks
                       ▼
               ┌────────────────┐
-              │    Traefik     │              REVERSE PROXY
-              │  (HTTPS/LE)   │              (Let's Encrypt)
+              │    Traefik     │                    REVERSE PROXY
+              │  (HTTPS/LE)   │
               └───────┬────────┘
                       │ routes by hostname
            ┌──────────┴──────────┐
            ▼                     ▼
    ┌───────────────┐    ┌───────────────┐
-   │  Instance A   │    │  Instance B   │     EVENT HANDLERS
-   │  (Next.js +   │    │  (Next.js +   │     (LangGraph ReAct)
-   │   LangGraph)  │    │   LangGraph)  │
+   │  Instance A   │    │  Instance B   │           EVENT HANDLERS
+   │  Next.js +    │    │  Next.js +    │           (LangGraph ReAct)
+   │  LangGraph    │    │  LangGraph    │
+   │  SQLite       │    │  SQLite       │           Each instance:
+   │  SOUL.md      │    │  SOUL.md      │           own personality,
+   │  REPOS.json   │    │  REPOS.json   │           repos, tools,
+   │  TRIGGERS.json│    │  TRIGGERS.json│           Slack app, DB
    └───────┬───────┘    └───────┬───────┘
            │                    │
-           │   create_job()     │    ← conversational AI decides
-           ▼                    ▼       when to dispatch a job
-   ┌─────────────────────────────────┐
-   │         GitHub Actions          │     JOB ORCHESTRATION
-   │  (run-job.yml on job/* branch)  │
-   └───────────────┬─────────────────┘
-                   │
-                   ▼
-   ┌─────────────────────────────────┐
-   │      Docker Job Container       │     EXECUTION
-   │  ┌───────────────────────────┐  │
-   │  │  Claude Code CLI (-p)     │  │
-   │  │  + GSD Skills (30 cmds)   │  │
-   │  │  + Node.js 22 + gh CLI    │  │
-   │  └───────────────────────────┘  │
-   └───────────────┬─────────────────┘
-                   │
-                   ▼
-   ┌─────────────────────────────────┐
-   │    PR → Auto-Merge / Review     │     DELIVERY
-   └───────────────┬─────────────────┘
-                   │
-                   ▼
-   ┌─────────────────────────────────┐
-   │  Notification → Original Thread │     ROUTING
-   │  + LangGraph Memory Injection   │     (Slack reply, TG msg,
-   └─────────────────────────────────┘      web notification)
+           │  create_job()      │ create_instance_job()
+           ▼                    ▼
+   ┌─────────────────────────────────────────────┐
+   │              JOB DISPATCH                    │
+   │                                              │
+   │  Currently:  GitHub Actions (run-job.yml)    │  ← job/* branch
+   │  Planned:    Docker Engine API (direct)      │  ← seconds, not minutes
+   │              (Actions retained as fallback)  │
+   └──────────────────┬──────────────────────────┘
+                      │
+                      ▼
+   ┌─────────────────────────────────────────────┐
+   │           DOCKER JOB CONTAINER               │
+   │                                              │
+   │  ┌────────────────────────────────────────┐  │
+   │  │  Claude Code CLI (-p)                  │  │
+   │  │  + GSD Skills (30 commands)            │  │
+   │  │  + Node.js 22 + gh CLI + Chrome        │  │
+   │  │  + MCP Servers (planned: per-instance) │  │
+   │  └────────────────────────────────────────┘  │
+   │                                              │
+   │  Context:  job.md + target.json (cross-repo) │
+   │  Planned:  context hydration (pre-fetch      │
+   │            URLs/refs via MCP before exec)    │
+   └──────────────────┬──────────────────────────┘
+                      │
+                      ▼
+   ┌─────────────────────────────────────────────┐
+   │           QUALITY GATES                      │
+   │                                              │
+   │  Currently:  --allowedTools whitelist        │
+   │              AGENT_ secret filtering         │
+   │                                              │
+   │  Planned:    Pre-CI lint + typecheck (<5s)   │  ← Stripe pattern:
+   │              CI feedback loop (max 2 runs)   │    deterministic
+   │              Self-correction on failure       │    interleaving
+   └──────────────────┬──────────────────────────┘
+                      │
+                      ▼
+   ┌─────────────────────────────────────────────┐
+   │           DELIVERY                           │
+   │                                              │
+   │  PR with --body-file (structured body)       │
+   │                                              │
+   │  Merge gate:                                 │
+   │    1. Blocked-paths check (instances/ etc.)  │
+   │    2. ALLOWED_PATHS whitelist                │
+   │    3. Auto-merge or require review           │
+   │  Planned: per-repo merge policy engine       │
+   └──────────────────┬──────────────────────────┘
+                      │
+                      ▼
+   ┌─────────────────────────────────────────────┐
+   │           NOTIFICATION ROUTING               │
+   │                                              │
+   │  Route result → originating thread           │
+   │  Inject summary → LangGraph memory           │
+   │  Store outcome → job_outcomes (future ctx)   │
+   └─────────────────────────────────────────────┘
 ```
 
-You talk to the agent in natural language. For simple questions, it answers directly. For tasks that need code changes, it proposes a job description, gets your approval, then dispatches an autonomous Docker container running Claude Code CLI. The container clones the repo, does the work, commits, and opens a PR. Auto-merge checks allowed paths — safe changes merge automatically, everything else waits for review. When the job finishes, the result routes back to the exact Slack thread or Telegram chat where you started the conversation.
+You talk to the agent in natural language. For simple questions, it answers directly. For tasks that need code changes, it proposes a job description, gets your approval, then dispatches an autonomous Docker container running Claude Code CLI. The container clones the repo, does the work, commits, and opens a PR.
+
+The merge gate runs two checks: blocked-paths (instance scaffolding PRs always require manual review) and ALLOWED_PATHS (safe directories auto-merge, everything else needs review). When the job finishes, the result routes back to the exact Slack thread or Telegram chat where you started — and gets injected into the agent's memory for conversational continuity.
+
+**Where it's heading:** Direct Docker Engine dispatch (seconds instead of minutes), persistent interactive workspaces (browser terminal to a live container), per-instance MCP tool layers, deterministic quality gates (lint/test interleaved with agent work, max 2 CI runs), and multi-agent clusters that decompose complex tasks across parallel workers.
 
 ---
 
 ## Key Features
 
+**Channels & Instances**
 - **Multi-channel** — Slack, Telegram, and Web Chat with a unified channel adapter interface
 - **Multi-instance** — Run multiple isolated agents (different users, repos, Slack workspaces) on the same VPS
-- **Cross-repo targeting** — Jobs can target any repo in the allowed list via `REPOS.json`
-- **Multi-provider LLM** — Anthropic (default), OpenAI, Google Gemini, or any OpenAI-compatible endpoint (Ollama, etc.)
-- **Git as audit trail** — Every agent action is a commit. Every change is a PR. Full visibility and reversibility.
 - **Docker network isolation** — Each instance has its own Docker network, env vars, SQLite DB, and Slack app
+- **Instance creation via chat** — Describe a new agent in conversation; ClawForge scaffolds the full config as a PR
+
+**Execution & Delivery**
+- **Cross-repo targeting** — Jobs can target any repo in the allowed list via `REPOS.json` + `target.json` sidecar
+- **Git as audit trail** — Every agent action is a commit. Every change is a PR. Full visibility and reversibility
+- **Two-stage merge gate** — Blocked-paths check (instance PRs need review) + ALLOWED_PATHS whitelist (safe dirs auto-merge)
+- **Secret filtering** — `AGENT_` secrets are passed to the container but filtered from Claude Code's LLM view
+
+**Intelligence & Memory**
+- **Multi-provider LLM** — Anthropic (default), OpenAI, Google Gemini, or any OpenAI-compatible endpoint (Ollama, etc.)
 - **Thread-aware notifications** — Job results route back to the originating Slack thread or Telegram chat
 - **LangGraph memory** — Job outcomes are injected into conversation memory so the agent has context for follow-ups
 - **Prior job context** — When creating a new job in a thread, the agent includes the previous job's outcome for continuity
-- **Instance creation via chat** — Create new ClawForge instances by describing them in conversation
+
+**Platform**
 - **Triggers** — Fire-and-forget actions on incoming webhooks via `TRIGGERS.json`
 - **Rate limiting** — Per-IP, per-route sliding window (30 req/min)
-- **Secret filtering** — `AGENT_` secrets are passed to the container but filtered from Claude Code's view
+- **Planned: Docker Engine dispatch** — Direct container creation via Unix socket (seconds, not minutes)
+- **Planned: Quality gates** — Lint/typecheck interleaved with agent work, CI feedback loops (Stripe pattern)
+- **Planned: MCP tool layer** — Per-instance MCP server config so each agent gets curated tool access
+- **Planned: Persistent workspaces** — Browser terminal (ttyd + xterm.js) to long-running interactive containers
+- **Planned: Multi-agent clusters** — Lead agent decomposes tasks, worker containers execute in parallel
 
 ---
 
@@ -102,42 +155,53 @@ The LangGraph agent has four tools:
 | `get_system_technical_specs` | Read the CLAUDE.md architecture docs |
 | `create_instance_job` | Scaffold a new ClawForge instance (Dockerfile, config, docker-compose entry) |
 
-### The 10-Step Flow
+### The 12-Step Flow
 
 ```
- ┌──────┐                                                    ┌──────┐
- │ YOU  │                                                    │ YOU  │
- └──┬───┘                                                    └──▲───┘
-    │ 1. Send message                              10. Reply    │
-    ▼                                              in thread    │
- ┌──────────────┐                              ┌────────────────┴───┐
- │ 2. CHANNEL   │                              │ 9. NOTIFICATION    │
- │ (Slack/TG/   │                              │    ROUTING         │
- │  Web Chat)   │                              │  - Slack reply     │
- └──────┬───────┘                              │  - TG message      │
-        │ webhook                              │  - LangGraph memory│
-        ▼                                      └────────▲───────────┘
- ┌──────────────┐                              ┌────────┴───────────┐
- │ 3. TRAEFIK   │                              │ 8. AUTO-MERGE      │
- │ route by host│                              │  (path-checked)    │
- └──────┬───────┘                              └────────▲───────────┘
-        ▼                                               │
- ┌──────────────┐                              ┌────────┴───────────┐
- │ 4. LANGGRAPH │                              │ 7. DOCKER          │
- │    AGENT     │                              │    CONTAINER       │
- │  - SOUL.md   │                              │  - clone branch    │
- │  - 4 tools   │                              │  - claude -p       │
- │  - SQLite    │                              │  - GSD skills      │
- └──────┬───────┘                              │  - commit + PR     │
-        │ user approves                        └────────▲───────────┘
-        ▼                                               │
- ┌──────────────┐                              ┌────────┴───────────┐
- │ 5. CREATE_JOB│                              │ 6. GITHUB ACTIONS  │
- │  - UUID      │──── git push ──────────────▶ │    run-job.yml     │
- │  - job.md    │     job/* branch triggers CI │  - GHCR image      │
- │  - target.json                              │  - secrets         │
- └──────────────┘                              └────────────────────┘
+ ┌──────┐                                                       ┌──────┐
+ │ YOU  │                                                       │ YOU  │
+ └──┬───┘                                                       └──▲───┘
+    │ 1. Send message                                 12. Reply    │
+    ▼                                                 in thread    │
+ ┌───────────────┐                              ┌──────────────────┴──┐
+ │ 2. CHANNEL    │                              │ 11. NOTIFICATION    │
+ │ (Slack/TG/    │                              │     ROUTING         │
+ │  Web Chat)    │                              │  - reply in thread  │
+ └───────┬───────┘                              │  - LangGraph memory │
+         │ webhook                              │  - job_outcomes DB  │
+         ▼                                      └──────────▲──────────┘
+ ┌───────────────┐                              ┌──────────┴──────────┐
+ │ 3. TRAEFIK    │                              │ 10. MERGE GATE      │
+ │ route by host │                              │  - blocked-paths    │
+ └───────┬───────┘                              │    (instances/ etc) │
+         ▼                                      │  - ALLOWED_PATHS    │
+ ┌───────────────┐                              │  - auto or review   │
+ │ 4. LANGGRAPH  │                              └──────────▲──────────┘
+ │    AGENT      │                                         │
+ │  - SOUL.md    │                              ┌──────────┴──────────┐
+ │  - 4 tools    │                              │ 9. PR CREATION      │
+ │  - SQLite     │                              │  --body-file        │
+ │  - prior jobs │                              │  (structured body)  │
+ └───────┬───────┘                              └──────────▲──────────┘
+         │ user approves                                   │
+         ▼                                      ┌──────────┴──────────┐
+ ┌───────────────┐                              │ 8. CLAUDE CODE      │
+ │ 5. CREATE_JOB │                              │    EXECUTION        │
+ │  - UUID       │                              │  - read job.md      │
+ │  - job.md     │                              │  - GSD skills       │
+ │  - target.json│                              │  - atomic commits   │
+ └───────┬───────┘                              └──────────▲──────────┘
+         │ git push                                        │
+         ▼ job/* branch                         ┌──────────┴──────────┐
+ ┌───────────────┐                              │ 7. DOCKER           │
+ │ 6. DISPATCH   │──────────────────────────────│    CONTAINER        │
+ │  GH Actions   │  run-job.yml triggers on     │  - GHCR image       │
+ │  (→ Docker    │  job/* branch push           │  - clone + checkout │
+ │    Engine)    │                              │  - AGENT_ secrets   │
+ └───────────────┘                              └─────────────────────┘
 ```
+
+**Reading the diagram:** You send a message (1) through any channel (2). Traefik routes it (3) to your instance's LangGraph agent (4), which has your personality, tools, and conversation history. When work is needed, it creates a job (5) with a UUID branch. The dispatch layer (6) triggers a Docker container (7) where Claude Code runs autonomously (8), committing as it goes. When done, a PR is created (9) with a structured body. The merge gate (10) checks blocked paths and allowed paths before auto-merging or flagging for review. A notification (11) routes back to your exact thread (12) with the result injected into conversation memory.
 
 ---
 
