@@ -46,8 +46,28 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Check ALLOWED_PATHS
+      - name: Check for blocked paths (instance scaffolding)
         if: steps.merge-check.outputs.mergeable == 'MERGEABLE' && steps.check-setting.outputs.enabled == 'true'
+        id: check-blocked
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          BLOCKED=false
+
+          CHANGED_FILES=$(gh pr diff "$PR_NUMBER" --name-only --repo "${{ github.repository }}")
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            if [[ "$file" == instances/* ]] || [[ "$file" == "docker-compose.yml" ]]; then
+              echo "BLOCKED (instance scaffolding): $file"
+              BLOCKED=true
+            fi
+          done <<< "$CHANGED_FILES"
+
+          echo "blocked=$BLOCKED" >> "$GITHUB_OUTPUT"
+
+      - name: Check ALLOWED_PATHS
+        if: steps.merge-check.outputs.mergeable == 'MERGEABLE' && steps.check-setting.outputs.enabled == 'true' && steps.check-blocked.outputs.blocked != 'true'
         id: check-paths
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,7 +130,7 @@ jobs:
           echo "allowed=$ALL_OK" >> "$GITHUB_OUTPUT"
 
       - name: Merge PR
-        if: steps.merge-check.outputs.mergeable == 'MERGEABLE' && steps.check-setting.outputs.enabled == 'true' && steps.check-paths.outputs.allowed == 'true'
+        if: steps.merge-check.outputs.mergeable == 'MERGEABLE' && steps.check-setting.outputs.enabled == 'true' && steps.check-blocked.outputs.blocked != 'true' && steps.check-paths.outputs.allowed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
