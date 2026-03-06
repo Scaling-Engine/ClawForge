@@ -67,7 +67,7 @@
   **Plans:** 1 plan
   Plans:
   - [ ] 17-01-PLAN.md — Pre-validation checks, verification script, and live E2E pipeline test
-- [ ] **Phase 17.1: Context Hydration for Layer 1** — Add get_project_state tool so conversational agent can read .planning/STATE.md + ROADMAP.md from target repos via GitHub API before writing job.md.
+- [x] **Phase 17.1: Context Hydration for Layer 1** — Add get_project_state tool so conversational agent can read .planning/STATE.md + ROADMAP.md from target repos via GitHub API before writing job.md. (completed 2026-03-06)
   **Plans:** 1 plan
   Plans:
   - [ ] 17.1-01-PLAN.md — Add fetchRepoFile helper, getProjectStateTool, and EVENT_HANDLER.md instructions
@@ -160,7 +160,7 @@
 | 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 16.1. Entrypoint Sync | v1.3 | Complete    | 2026-03-05 | 2026-03-05 |
 | 17. End-to-End Validation | 1/1 | Complete    | 2026-03-06 | - |
-| 17.1. Context Hydration (Layer 1) | v1.3 | 0/1 | Not started | - |
+| 17.1. Context Hydration (Layer 1) | 1/1 | Complete   | 2026-03-06 | - |
 | 17.2. Layer 2 Context Hydration | v1.3 | 0/TBD | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |

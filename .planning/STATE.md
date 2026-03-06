@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Instance Generator
-status: completed
-stopped_at: Phase 17.1 context gathered
-last_updated: "2026-03-06T04:02:06.005Z"
-last_activity: 2026-03-05 — Phase 17 Plan 01 executed (E2E validation of instance creation pipeline)
+status: in-progress
+stopped_at: Completed 17.1-01-PLAN.md
+last_updated: "2026-03-06T04:15:21.879Z"
+last_activity: 2026-03-06 — Phase 17.1 Plan 01 executed (get_project_state tool for Layer 1 context hydration)
 progress:
   total_phases: 15
-  completed_phases: 14
-  total_plans: 20
-  completed_plans: 20
+  completed_phases: 15
+  total_plans: 21
+  completed_plans: 21
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 ## Current Position
 
-Phase: 17 (End-to-End Validation) — complete
+Phase: 17.1 (Context Hydration for Layer 1) — in progress
 Plan: 1 of 1 complete
-Status: Phase 17 complete — DELIV-03 satisfied, ready for Phase 17.1 (Context Hydration)
-Last activity: 2026-03-05 — Phase 17 Plan 01 executed (E2E validation of instance creation pipeline)
+Status: Phase 17.1 Plan 01 complete — get_project_state tool added to Layer 1
+Last activity: 2026-03-06 — Phase 17.1 Plan 01 executed (get_project_state tool for Layer 1 context hydration)
 
 Progress: [██████████] 100%
 
@@ -57,6 +57,7 @@ Progress: [██████████] 100%
 | Phase 16 P01 | 1min | 2 tasks | 3 files |
 | Phase 16.1 P01 | 0.5min | 1 task | 1 file |
 | Phase 17 P01 | 5min | 2 tasks | 1 files |
+| Phase 17.1 P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Progress: [██████████] 100%
 - [v1.3 roadmap]: Literal AGENT.md template must be embedded in job prompt — tool name casing is case-sensitive in --allowedTools; LLM cannot infer correct casing reliably
 - [Phase 16]: Blocked-paths check runs before ALLOWED_PATHS so even ALLOWED_PATHS=/ cannot bypass instance protection
 - [Phase 17]: E2E validation via real Slack conversation with deployed system -- no mocks or stubs
+- [Phase 17.1-01]: fetchRepoFile uses direct fetch with raw Accept header, not githubApi() which hardcodes base64 Accept
+- [Phase 17.1-01]: 404 and 403 both return null (repos without .planning/ are expected, not errors)
+- [Phase 17.1-01]: STATE.md capped at 4000 chars, ROADMAP.md at 6000 chars to prevent context bloat
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-06T04:02:06.002Z
-Stopped at: Phase 17.1 context gathered
-Resume file: .planning/phases/17.1-context-hydration-for-layer-1/17.1-CONTEXT.md
+Last session: 2026-03-06T04:15:00Z
+Stopped at: Completed 17.1-01-PLAN.md
+Resume file: .planning/phases/17.1-context-hydration-for-layer-1/17.1-01-SUMMARY.md
