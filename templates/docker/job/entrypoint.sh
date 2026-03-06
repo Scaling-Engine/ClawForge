@@ -161,6 +161,38 @@ if [ -f "/job/package.json" ]; then
     ' /job/package.json 2>/dev/null || echo "[unable to parse package.json]")
 fi
 
+# 8d. Read planning context for GSD-managed repos
+REPO_STATE_MD=""
+if [ -f "/job/.planning/STATE.md" ]; then
+    RAW=$(cat /job/.planning/STATE.md)
+    if [ "${#RAW}" -gt 4000 ]; then
+        REPO_STATE_MD=$(printf '%s' "$RAW" | head -c 4000)
+        REPO_STATE_MD="${REPO_STATE_MD}
+
+[TRUNCATED -- content exceeds 4,000 character limit]"
+    else
+        REPO_STATE_MD="$RAW"
+    fi
+fi
+
+REPO_ROADMAP_MD=""
+if [ -f "/job/.planning/ROADMAP.md" ]; then
+    RAW=$(cat /job/.planning/ROADMAP.md)
+    if [ "${#RAW}" -gt 6000 ]; then
+        REPO_ROADMAP_MD=$(printf '%s' "$RAW" | head -c 6000)
+        REPO_ROADMAP_MD="${REPO_ROADMAP_MD}
+
+[TRUNCATED -- content exceeds 6,000 character limit]"
+    else
+        REPO_ROADMAP_MD="$RAW"
+    fi
+fi
+
+# 8e. Read recent git history from main branch
+GIT_HISTORY=""
+git fetch origin main --depth=11 2>/dev/null || true
+GIT_HISTORY=$(git log origin/main --oneline -n 10 --format="- %h %s (%cr)" 2>/dev/null || echo "")
+
 # 9. Setup Claude Code configuration
 # Copy .claude config if it exists in the repo
 if [ -d "/job/.claude" ]; then
@@ -203,6 +235,31 @@ else
 [not present — package.json not found in repository]"
 fi
 
+# Build planning context sections (gated on GSD hint per HYDR-04)
+STATE_SECTION=""
+ROADMAP_SECTION=""
+HISTORY_SECTION=""
+
+if [ "$GSD_HINT" != "quick" ]; then
+    if [ -n "$REPO_STATE_MD" ]; then
+        STATE_SECTION="## Project State (from .planning/STATE.md)
+
+${REPO_STATE_MD}"
+    fi
+
+    if [ -n "$REPO_ROADMAP_MD" ]; then
+        ROADMAP_SECTION="## Project Roadmap (from .planning/ROADMAP.md)
+
+${REPO_ROADMAP_MD}"
+    fi
+
+    if [ -n "$GIT_HISTORY" ]; then
+        HISTORY_SECTION="## Recent Git History (main branch, last 10 commits)
+
+${GIT_HISTORY}"
+    fi
+fi
+
 FULL_PROMPT="# Your Job
 
 ## Target
@@ -212,6 +269,9 @@ ${REPO_SLUG:-unknown}
 ${DOC_SECTION}
 
 ${STACK_SECTION}
+$([ -n "$STATE_SECTION" ] && printf '\n%s' "$STATE_SECTION" || true)
+$([ -n "$ROADMAP_SECTION" ] && printf '\n%s' "$ROADMAP_SECTION" || true)
+$([ -n "$HISTORY_SECTION" ] && printf '\n%s' "$HISTORY_SECTION" || true)
 
 ## Task
 
