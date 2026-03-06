@@ -8,21 +8,14 @@ A multi-channel AI agent platform that connects Claude Code CLI to messaging cha
 
 Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results without operator intervention.
 
-## Current Milestone: v1.3 Instance Generator
+## Current Milestone: v1.4 Docker Engine Foundation
 
-**Goal:** Archie can create fully-configured ClawForge instances through a guided conversation, generating all files as a PR with operator setup instructions.
+**Goal:** Replace GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls. Containers start in seconds instead of minutes. GH Actions retained as fallback for CI-integrated repos.
 
-**Target features:**
-- Multi-turn conversational intake in LangGraph agent (recognize instance creation intent, ask follow-up questions)
-- Instance scaffolding templates with all required files (Dockerfile, SOUL.md, AGENT.md, REPOS.json, .env.example)
-- Claude Code job that generates instance files from gathered configuration
-- docker-compose.yml update for new instance included in PR
-- PR description with exact setup checklist (GitHub secrets, Slack app scopes, PAT permissions)
+## Current State (after v1.3)
 
-## Current State (after v1.2)
-
-**Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo Job Targeting
-**Codebase:** ~7,647 LOC JavaScript (Next.js + LangGraph + Drizzle ORM)
+**Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo + v1.3 Instance Generator
+**Codebase:** ~12,694 LOC JavaScript (Next.js + LangGraph + Drizzle ORM)
 **Instances:** 2 (Noah/Archie — full access, StrategyES/Epic — scoped to strategyes-lab)
 
 **What works:**
@@ -38,6 +31,9 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - `job_outcomes` table: tracks completions with `target_repo` column; `getJobStatus()` DB overlay returns completed job PR URLs
 - VERIFICATION-RUNBOOK.md: operator-executable checklist for 5 regression scenarios (S1-S5)
 - All templates byte-for-byte synced with live files
+- **Instance creation via conversation**: multi-turn intake → approval → job dispatch → PR with 7 artifacts + operator setup checklist
+- **Auto-merge exclusion**: instance PRs blocked from auto-merge regardless of ALLOWED_PATHS
+- **Layer 1 context hydration**: `get_project_state` tool fetches STATE.md + ROADMAP.md from target repos via GitHub API
 
 ## Requirements
 
@@ -68,11 +64,17 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - ✓ target_repo column in job_outcomes; getJobStatus() DB overlay — v1.2
 - ✓ Same-repo (clawforge) jobs continue working without regression — v1.2
 
+- ✓ Archie can create a new ClawForge instance through a multi-turn guided conversation — v1.3
+- ✓ Instance scaffolding generates all required files (Dockerfile, SOUL.md, AGENT.md, REPOS.json, .env.example) — v1.3
+- ✓ Generated PR includes docker-compose.yml update and operator setup checklist — v1.3
+- ✓ Instance PRs excluded from auto-merge, require manual review — v1.3
+- ✓ Layer 1 agent can fetch project state (STATE.md, ROADMAP.md) from target repos — v1.3
+
 ### Active
 
-- [ ] Archie can create a new ClawForge instance through a multi-turn guided conversation
-- [ ] Instance scaffolding generates all required files (Dockerfile, SOUL.md, AGENT.md, REPOS.json, .env.example)
-- [ ] Generated PR includes docker-compose.yml update and operator setup checklist
+- [ ] Job containers start via Docker Engine API in seconds, not minutes via GH Actions
+- [ ] Layer 2 context hydration: entrypoint injects STATE.md + ROADMAP.md + recent git history into job prompt
+- [ ] Named volumes for persistent repo state across jobs (warm start)
 
 ### Out of Scope
 
@@ -142,10 +144,16 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 | DB overlay fires only when jobId provided AND filteredRuns.length === 0 | Live path fully unchanged for in-progress jobs | ✓ getJobStatus() accurate |
 | Cross-repo PRs notify at PR creation, same-repo at merge | Semantic difference surfaces in UX language ("open for review" vs "merged") | ✓ Language differentiated |
 
+| Template substitution in JS, not in prompt | Container agent receives exact file content; LLM doesn't interpret template syntax | ✓ Reliable artifact generation |
+| Blocked-paths before ALLOWED_PATHS | Even ALLOWED_PATHS=/ cannot bypass instance protection | ✓ Defense in depth |
+| --body-file for PR creation | Shell variable expansion corrupts backticks in operator checklists | ✓ Robust PR bodies |
+| LLM behavior via EVENT_HANDLER.md injection | No code change needed for intake flow adjustments | ✓ Flexible intake |
+| get_project_state via GitHub Contents API | Layer 1 gets project awareness without filesystem access | ✓ Informed dispatching |
+
 - Instance updates/deletion — define creation first, update flows are additive complexity
 - Automated deployment — security-sensitive; human review via PR is the right gate
 - GitHub secrets auto-provisioning — requires broader infrastructure permissions than appropriate
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
 ---
-*Last updated: 2026-02-27 after v1.3 milestone start*
+*Last updated: 2026-03-06 after v1.3 milestone*
