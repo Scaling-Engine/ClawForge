@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Docker Engine Foundation
-status: completed
-stopped_at: Completed 18-02-PLAN.md
-last_updated: "2026-03-06T06:16:12.108Z"
-last_activity: 2026-03-06 -- Completed 18-02 Context Hydration
+status: executing
+stopped_at: Completed 19-01-PLAN.md
+last_updated: "2026-03-06T14:16:27.308Z"
+last_activity: 2026-03-06 -- Completed 19-01 Docker Engine Client
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 3
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Phase 18 -- Layer 2 Context Hydration
+**Current focus:** Phase 19 -- Docker Engine Dispatch
 
 ## Current Position
 
-Phase: 18 of 20 (Layer 2 Context Hydration)
-Plan: 02 of 2 complete
-Status: Phase Complete
-Last activity: 2026-03-06 -- Completed 18-02 Context Hydration
+Phase: 19 of 20 (Docker Engine Dispatch)
+Plan: 01 of 3 complete
+Status: In Progress
+Last activity: 2026-03-06 -- Completed 19-01 Docker Engine Client
 
 Progress: [██████████] 100%
 
@@ -42,6 +42,9 @@ Progress: [██████████] 100%
 - [Phase 18]: STATE.md capped at 4K chars, ROADMAP.md at 6K chars for prompt budget (18-02)
 - [Phase 18]: git fetch origin main --depth=11 for history from shallow clone (18-02)
 - [Phase 18]: All hydration sections gated on GSD_HINT != quick per HYDR-04 (18-02)
+- Container labels (clawforge=job + metadata) for orphan detection instead of DB-only tracking (19-01)
+- AutoRemove: false to allow log collection before cleanup (19-01)
+- Schema columns use .default() for zero-migration backwards compatibility (19-01)
 
 ### Pending Todos
 
@@ -54,6 +57,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-06T06:14:03.637Z
-Stopped at: Completed 18-02-PLAN.md
+Last session: 2026-03-06T14:16:27.306Z
+Stopped at: Completed 19-01-PLAN.md
 Resume file: None

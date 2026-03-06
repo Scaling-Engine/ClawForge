@@ -17,16 +17,16 @@ Requirements for Docker Engine Foundation milestone. Each maps to roadmap phases
 
 ### Docker Engine API
 
-- [ ] **DOCK-01**: Docker Engine API client connects via Unix socket and can ping/version-check the daemon
-- [ ] **DOCK-02**: Event handler can create and start ephemeral job containers with env vars, network, and labels
-- [ ] **DOCK-03**: Event handler waits for container exit and captures exit code
-- [ ] **DOCK-04**: Container logs are retrievable after job completion
-- [ ] **DOCK-05**: Containers are cleaned up (removed) after logs are captured
-- [ ] **DOCK-06**: Job containers run on their instance's Docker network (noah-net, strategyES-net)
-- [ ] **DOCK-07**: Container IDs tracked in DB for lifecycle management and zombie detection
-- [ ] **DOCK-08**: Startup reconciliation detects and cleans orphaned containers on Event Handler restart
-- [ ] **DOCK-09**: Container startup time (dispatch-to-execution) is measured and logged in preflight.md
-- [ ] **DOCK-10**: Running containers can be inspected for stuck job detection
+- [x] **DOCK-01**: Docker Engine API client connects via Unix socket and can ping/version-check the daemon
+- [x] **DOCK-02**: Event handler can create and start ephemeral job containers with env vars, network, and labels
+- [x] **DOCK-03**: Event handler waits for container exit and captures exit code
+- [x] **DOCK-04**: Container logs are retrievable after job completion
+- [x] **DOCK-05**: Containers are cleaned up (removed) after logs are captured
+- [x] **DOCK-06**: Job containers run on their instance's Docker network (noah-net, strategyES-net)
+- [x] **DOCK-07**: Container IDs tracked in DB for lifecycle management and zombie detection
+- [x] **DOCK-08**: Startup reconciliation detects and cleans orphaned containers on Event Handler restart
+- [x] **DOCK-09**: Container startup time (dispatch-to-execution) is measured and logged in preflight.md
+- [x] **DOCK-10**: Running containers can be inspected for stuck job detection
 
 ### Dispatch Routing
 
@@ -86,16 +86,16 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 | HYDR-03 | Phase 18 | Complete |
 | HYDR-04 | Phase 18 | Complete |
 | HYDR-05 | Phase 18 | Complete |
-| DOCK-01 | Phase 19 | Pending |
-| DOCK-02 | Phase 19 | Pending |
-| DOCK-03 | Phase 19 | Pending |
-| DOCK-04 | Phase 19 | Pending |
-| DOCK-05 | Phase 19 | Pending |
-| DOCK-06 | Phase 19 | Pending |
-| DOCK-07 | Phase 19 | Pending |
-| DOCK-08 | Phase 19 | Pending |
-| DOCK-09 | Phase 19 | Pending |
-| DOCK-10 | Phase 19 | Pending |
+| DOCK-01 | Phase 19 | Complete |
+| DOCK-02 | Phase 19 | Complete |
+| DOCK-03 | Phase 19 | Complete |
+| DOCK-04 | Phase 19 | Complete |
+| DOCK-05 | Phase 19 | Complete |
+| DOCK-06 | Phase 19 | Complete |
+| DOCK-07 | Phase 19 | Complete |
+| DOCK-08 | Phase 19 | Complete |
+| DOCK-09 | Phase 19 | Complete |
+| DOCK-10 | Phase 19 | Complete |
 | DISP-01 | Phase 19 | Pending |
 | DISP-02 | Phase 19 | Pending |
 | DISP-03 | Phase 19 | Pending |
