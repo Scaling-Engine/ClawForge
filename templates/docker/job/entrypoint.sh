@@ -82,24 +82,56 @@ EOF
 
 echo "=== PREFLIGHT COMPLETE ==="
 
+# NOTE: Steps 8 and 8c are intentionally reordered before Step 7.
+# GSD_HINT must be computed before system prompt assembly so we can
+# select between AGENT.md and AGENT_QUICK.md based on job complexity.
+
+# 8. Read job description (moved before Step 7 — needs only job.md from clone)
+JOB_DESCRIPTION=""
+if [ -f "/job/logs/${JOB_ID}/job.md" ]; then
+    JOB_DESCRIPTION=$(cat "/job/logs/${JOB_ID}/job.md")
+fi
+
+# 8c. Derive GSD routing hint from task keywords (moved before Step 7)
+JOB_LOWER=$(printf '%s' "$JOB_DESCRIPTION" | tr '[:upper:]' '[:lower:]')
+GSD_HINT="quick"
+GSD_HINT_REASON="task appears to be a single targeted action"
+if printf '%s' "$JOB_LOWER" | grep -qE "implement|build|redesign|refactor|migrate|setup|integrate|develop|architect|phase|feature|epic|complex|end.to.end|full.system|multiple"; then
+    GSD_HINT="plan-phase"
+    GSD_HINT_REASON="task keywords suggest multi-step implementation work"
+fi
+
 # 7. Build system prompt from config files
 SYSTEM_PROMPT=""
 if [ -f "/job/config/SOUL.md" ]; then
     SYSTEM_PROMPT=$(cat /job/config/SOUL.md)
     SYSTEM_PROMPT="${SYSTEM_PROMPT}\n\n"
 fi
-if [ -f "/job/config/AGENT.md" ]; then
-    SYSTEM_PROMPT="${SYSTEM_PROMPT}$(cat /job/config/AGENT.md)"
+
+# Select agent instructions based on job complexity
+AGENT_FILE=""
+if [ "$GSD_HINT" = "quick" ]; then
+    # Try instance AGENT_QUICK.md, fall back to defaults
+    if [ -f "/job/config/AGENT_QUICK.md" ]; then
+        AGENT_FILE="/job/config/AGENT_QUICK.md"
+    elif [ -f "/defaults/AGENT_QUICK.md" ]; then
+        AGENT_FILE="/defaults/AGENT_QUICK.md"
+    elif [ -f "/job/config/AGENT.md" ]; then
+        AGENT_FILE="/job/config/AGENT.md"
+    fi
+else
+    # Full agent instructions for complex jobs
+    if [ -f "/job/config/AGENT.md" ]; then
+        AGENT_FILE="/job/config/AGENT.md"
+    fi
+fi
+
+if [ -n "$AGENT_FILE" ]; then
+    SYSTEM_PROMPT="${SYSTEM_PROMPT}$(cat "$AGENT_FILE")"
 fi
 
 # Resolve {{datetime}} variable
 SYSTEM_PROMPT=$(echo -e "$SYSTEM_PROMPT" | sed "s/{{datetime}}/$(date -u +"%Y-%m-%dT%H:%M:%SZ")/g")
-
-# 8. Read job description
-JOB_DESCRIPTION=""
-if [ -f "/job/logs/${JOB_ID}/job.md" ]; then
-    JOB_DESCRIPTION=$(cat "/job/logs/${JOB_ID}/job.md")
-fi
 
 # 8b. Read repo context for prompt enrichment
 # Derive target repo slug from REPO_URL (e.g., "ScalingEngine/clawforge")
@@ -127,15 +159,6 @@ if [ -f "/job/package.json" ]; then
         | to_entries[]
         | "\(.key): \(.value)"
     ' /job/package.json 2>/dev/null || echo "[unable to parse package.json]")
-fi
-
-# 8c. Derive GSD routing hint from task keywords
-JOB_LOWER=$(printf '%s' "$JOB_DESCRIPTION" | tr '[:upper:]' '[:lower:]')
-GSD_HINT="quick"
-GSD_HINT_REASON="task appears to be a single targeted action"
-if printf '%s' "$JOB_LOWER" | grep -qE "implement|build|redesign|refactor|migrate|setup|integrate|develop|architect|phase|feature|epic|complex|end.to.end|full.system|multiple"; then
-    GSD_HINT="plan-phase"
-    GSD_HINT_REASON="task keywords suggest multi-step implementation work"
 fi
 
 # 9. Setup Claude Code configuration
