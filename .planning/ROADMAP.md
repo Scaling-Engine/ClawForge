@@ -81,8 +81,8 @@
 **Plans**: 2 plans
 
 Plans:
-- [ ] 18-01-PLAN.md -- AGENT_QUICK.md creation and entrypoint reordering for hint-aware agent selection
-- [ ] 18-02-PLAN.md -- Context hydration: STATE.md, ROADMAP.md, git history with GSD-gated injection
+- [x] 18-01-PLAN.md -- AGENT_QUICK.md creation and entrypoint reordering for hint-aware agent selection
+- [x] 18-02-PLAN.md -- Context hydration: STATE.md, ROADMAP.md, git history with GSD-gated injection
 
 ### Phase 19: Docker Engine Dispatch
 **Goal**: Jobs dispatched via Docker Engine API start in seconds instead of minutes, with full container lifecycle management and seamless fallback to GitHub Actions
@@ -94,12 +94,12 @@ Plans:
   3. REPOS.json `dispatch` field controls whether a repo uses Docker or Actions, and both paths work simultaneously
   4. Orphaned containers from crashed Event Handler are detected and cleaned up on restart
   5. Operator can check if a running container is stuck via job status inspection
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 19-01: TBD
-- [ ] 19-02: TBD
-- [ ] 19-03: TBD
+- [ ] 19-01-PLAN.md -- Docker client foundation, container lifecycle, DB schema, and orphan reconciliation
+- [ ] 19-02-PLAN.md -- Dispatch routing via REPOS.json, inline notification, and webhook dedup
+- [ ] 19-03-PLAN.md -- Docker Compose wiring and end-to-end verification
 
 ### Phase 20: Named Volumes
 **Goal**: Repeat jobs on the same repo start warm -- fetching in 2-3 seconds instead of cloning in 10-15 seconds
@@ -166,9 +166,9 @@ Phases execute in numeric order: 18 -> 19 -> 20
 | 16.1. Entrypoint Sync | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 17. End-to-End Validation | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 18. Layer 2 Context Hydration | 2/2 | Complete    | 2026-03-06 | - |
-| 19. Docker Engine Dispatch | v1.4 | 0/TBD | Not started | - |
+| 18. Layer 2 Context Hydration | v1.4 | 2/2 | Complete | 2026-03-06 |
+| 19. Docker Engine Dispatch | v1.4 | 0/3 | Not started | - |
 | 20. Named Volumes | v1.4 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-06 -- Phase 18 planned (2 plans)*
+*Last updated: 2026-03-06 -- Phase 19 planned (3 plans)*
