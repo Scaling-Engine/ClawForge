@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Instance Generator
 status: completed
-stopped_at: Completed 16.1-01-PLAN.md
-last_updated: "2026-03-05T06:04:25.394Z"
-last_activity: 2026-03-05 — Phase 16.1 Plan 01 executed (entrypoint.sh --body-file sync)
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-06T03:33:51.770Z"
+last_activity: 2026-03-05 — Phase 17 Plan 01 executed (E2E validation of instance creation pipeline)
 progress:
-  total_phases: 13
-  completed_phases: 13
-  total_plans: 19
-  completed_plans: 19
+  total_phases: 14
+  completed_phases: 14
+  total_plans: 20
+  completed_plans: 20
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-27)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Phase 14 — Intake Flow (v1.3 Instance Generator)
+**Current focus:** Phase 17.1 — Context Hydration Layer 1 (v1.3 Instance Generator)
 
 ## Current Position
 
-Phase: 16.1 (Entrypoint Sync) — complete
+Phase: 17 (End-to-End Validation) — complete
 Plan: 1 of 1 complete
-Status: Phase 16.1 complete — ready for Phase 17 (End-to-End Validation)
-Last activity: 2026-03-05 — Phase 16.1 Plan 01 executed (entrypoint.sh --body-file sync)
+Status: Phase 17 complete — DELIV-03 satisfied, ready for Phase 17.1 (Context Hydration)
+Last activity: 2026-03-05 — Phase 17 Plan 01 executed (E2E validation of instance creation pipeline)
 
 Progress: [██████████] 100%
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 *Updated after each plan completion*
 | Phase 16 P01 | 1min | 2 tasks | 3 files |
 | Phase 16.1 P01 | 0.5min | 1 task | 1 file |
+| Phase 17 P01 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Progress: [██████████] 100%
 - [v1.3 roadmap]: Instance scaffolding PRs excluded from auto-merge — broken configs must be reviewed before reaching main
 - [v1.3 roadmap]: Literal AGENT.md template must be embedded in job prompt — tool name casing is case-sensitive in --allowedTools; LLM cannot infer correct casing reliably
 - [Phase 16]: Blocked-paths check runs before ALLOWED_PATHS so even ALLOWED_PATHS=/ cannot bypass instance protection
+- [Phase 17]: E2E validation via real Slack conversation with deployed system -- no mocks or stubs
 
 ### Pending Todos
 
@@ -85,6 +87,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-05T06:00:40Z
-Stopped at: Completed 16.1-01-PLAN.md
+Last session: 2026-03-06T03:33:51.767Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None

@@ -5,7 +5,7 @@
 - v1.0 GSD Verification & Hardening — Phases 1-4 (shipped 2026-02-24)
 - v1.1 Agent Intelligence & Pipeline Hardening — Phases 5-8 (shipped 2026-02-25)
 - v1.2 Cross-Repo Job Targeting — Phases 9-12 (shipped 2026-02-27)
-- v1.3 Instance Generator — Phases 13-17 + 16.1, 17.1 (in progress)
+- v1.3 Instance Generator — Phases 13-17 + 16.1, 17.1, 17.2 (in progress)
 - v1.4 Docker Engine Foundation — Phases 18-21 (planned)
 - v1.5 Persistent Workspaces — Phases 22-25 (planned)
 - v1.6 MCP Tool Layer — Phases 26-28 (planned)
@@ -62,12 +62,13 @@
   **Plans:** 1 plan
   Plans:
   - [x] 16.1-01-PLAN.md — Replace --body "$PR_BODY" with --body-file in deployed entrypoint.sh
-- [ ] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation
+- [x] **Phase 17: End-to-End Validation** — Real multi-turn conversation through PR creation (completed 2026-03-06)
   **Requirements:** [DELIV-03]
   **Plans:** 1 plan
   Plans:
   - [ ] 17-01-PLAN.md — Pre-validation checks, verification script, and live E2E pipeline test
 - [ ] **Phase 17.1: Context Hydration for Layer 1** — Add get_project_state tool so conversational agent can read .planning/STATE.md + ROADMAP.md from target repos via GitHub API before writing job.md. Stripe's "pre-hydration" pattern — the agent gets product context upfront instead of relying on the user to describe it.
+- [ ] **Phase 17.2: Layer 2 Context Hydration** — Inject `.planning/STATE.md`, `ROADMAP.md`, and recent git history into entrypoint.sh job prompt. Dynamic system prompt scoping (AGENT_QUICK.md variant for quick jobs vs full AGENT.md for plan-phase jobs). See `docs/CONTEXT_ENGINEERING.md` for full analysis and implementation plan.
 
 ---
 
@@ -154,8 +155,9 @@
 | 15. Job Prompt Completeness | v1.3 | 1/1 | Complete | 2026-03-04 |
 | 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 16.1. Entrypoint Sync | v1.3 | Complete    | 2026-03-05 | 2026-03-05 |
-| 17. End-to-End Validation | v1.3 | 0/1 | Not started | - |
+| 17. End-to-End Validation | 1/1 | Complete   | 2026-03-06 | - |
 | 17.1. Context Hydration (Layer 1) | v1.3 | 0/TBD | Not started | - |
+| 17.2. Layer 2 Context Hydration | v1.3 | 0/TBD | Not started | - |
 | 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
 | 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
 | 20. Volume Management | v1.4 | 0/TBD | Not started | - |
@@ -175,4 +177,4 @@
 | 34. Cluster Coordination | v1.8 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-05 — Phase 17 planned (1 plan, E2E validation)*
+*Last updated: 2026-03-05 — Phase 17.2 added (Layer 2 context hydration), docs/CONTEXT_ENGINEERING.md created*
