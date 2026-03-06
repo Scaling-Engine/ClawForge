@@ -12,6 +12,11 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 
 **Goal:** Replace GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls. Containers start in seconds instead of minutes. GH Actions retained as fallback for CI-integrated repos.
 
+**Target features:**
+- Direct Docker Engine API job dispatch (seconds vs minutes)
+- Layer 2 context hydration (STATE.md + ROADMAP.md + git history in job prompt)
+- Named volumes for persistent repo state across jobs (warm start)
+
 ## Current State (after v1.3)
 
 **Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo + v1.3 Instance Generator

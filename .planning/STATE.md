@@ -25,9 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Milestone: v1.4 (Docker Engine Foundation) — not started
-Status: Between milestones — v1.3 archived, v1.4 requirements and roadmap needed
-Last activity: 2026-03-06 — v1.3 Instance Generator milestone completed and archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-05 — Milestone v1.4 started
 
 ## Accumulated Context
 
