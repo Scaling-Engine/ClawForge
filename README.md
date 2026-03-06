@@ -1,3 +1,4 @@
+<!-- Docker dispatch test -->
 # ClawForge
 
 **Ship AI-authored PRs from a Slack message.** Multi-channel conversational interface, Docker-isolated execution, git-native audit trail. Every action is a commit, every change is a PR.
