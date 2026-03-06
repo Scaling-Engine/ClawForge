@@ -9,6 +9,7 @@ import { getJobOrigin } from '../lib/db/job-origins.js';
 import { saveJobOutcome } from '../lib/db/job-outcomes.js';
 import { loadTriggers } from '../lib/triggers.js';
 import { verifyApiKey } from '../lib/db/api-keys.js';
+import { isJobNotified } from '../lib/db/docker-jobs.js';
 
 // Bot token from env, can be overridden by /telegram/register
 let telegramBotToken = null;
@@ -253,6 +254,12 @@ async function handleGithubWebhook(request) {
   const payload = await request.json();
   const jobId = payload.job_id || extractJobId(payload.branch);
   if (!jobId) return Response.json({ ok: true, skipped: true, reason: 'not a job' });
+
+  // Dedup: skip notification if Docker dispatch already handled it
+  if (jobId && isJobNotified(jobId)) {
+    console.log(`Skipping Actions notification for job ${jobId.slice(0, 8)} -- already notified via Docker dispatch`);
+    return Response.json({ ok: true, skipped: true, reason: 'already_notified_via_docker' });
+  }
 
   try {
     const results = {

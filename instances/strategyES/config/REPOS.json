@@ -4,7 +4,8 @@
       "owner": "ScalingEngine",
       "slug": "strategyes-lab",
       "name": "StrategyES Lab",
-      "aliases": ["strategyes-lab", "strategyes", "lab"]
+      "aliases": ["strategyes-lab", "strategyes", "lab"],
+      "dispatch": "docker"
     }
   ]
 }

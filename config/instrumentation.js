@@ -37,5 +37,9 @@ export async function register() {
   const { startBuiltinCrons } = await import('../lib/cron.js');
   startBuiltinCrons();
 
+  // Probe Docker Engine availability (graceful fallback if no socket)
+  const { initDocker } = await import('../lib/tools/docker.js');
+  await initDocker();
+
   console.log('ClawForge initialized');
 }

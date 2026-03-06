@@ -4,13 +4,15 @@
       "owner": "ScalingEngine",
       "slug": "clawforge",
       "name": "ClawForge",
-      "aliases": ["clawforge", "cf", "the bot"]
+      "aliases": ["clawforge", "cf", "the bot"],
+      "dispatch": "docker"
     },
     {
       "owner": "ScalingEngine",
       "slug": "neurostory",
       "name": "NeuroStory",
-      "aliases": ["neurostory", "ns", "the app"]
+      "aliases": ["neurostory", "ns", "the app"],
+      "dispatch": "docker"
     }
   ]
 }
