@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Docker Engine Foundation
 status: executing
-stopped_at: Completed 19-01-PLAN.md
-last_updated: "2026-03-06T14:16:27.308Z"
-last_activity: 2026-03-06 -- Completed 19-01 Docker Engine Client
+stopped_at: Completed 19-02-PLAN.md
+last_updated: "2026-03-06T14:20:00.000Z"
+last_activity: 2026-03-06 -- Completed 19-02 Dispatch Integration
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 19 of 20 (Docker Engine Dispatch)
-Plan: 01 of 3 complete
+Plan: 02 of 3 complete
 Status: In Progress
-Last activity: 2026-03-06 -- Completed 19-01 Docker Engine Client
+Last activity: 2026-03-06 -- Completed 19-02 Dispatch Integration
 
-Progress: [██████████] 100%
+Progress: [█████████░] 94%
 
 ## Accumulated Context
 
@@ -45,6 +45,9 @@ Progress: [██████████] 100%
 - Container labels (clawforge=job + metadata) for orphan detection instead of DB-only tracking (19-01)
 - AutoRemove: false to allow log collection before cleanup (19-01)
 - Schema columns use .default() for zero-migration backwards compatibility (19-01)
+- getDispatchMethod defaults to 'docker' when no explicit field, promoting Docker-first dispatch (19-02)
+- waitAndNotify fires as detached async to avoid blocking tool response (19-02)
+- Notification dedup via isJobNotified early-return in handleGithubWebhook (19-02)
 
 ### Pending Todos
 
@@ -57,6 +60,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-06T14:16:27.306Z
-Stopped at: Completed 19-01-PLAN.md
+Last session: 2026-03-06T14:20:00.000Z
+Stopped at: Completed 19-02-PLAN.md
 Resume file: None

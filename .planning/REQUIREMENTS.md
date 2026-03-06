@@ -30,11 +30,11 @@ Requirements for Docker Engine Foundation milestone. Each maps to roadmap phases
 
 ### Dispatch Routing
 
-- [ ] **DISP-01**: REPOS.json supports `dispatch` field per repo ("docker" or "actions")
-- [ ] **DISP-02**: `createJobTool` routes to Docker API or GitHub Actions based on repo dispatch config
-- [ ] **DISP-03**: GitHub Actions dispatch path remains unchanged and fully functional
-- [ ] **DISP-04**: Docker-dispatched jobs produce identical outputs (commits, PR, notifications) to Actions-dispatched
-- [ ] **DISP-05**: Multiple Docker jobs can dispatch in parallel without interference
+- [x] **DISP-01**: REPOS.json supports `dispatch` field per repo ("docker" or "actions")
+- [x] **DISP-02**: `createJobTool` routes to Docker API or GitHub Actions based on repo dispatch config
+- [x] **DISP-03**: GitHub Actions dispatch path remains unchanged and fully functional
+- [x] **DISP-04**: Docker-dispatched jobs produce identical outputs (commits, PR, notifications) to Actions-dispatched
+- [x] **DISP-05**: Multiple Docker jobs can dispatch in parallel without interference
 
 ### Named Volumes
 
@@ -96,11 +96,11 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 | DOCK-08 | Phase 19 | Complete |
 | DOCK-09 | Phase 19 | Complete |
 | DOCK-10 | Phase 19 | Complete |
-| DISP-01 | Phase 19 | Pending |
-| DISP-02 | Phase 19 | Pending |
-| DISP-03 | Phase 19 | Pending |
-| DISP-04 | Phase 19 | Pending |
-| DISP-05 | Phase 19 | Pending |
+| DISP-01 | Phase 19 | Complete |
+| DISP-02 | Phase 19 | Complete |
+| DISP-03 | Phase 19 | Complete |
+| DISP-04 | Phase 19 | Complete |
+| DISP-05 | Phase 19 | Complete |
 | VOL-01 | Phase 20 | Pending |
 | VOL-02 | Phase 20 | Pending |
 | VOL-03 | Phase 20 | Pending |
