@@ -67,12 +67,12 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| Interactive workspace containers | v1.5 scope — separate lifecycle, auth model, frontend |
-| MCP server integration in jobs | v1.6 scope — own lifecycle management, new failure modes |
+| Interactive workspace containers | v1.5 scope -- separate lifecycle, auth model, frontend |
+| MCP server integration in jobs | v1.6 scope -- own lifecycle management, new failure modes |
 | Bind mounts instead of named volumes | Security concern, portability issues, widens attack surface |
 | Auto-scaling / k8s / Swarm | Deliberate single-VPS Docker Compose architecture |
-| Host filesystem mounts for GSD | PROJECT.md constraint — skills baked into Docker image |
-| Pre-CI quality gates in entrypoint | v1.7 scope — entrypoint must stabilize first |
+| Host filesystem mounts for GSD | PROJECT.md constraint -- skills baked into Docker image |
+| Pre-CI quality gates in entrypoint | v1.7 scope -- entrypoint must stabilize first |
 | Volume sharing between instances | Breaks network isolation model |
 | Container resource limits | Not blocking at 2-instance scale |
 | Dockerode vs raw HTTP | Resolved: use dockerode@^4.0.9 (battle-tested, stream demuxing) |
@@ -81,36 +81,36 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYDR-01 | — | Pending |
-| HYDR-02 | — | Pending |
-| HYDR-03 | — | Pending |
-| HYDR-04 | — | Pending |
-| HYDR-05 | — | Pending |
-| DOCK-01 | — | Pending |
-| DOCK-02 | — | Pending |
-| DOCK-03 | — | Pending |
-| DOCK-04 | — | Pending |
-| DOCK-05 | — | Pending |
-| DOCK-06 | — | Pending |
-| DOCK-07 | — | Pending |
-| DOCK-08 | — | Pending |
-| DOCK-09 | — | Pending |
-| DOCK-10 | — | Pending |
-| DISP-01 | — | Pending |
-| DISP-02 | — | Pending |
-| DISP-03 | — | Pending |
-| DISP-04 | — | Pending |
-| DISP-05 | — | Pending |
-| VOL-01 | — | Pending |
-| VOL-02 | — | Pending |
-| VOL-03 | — | Pending |
-| VOL-04 | — | Pending |
+| HYDR-01 | Phase 18 | Pending |
+| HYDR-02 | Phase 18 | Pending |
+| HYDR-03 | Phase 18 | Pending |
+| HYDR-04 | Phase 18 | Pending |
+| HYDR-05 | Phase 18 | Pending |
+| DOCK-01 | Phase 19 | Pending |
+| DOCK-02 | Phase 19 | Pending |
+| DOCK-03 | Phase 19 | Pending |
+| DOCK-04 | Phase 19 | Pending |
+| DOCK-05 | Phase 19 | Pending |
+| DOCK-06 | Phase 19 | Pending |
+| DOCK-07 | Phase 19 | Pending |
+| DOCK-08 | Phase 19 | Pending |
+| DOCK-09 | Phase 19 | Pending |
+| DOCK-10 | Phase 19 | Pending |
+| DISP-01 | Phase 19 | Pending |
+| DISP-02 | Phase 19 | Pending |
+| DISP-03 | Phase 19 | Pending |
+| DISP-04 | Phase 19 | Pending |
+| DISP-05 | Phase 19 | Pending |
+| VOL-01 | Phase 20 | Pending |
+| VOL-02 | Phase 20 | Pending |
+| VOL-03 | Phase 20 | Pending |
+| VOL-04 | Phase 20 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24
+- Mapped to phases: 24
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-06 after initial definition*
+*Last updated: 2026-03-06 after roadmap creation*

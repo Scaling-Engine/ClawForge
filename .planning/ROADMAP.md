@@ -2,127 +2,148 @@
 
 ## Milestones
 
-- v1.0 GSD Verification & Hardening — Phases 1-4 (shipped 2026-02-24)
-- v1.1 Agent Intelligence & Pipeline Hardening — Phases 5-8 (shipped 2026-02-25)
-- v1.2 Cross-Repo Job Targeting — Phases 9-12 (shipped 2026-02-27)
-- v1.3 Instance Generator — Phases 13-17 + 16.1, 17.1 (shipped 2026-03-06)
-- v1.4 Docker Engine Foundation — Phases 17.2, 18-21 (planned)
-- v1.5 Persistent Workspaces — Phases 22-25 (planned)
-- v1.6 MCP Tool Layer — Phases 26-28 (planned)
-- v1.7 Smart Execution — Phases 29-31 (planned)
-- v1.8 Multi-Agent Clusters — Phases 32-34 (future)
+- v1.0 GSD Verification & Hardening -- Phases 1-4 (shipped 2026-02-24)
+- v1.1 Agent Intelligence & Pipeline Hardening -- Phases 5-8 (shipped 2026-02-25)
+- v1.2 Cross-Repo Job Targeting -- Phases 9-12 (shipped 2026-02-27)
+- v1.3 Instance Generator -- Phases 13-17 + 16.1, 17.1 (shipped 2026-03-06)
+- **v1.4 Docker Engine Foundation** -- Phases 18-20 (in progress)
+- v1.5 Persistent Workspaces -- planned
+- v1.6 MCP Tool Layer -- planned
+- v1.7 Smart Execution -- planned
+- v1.8 Multi-Agent Clusters -- future
 
 ## Phases
 
 <details>
-<summary>v1.0 GSD Verification & Hardening (Phases 1-4) — SHIPPED 2026-02-24</summary>
+<summary>v1.0 GSD Verification & Hardening (Phases 1-4) -- SHIPPED 2026-02-24</summary>
 
-- [x] Phase 1: Foundation Fix (2/2 plans) — completed 2026-02-24
-- [x] Phase 2: Output Observability (2/2 plans) — completed 2026-02-24
-- [x] Phase 3: Test Harness (1/1 plan) — completed 2026-02-24
-- [x] Phase 4: Instruction Hardening (1/1 plan) — completed 2026-02-24
-
-</details>
-
-<details>
-<summary>v1.1 Agent Intelligence & Pipeline Hardening (Phases 5-8) — SHIPPED 2026-02-25</summary>
-
-- [x] Phase 5: Pipeline Hardening (2/2 plans) — completed 2026-02-25
-- [x] Phase 6: Smart Job Prompts (1/1 plan) — completed 2026-02-25
-- [x] Phase 7: Previous Job Context (2/2 plans) — completed 2026-02-25
-- [x] Phase 8: Polish & Test Sync (2/2 plans) — completed 2026-02-25
+- [x] Phase 1: Foundation Fix (2/2 plans) -- completed 2026-02-24
+- [x] Phase 2: Output Observability (2/2 plans) -- completed 2026-02-24
+- [x] Phase 3: Test Harness (1/1 plan) -- completed 2026-02-24
+- [x] Phase 4: Instruction Hardening (1/1 plan) -- completed 2026-02-24
 
 </details>
 
 <details>
-<summary>v1.2 Cross-Repo Job Targeting (Phases 9-12) — SHIPPED 2026-02-27</summary>
+<summary>v1.1 Agent Intelligence & Pipeline Hardening (Phases 5-8) -- SHIPPED 2026-02-25</summary>
 
-- [x] Phase 9: Config + Tool Schema + Entrypoint Foundation (3/3 plans) — completed 2026-02-26
-- [x] Phase 10: Actions Workflow + Container Execution + Cross-Repo PR (3/3 plans) — completed 2026-02-27
-- [x] Phase 11: Notification Pipeline + DB Schema (3/3 plans) — completed 2026-02-27
-- [x] Phase 12: Regression Verification (1/1 plan) — completed 2026-02-27
+- [x] Phase 5: Pipeline Hardening (2/2 plans) -- completed 2026-02-25
+- [x] Phase 6: Smart Job Prompts (1/1 plan) -- completed 2026-02-25
+- [x] Phase 7: Previous Job Context (2/2 plans) -- completed 2026-02-25
+- [x] Phase 8: Polish & Test Sync (2/2 plans) -- completed 2026-02-25
 
 </details>
 
 <details>
-<summary>v1.3 Instance Generator (Phases 13-17 + 16.1, 17.1) — SHIPPED 2026-03-06</summary>
+<summary>v1.2 Cross-Repo Job Targeting (Phases 9-12) -- SHIPPED 2026-02-27</summary>
 
-- [x] Phase 13: Tool Infrastructure (1/1 plan) — completed 2026-02-27
-- [x] Phase 14: Intake Flow (2/2 plans) — completed 2026-03-04
-- [x] Phase 15: Job Prompt Completeness (1/1 plan) — completed 2026-03-04
-- [x] Phase 16: PR Pipeline and Auto-Merge Exclusion (1/1 plan) — completed 2026-03-05
-- [x] Phase 16.1: Entrypoint Sync (1/1 plan) — completed 2026-03-05
-- [x] Phase 17: End-to-End Validation (1/1 plan) — completed 2026-03-06
-- [x] Phase 17.1: Context Hydration for Layer 1 (1/1 plan) — completed 2026-03-06
+- [x] Phase 9: Config + Tool Schema + Entrypoint Foundation (3/3 plans) -- completed 2026-02-26
+- [x] Phase 10: Actions Workflow + Container Execution + Cross-Repo PR (3/3 plans) -- completed 2026-02-27
+- [x] Phase 11: Notification Pipeline + DB Schema (3/3 plans) -- completed 2026-02-27
+- [x] Phase 12: Regression Verification (1/1 plan) -- completed 2026-02-27
+
+</details>
+
+<details>
+<summary>v1.3 Instance Generator (Phases 13-17 + 16.1, 17.1) -- SHIPPED 2026-03-06</summary>
+
+- [x] Phase 13: Tool Infrastructure (1/1 plan) -- completed 2026-02-27
+- [x] Phase 14: Intake Flow (2/2 plans) -- completed 2026-03-04
+- [x] Phase 15: Job Prompt Completeness (1/1 plan) -- completed 2026-03-04
+- [x] Phase 16: PR Pipeline and Auto-Merge Exclusion (1/1 plan) -- completed 2026-03-05
+- [x] Phase 16.1: Entrypoint Sync (1/1 plan) -- completed 2026-03-05
+- [x] Phase 17: End-to-End Validation (1/1 plan) -- completed 2026-03-06
+- [x] Phase 17.1: Context Hydration for Layer 1 (1/1 plan) -- completed 2026-03-06
 
 </details>
 
 ---
 
-### v1.4 Docker Engine Foundation (Planned)
+### v1.4 Docker Engine Foundation (In Progress)
 
 **Goal:** Replace GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls. Containers start in seconds instead of minutes. GH Actions retained as fallback for CI-integrated repos.
 
-**Source:** Pull `dockerApi()` pattern from thepopebot `lib/tools/docker.js`. Adapt for ClawForge's multi-instance isolation model.
+- [ ] **Phase 18: Layer 2 Context Hydration** - Inject STATE.md, ROADMAP.md, and git history into job prompts with GSD-gated scoping
+- [ ] **Phase 19: Docker Engine Dispatch** - Docker API client, container lifecycle, and dual-path dispatch routing
+- [ ] **Phase 20: Named Volumes** - Persistent repo state across jobs for warm-start containers
 
-- [ ] **Phase 17.2: Layer 2 Context Hydration** — Inject `.planning/STATE.md`, `ROADMAP.md`, and recent git history into entrypoint.sh job prompt. Dynamic system prompt scoping (AGENT_QUICK.md variant for quick jobs vs full AGENT.md for plan-phase jobs). See `docs/CONTEXT_ENGINEERING.md` for full analysis and implementation plan.
-- [ ] **Phase 18: Docker Engine API Client** — Port dockerApi() Unix socket client, inspectContainer(), removeContainer(), detectNetwork(). Add to lib/tools/docker.js. No behavioral change yet — just the client library.
-- [ ] **Phase 19: Headless Job Containers** — createHeadlessCodeContainer() that runs claude -p, commits, creates PR, exits. Wire into createJob() as alternative dispatch path. Feature-flagged per instance via REPOS.json `dispatch: "docker" | "actions"`.
-- [ ] **Phase 20: Volume Management** — Named volumes per repo (volumeName pattern). Containers mount volume instead of cloning fresh. First run clones into volume; subsequent runs do git pull. Warm start target: <15s.
-- [ ] **Phase 21: Migration & Fallback** — Dual-dispatch mode: Docker Engine for repos that don't need CI, GH Actions for repos that do. Instance-level config. Regression test both paths. Deprecation path for pure-Actions dispatch.
+## Phase Details
+
+### Phase 18: Layer 2 Context Hydration
+**Goal**: Job containers start with full project awareness -- state, roadmap, and recent history -- so agents produce context-informed results without operator briefing
+**Depends on**: Nothing (pure entrypoint.sh changes, works with both dispatch paths)
+**Requirements**: HYDR-01, HYDR-02, HYDR-03, HYDR-04, HYDR-05
+**Success Criteria** (what must be TRUE):
+  1. A job on a GSD-managed repo includes STATE.md and ROADMAP.md content in the prompt visible to Claude
+  2. A simple job (GSD hint "quick") receives a minimal prompt without state/roadmap sections
+  3. Recent git history (last 10 commits) appears in the job prompt so the agent knows what changed recently
+  4. Simple jobs use AGENT_QUICK.md (shorter instructions), complex jobs use full AGENT.md
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD
+- [ ] 18-02: TBD
+
+### Phase 19: Docker Engine Dispatch
+**Goal**: Jobs dispatched via Docker Engine API start in seconds instead of minutes, with full container lifecycle management and seamless fallback to GitHub Actions
+**Depends on**: Phase 18
+**Requirements**: DOCK-01, DOCK-02, DOCK-03, DOCK-04, DOCK-05, DOCK-06, DOCK-07, DOCK-08, DOCK-09, DOCK-10, DISP-01, DISP-02, DISP-03, DISP-04, DISP-05
+**Success Criteria** (what must be TRUE):
+  1. Operator sends a job via Slack/Telegram and the container starts executing within 15 seconds (vs ~60s via Actions)
+  2. Docker-dispatched jobs produce identical outputs to Actions-dispatched jobs -- same commits, PRs, and notifications
+  3. REPOS.json `dispatch` field controls whether a repo uses Docker or Actions, and both paths work simultaneously
+  4. Orphaned containers from crashed Event Handler are detected and cleaned up on restart
+  5. Operator can check if a running container is stuck via job status inspection
+**Plans**: TBD
+
+Plans:
+- [ ] 19-01: TBD
+- [ ] 19-02: TBD
+- [ ] 19-03: TBD
+
+### Phase 20: Named Volumes
+**Goal**: Repeat jobs on the same repo start warm -- fetching in 2-3 seconds instead of cloning in 10-15 seconds
+**Depends on**: Phase 19
+**Requirements**: VOL-01, VOL-02, VOL-03, VOL-04
+**Success Criteria** (what must be TRUE):
+  1. Second job on the same repo uses `git fetch` instead of `git clone`, completing repo setup in under 5 seconds
+  2. A job that runs after a previously failed/interrupted job starts clean (no stale locks, dirty state, or leftover files)
+  3. Two concurrent jobs on the same repo both complete successfully without corrupting each other
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01: TBD
 
 ---
 
 ### v1.5 Persistent Workspaces (Planned)
 
-**Goal:** Interactive code workspaces where operators can open a browser terminal connected to a persistent Docker container with their repo. Claude Code runs interactively (not just one-shot). The "devbox" experience.
-
-**Source:** Pull `lib/code/` module from thepopebot — actions.js, terminal-view.jsx, ws-proxy.js. Adapt auth for ClawForge's multi-instance model.
-
-- [ ] **Phase 22: Workspace Container Lifecycle** — createCodeWorkspaceContainer() with ttyd, container recovery (inspect/restart/recreate), workspace DB table (id, instance_id, repo, branch, status). Server actions for CRUD.
-- [ ] **Phase 23: WebSocket Terminal Proxy** — ws-proxy.js that authenticates WebSocket upgrade requests, proxies to container's ttyd port. xterm.js frontend component. Route: /code/{workspaceId}.
-- [ ] **Phase 24: Workspace-Job Integration** — Headless jobs can run against workspace volumes (shared state). Operator starts interactive workspace, dispatches headless tasks that operate on same codebase. Feature branch support per workspace.
-- [ ] **Phase 25: Workspace Polish** — Container auto-stop after idle timeout. Workspace list/star/rename UI. Resource limits per container. Cleanup of orphaned volumes.
+**Goal:** Interactive code workspaces where operators can open a browser terminal connected to a persistent Docker container with their repo.
 
 ---
 
 ### v1.6 MCP Tool Layer (Planned)
 
-**Goal:** Per-instance MCP server configuration so agents get curated tool access beyond Claude Code built-ins. This is the "Toolshed" equivalent — each instance gets the tools relevant to its purpose.
-
-**Source:** Original design — thepopebot doesn't have this yet. Inspired by Stripe's 400-tool Toolshed via MCP.
-
-- [ ] **Phase 26: MCP Server Config** — Instance-level MCP_SERVERS.json defining which MCP servers to start in job containers. Schema: server name, command, args, env vars. Validated at container creation time.
-- [ ] **Phase 27: Container MCP Runtime** — Entrypoint starts configured MCP servers before Claude Code. Claude Code's `--mcp-config` flag points to generated config. Server health check before job starts. Graceful shutdown on job completion.
-- [ ] **Phase 28: Context Hydration** — Pre-run MCP tools on "likely-looking links" in job prompts before execution (Stripe pattern). Extract URLs/references from task description, call relevant MCP tools, inject results into prompt context. Configurable per instance.
+**Goal:** Per-instance MCP server configuration so agents get curated tool access beyond Claude Code built-ins.
 
 ---
 
 ### v1.7 Smart Execution (Planned)
 
-**Goal:** Quality gates before and after agent work. Local heuristic checks (<5s), CI-aware test feedback, and configurable merge policies. Agents produce higher-quality PRs with fewer review cycles.
-
-**Source:** Inspired by Stripe's deterministic interleaving (agent creativity + forced lint/test phases) and "at most 2 CI runs" policy.
-
-- [ ] **Phase 29: Pre-CI Quality Gates** — Entrypoint runs lint + typecheck after Claude Code completes but before committing. Configurable per repo in REPOS.json (lint_command, typecheck_command). Failures fed back to Claude for self-correction (one retry). Target: <5s for heuristic checks.
-- [ ] **Phase 30: CI Feedback Loop** — After PR creation, poll CI status. If tests fail, feed failure output back to Claude Code for a fix attempt. At most 2 CI runs (configurable). PR marked as draft until CI passes or retries exhausted.
-- [ ] **Phase 31: Merge Policy Engine** — Per-repo merge policies in REPOS.json: auto-merge (current), require-review, require-ci-pass, require-approval. Replaces current path-based auto-merge.yml with policy-driven decisions.
+**Goal:** Quality gates before and after agent work. Local heuristic checks, CI-aware test feedback, and configurable merge policies.
 
 ---
 
 ### v1.8 Multi-Agent Clusters (Future)
 
-**Goal:** Coordinated groups of agents that can split complex tasks, work in parallel, and merge results. A "team lead" agent decomposes work and distributes to worker agents.
-
-**Source:** Pull cluster DB schema from thepopebot (tables: clusters, cluster_roles, cluster_workers). Build our own runtime — thepopebot's is UI/DB only with no execution layer yet.
-
-- [ ] **Phase 32: Cluster Schema & Management** — DB tables for clusters, roles, workers. Server actions for CRUD. Instance-level cluster ownership. Trigger config model (cron, webhook, manual).
-- [ ] **Phase 33: Cluster Runtime** — Lead agent decomposes task into sub-tasks, dispatches to worker containers (via Docker Engine API from v1.4). Workers operate on shared volume or separate branches. Result collection and conflict detection.
-- [ ] **Phase 34: Cluster Coordination** — Inter-worker dependency resolution. Sequential vs parallel task dispatch. Merge conflict resolution when multiple workers modify same repo. Aggregated PR with all worker contributions.
+**Goal:** Coordinated groups of agents that can split complex tasks, work in parallel, and merge results.
 
 ---
 
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 18 -> 19 -> 20
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -145,24 +166,9 @@
 | 16.1. Entrypoint Sync | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 17. End-to-End Validation | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 17.2. Layer 2 Context Hydration | v1.4 | 0/TBD | Not started | - |
-| 18. Docker Engine API Client | v1.4 | 0/TBD | Not started | - |
-| 19. Headless Job Containers | v1.4 | 0/TBD | Not started | - |
-| 20. Volume Management | v1.4 | 0/TBD | Not started | - |
-| 21. Migration & Fallback | v1.4 | 0/TBD | Not started | - |
-| 22. Workspace Container Lifecycle | v1.5 | 0/TBD | Not started | - |
-| 23. WebSocket Terminal Proxy | v1.5 | 0/TBD | Not started | - |
-| 24. Workspace-Job Integration | v1.5 | 0/TBD | Not started | - |
-| 25. Workspace Polish | v1.5 | 0/TBD | Not started | - |
-| 26. MCP Server Config | v1.6 | 0/TBD | Not started | - |
-| 27. Container MCP Runtime | v1.6 | 0/TBD | Not started | - |
-| 28. Context Hydration | v1.6 | 0/TBD | Not started | - |
-| 29. Pre-CI Quality Gates | v1.7 | 0/TBD | Not started | - |
-| 30. CI Feedback Loop | v1.7 | 0/TBD | Not started | - |
-| 31. Merge Policy Engine | v1.7 | 0/TBD | Not started | - |
-| 32. Cluster Schema & Management | v1.8 | 0/TBD | Not started | - |
-| 33. Cluster Runtime | v1.8 | 0/TBD | Not started | - |
-| 34. Cluster Coordination | v1.8 | 0/TBD | Not started | - |
+| 18. Layer 2 Context Hydration | v1.4 | 0/TBD | Not started | - |
+| 19. Docker Engine Dispatch | v1.4 | 0/TBD | Not started | - |
+| 20. Named Volumes | v1.4 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-06 — v1.3 shipped, Phase 17.2 moved to v1.4*
+*Last updated: 2026-03-06 -- v1.4 roadmap created*
