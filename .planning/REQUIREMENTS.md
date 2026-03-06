@@ -9,10 +9,10 @@ Requirements for Docker Engine Foundation milestone. Each maps to roadmap phases
 
 ### Context Hydration
 
-- [ ] **HYDR-01**: Job prompt includes STATE.md content (capped at 4K chars) from target repo
-- [ ] **HYDR-02**: Job prompt includes ROADMAP.md content (capped at 6K chars) from target repo
-- [ ] **HYDR-03**: Job prompt includes last 10 commits on main branch as recent git history
-- [ ] **HYDR-04**: Context hydration is gated on GSD hint (quick = minimal, plan-phase = full hydration)
+- [x] **HYDR-01**: Job prompt includes STATE.md content (capped at 4K chars) from target repo
+- [x] **HYDR-02**: Job prompt includes ROADMAP.md content (capped at 6K chars) from target repo
+- [x] **HYDR-03**: Job prompt includes last 10 commits on main branch as recent git history
+- [x] **HYDR-04**: Context hydration is gated on GSD hint (quick = minimal, plan-phase = full hydration)
 - [x] **HYDR-05**: AGENT_QUICK.md variant used for simple jobs, full AGENT.md for complex jobs
 
 ### Docker Engine API
@@ -81,10 +81,10 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYDR-01 | Phase 18 | Pending |
-| HYDR-02 | Phase 18 | Pending |
-| HYDR-03 | Phase 18 | Pending |
-| HYDR-04 | Phase 18 | Pending |
+| HYDR-01 | Phase 18 | Complete |
+| HYDR-02 | Phase 18 | Complete |
+| HYDR-03 | Phase 18 | Complete |
+| HYDR-04 | Phase 18 | Complete |
 | HYDR-05 | Phase 18 | Complete |
 | DOCK-01 | Phase 19 | Pending |
 | DOCK-02 | Phase 19 | Pending |

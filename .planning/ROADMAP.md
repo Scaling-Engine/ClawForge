@@ -63,7 +63,7 @@
 
 **Goal:** Replace GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls. Containers start in seconds instead of minutes. GH Actions retained as fallback for CI-integrated repos.
 
-- [ ] **Phase 18: Layer 2 Context Hydration** - Inject STATE.md, ROADMAP.md, and git history into job prompts with GSD-gated scoping
+- [x] **Phase 18: Layer 2 Context Hydration** - Inject STATE.md, ROADMAP.md, and git history into job prompts with GSD-gated scoping (completed 2026-03-06)
 - [ ] **Phase 19: Docker Engine Dispatch** - Docker API client, container lifecycle, and dual-path dispatch routing
 - [ ] **Phase 20: Named Volumes** - Persistent repo state across jobs for warm-start containers
 
@@ -166,7 +166,7 @@ Phases execute in numeric order: 18 -> 19 -> 20
 | 16.1. Entrypoint Sync | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 17. End-to-End Validation | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 18. Layer 2 Context Hydration | 1/2 | In Progress|  | - |
+| 18. Layer 2 Context Hydration | 2/2 | Complete   | 2026-03-06 | - |
 | 19. Docker Engine Dispatch | v1.4 | 0/TBD | Not started | - |
 | 20. Named Volumes | v1.4 | 0/TBD | Not started | - |
 
