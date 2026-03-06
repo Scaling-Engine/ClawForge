@@ -78,11 +78,11 @@
   2. A simple job (GSD hint "quick") receives a minimal prompt without state/roadmap sections
   3. Recent git history (last 10 commits) appears in the job prompt so the agent knows what changed recently
   4. Simple jobs use AGENT_QUICK.md (shorter instructions), complex jobs use full AGENT.md
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 18-01: TBD
-- [ ] 18-02: TBD
+- [ ] 18-01-PLAN.md -- AGENT_QUICK.md creation and entrypoint reordering for hint-aware agent selection
+- [ ] 18-02-PLAN.md -- Context hydration: STATE.md, ROADMAP.md, git history with GSD-gated injection
 
 ### Phase 19: Docker Engine Dispatch
 **Goal**: Jobs dispatched via Docker Engine API start in seconds instead of minutes, with full container lifecycle management and seamless fallback to GitHub Actions
@@ -166,9 +166,9 @@ Phases execute in numeric order: 18 -> 19 -> 20
 | 16.1. Entrypoint Sync | v1.3 | 1/1 | Complete | 2026-03-05 |
 | 17. End-to-End Validation | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 18. Layer 2 Context Hydration | v1.4 | 0/TBD | Not started | - |
+| 18. Layer 2 Context Hydration | v1.4 | 0/2 | Planning complete | - |
 | 19. Docker Engine Dispatch | v1.4 | 0/TBD | Not started | - |
 | 20. Named Volumes | v1.4 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-06 -- v1.4 roadmap created*
+*Last updated: 2026-03-06 -- Phase 18 planned (2 plans)*
