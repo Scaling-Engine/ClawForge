@@ -1,609 +1,481 @@
-# Architecture Research
+# Architecture Patterns
 
-**Domain:** Multi-turn conversational intake + instance provisioning via Claude Code job
-**Researched:** 2026-02-27
-**Confidence:** HIGH (based on direct codebase analysis) / MEDIUM (LangGraph patterns — docs redirect issues during research, supplemented by GitHub issues + blog sources)
+**Domain:** Docker Engine API dispatch, Layer 2 context hydration, named volumes for ClawForge v1.4
+**Researched:** 2026-03-06
 
----
-
-## Standard Architecture
-
-### System Overview — Current (v1.2)
+## Current Architecture (Baseline)
 
 ```
-User (Slack/Telegram/Web)
-    |
-    v
-Channel Adapter (normalize to threadId + text)
-    |
-    v
-LangGraph ReAct Agent  <-- SQLite checkpointer (thread-scoped memory)
-    |     ^
-    |     | (tool results)
-    v     |
-  Tools: create_job | get_job_status | get_system_technical_specs
-    |
-    v
-createJob() --> job/{uuid} branch + logs/{uuid}/job.md [+ target.json]
-    |
-    v
-GitHub Actions --> Docker container
-    |
-    v
-Claude Code CLI (entrypoint.sh)
-    |
-    v
-Files created in repo --> commit --> PR
-    |
-    v
-GitHub webhook --> summarizeJob() --> addToThread() --> notification to user
+User -> Channel (Slack/Telegram/Web)
+  -> Layer 1: Event Handler (LangGraph ReAct agent, Next.js, PM2)
+    -> create-job.js: GitHub API creates job/{UUID} branch with logs/{UUID}/job.md
+    -> (optional) target.json sidecar for cross-repo jobs
+  -> GitHub Actions run-job.yml triggers on branch creation
+    -> Pulls Docker image, runs container with SECRETS/LLM_SECRETS env vars
+    -> entrypoint.sh: clone repo -> build 5-section FULL_PROMPT -> claude -p -> commit -> PR
+  -> notify-pr-complete.yml / auto-merge.yml -> webhook to Event Handler
+    -> summarizeJob() -> route notification back to originating thread
 ```
 
-### System Overview — Target (v1.3 Instance Generator)
+**Key bottleneck:** GitHub Actions cold start (~60s queue + pull + clone). Every job clones fresh.
+
+## Target Architecture (v1.4)
 
 ```
-User: "create a new instance"
-    |
-    v
-LangGraph Agent -- detects intent, enters multi-turn intake mode
-    |
-    | Turn 1: "What should I name this instance?"
-    | Turn 2: "Which channels? (Slack/Telegram/Web)"
-    | Turn 3: "Which repos should it have access to?"
-    | Turn 4: "What is the agent's persona (name, purpose, style)?"
-    | Turn 5: Agent presents complete config, waits for approval
-    |
-    v
-User approves --> Agent calls create_instance_job(instanceConfig)
-    |
-    v
-createJob() -- with structured instance config JSON embedded in job.md
-    |
-    v
-Docker container / Claude Code CLI
-    |
-    v
-Claude Code generates all instance files:
-    instances/{name}/Dockerfile
-    instances/{name}/config/SOUL.md
-    instances/{name}/config/AGENT.md
-    instances/{name}/config/EVENT_HANDLER.md
-    instances/{name}/config/REPOS.json
-    instances/{name}/.env.example
-    docker-compose.yml (updated with new service block)
-    |
-    v
-PR created on clawforge repo with setup checklist in PR body
-    |
-    v
-User receives notification with PR URL + operator setup checklist
+User -> Channel
+  -> Layer 1: Event Handler
+    -> NEW: lib/tools/docker.js -- Docker Engine API via Unix socket
+      -> createContainer() with named volume mount -> start() -> wait() -> collect results
+      -> Container uses SAME entrypoint.sh (modified for volume-aware clone)
+    -> RETAINED: GitHub Actions fallback for CI-integrated repos
+  -> NEW: entrypoint.sh hydrates STATE.md + ROADMAP.md + git history into prompt
+  -> NEW: Named volumes persist repo clones across jobs (warm start)
+  -> RETAINED: Same notification flow (webhook to Event Handler)
 ```
-
----
 
 ## Component Boundaries
 
-### What Stays in the LangGraph Agent (Event Handler)
+| Component | Responsibility | New/Modified | Communicates With |
+|-----------|---------------|--------------|-------------------|
+| `lib/tools/docker.js` | **NEW** -- Docker Engine API wrapper (create, start, wait, logs, cleanup) | New file | Docker socket, Event Handler |
+| `lib/ai/tools.js` (create_job) | Dispatch decision: Docker API vs GitHub Actions | Modified | docker.js OR create-job.js |
+| `lib/tools/create-job.js` | GitHub API branch+file creation (retained as fallback) | Unchanged | GitHub API |
+| `templates/docker/job/entrypoint.sh` | Context assembly + claude execution | Modified | Named volume, GitHub API, Claude CLI |
+| `docker-compose.yml` | Named volume definitions, socket mount | Modified | Docker Engine |
+| `api/index.js` (github webhook) | Receive job completion notifications | Possibly modified | LangGraph memory, channels |
+| `lib/tools/github.js` (getJobStatus) | Job status lookup | Modified | Docker API (new) + GitHub API (existing) |
 
-The agent handles everything conversational, stateful across turns, or approval-gated. The agent does NOT generate files — it gathers intent and configuration.
+## Recommended Architecture
 
-| Responsibility | Rationale |
-|---------------|-----------|
-| Detecting "create instance" intent from natural language | Agent already owns intent routing for all requests |
-| Asking follow-up questions (name, channels, repos, persona) | Uses existing thread-scoped SQLite memory; no new storage needed |
-| Presenting the complete config summary for user review | Follows existing approval gate pattern in EVENT_HANDLER.md |
-| Constructing the structured instance config payload | Transforms conversational answers into a deterministic JSON spec |
-| Calling `create_instance_job(instanceConfig)` after approval | New tool following the existing `createJobTool` pattern |
+### 1. Docker Engine API Dispatch (`lib/tools/docker.js`)
 
-The agent does NOT need a new state machine or separate graph. The existing `createReactAgent` with its SQLite checkpointer already provides thread-scoped multi-turn memory. The agent naturally accumulates intake answers across turns in its message history. The LLM reads that history at each step to know what has and has not yet been gathered.
+Use **dockerode** (npm) to communicate with the Docker Engine via Unix socket at `/var/run/docker.sock`.
 
-### What Stays in the Claude Code Job (Docker Container)
-
-The job handles everything that requires filesystem access, template rendering, and file creation. The container is the right location because it already owns the git workflow and PR creation.
-
-| Responsibility | Rationale |
-|---------------|-----------|
-| Reading instance config from `job.md` (as structured JSON) | Same mechanism as all current jobs |
-| Rendering Dockerfile from instance name and channel config | File generation is Claude Code's primary capability |
-| Generating SOUL.md from persona fields in config | Template interpolation is straightforward for Claude Code |
-| Generating AGENT.md from config (channels, repos, persona) | Copy from existing instance as base and customize |
-| Generating EVENT_HANDLER.md from config | Per-instance system prompt customization |
-| Generating REPOS.json from the allowed repos list in config | Simple JSON serialization |
-| Generating .env.example with required variables | Derived from existing .env.example plus channels selected |
-| Updating docker-compose.yml to add new service block | Read existing compose, insert new service, write back |
-| Generating PR body with operator setup checklist | Templated markdown based on channels and config |
-
----
-
-## Integration Points and Data Flow Changes
-
-### New vs Modified Components
-
-| Component | Status | Change |
-|-----------|--------|--------|
-| `lib/ai/tools.js` | MODIFIED | Add `createInstanceJobTool` export |
-| `lib/ai/agent.js` | MODIFIED | Register `createInstanceJobTool` in tools array |
-| `lib/tools/instance-job.js` | NEW | `buildInstanceJobDescription()` helper |
-| `instances/noah/config/EVENT_HANDLER.md` | MODIFIED | Add instance creation intake section |
-| Everything else | UNCHANGED | No changes to agent.js graph, entrypoint.sh, workflows, DB schema |
-
-### New Component: `createInstanceJobTool` (lib/ai/tools.js)
-
-This is a new tool alongside the existing three. It follows the exact same pattern as `createJobTool`.
+The Event Handler container already has the socket mounted (Traefik uses it). Job containers do NOT need socket access.
 
 ```javascript
-// lib/ai/tools.js — new export (schema sketch)
-const createInstanceJobTool = tool(
-  async ({ instanceConfig }, config) => {
-    const threadId = config?.configurable?.thread_id;
+// lib/tools/docker.js -- Core dispatch function
+import Docker from 'dockerode';
 
-    // Serialize config as structured job description
-    const jobDescription = buildInstanceJobDescription(instanceConfig);
+const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 
-    const result = await createJob(jobDescription);
+async function runJobContainer(jobId, { jobDescription, targetRepo, secrets, llmSecrets, image }) {
+  const containerName = `clawforge-job-${jobId.slice(0, 8)}`;
 
-    if (threadId) {
-      saveJobOrigin(result.job_id, threadId, detectPlatform(threadId));
-    }
+  // Determine volume name based on target repo
+  const repoSlug = targetRepo ? targetRepo.slug : process.env.GH_REPO;
+  const volumeName = `clawforge-repo-${repoSlug}`;
 
-    return JSON.stringify({
-      success: true,
-      job_id: result.job_id,
-      branch: result.branch,
-      instance_name: instanceConfig.name,
-    });
-  },
-  {
-    name: 'create_instance_job',
-    description:
-      'Create a new ClawForge instance by generating all required files as a PR. ' +
-      'Call this ONLY after gathering complete instance configuration from the user ' +
-      'and receiving explicit approval. ' +
-      'Required fields: name, channels, repos, persona.',
-    schema: z.object({
-      instanceConfig: z.object({
-        name: z.string().describe('Slug name for the instance (lowercase, no spaces)'),
-        displayName: z.string().describe('Human-readable name for the agent persona'),
-        channels: z.array(z.enum(['slack', 'telegram', 'web'])).describe('Channels to enable'),
-        repos: z.array(z.object({
-          owner: z.string(),
-          slug: z.string(),
-          name: z.string(),
-          aliases: z.array(z.string()),
-        })).describe('Allowed repositories for this instance'),
-        persona: z.object({
-          name: z.string().describe('Agent name (e.g., "Archie")'),
-          owner: z.string().describe('Owner name (e.g., "Noah Wessel")'),
-          style: z.string().describe('Communication style description'),
-          purpose: z.string().describe('What this agent helps with'),
-        }),
-        slackConfig: z.object({
-          allowedUsers: z.string().optional(),
-          allowedChannels: z.string().optional(),
-          requireMention: z.boolean().optional(),
-        }).optional(),
-        telegramConfig: z.object({
-          chatId: z.string().optional(),
-        }).optional(),
-      }),
-    }),
-  }
-);
-```
+  const container = await docker.createContainer({
+    Image: image || process.env.JOB_IMAGE || 'scalingengine/clawforge:job-latest',
+    name: containerName,
+    Env: [
+      `REPO_URL=https://github.com/${targetRepo?.owner || process.env.GH_OWNER}/${repoSlug}.git`,
+      `BRANCH=job/${jobId}`,
+      `SECRETS=${JSON.stringify(secrets)}`,
+      `LLM_SECRETS=${JSON.stringify(llmSecrets)}`,
+      `DISPATCH_MODE=docker`,  // Signal to entrypoint that this is Docker-dispatched
+    ],
+    HostConfig: {
+      Binds: [`${volumeName}:/repo-cache`],  // Named volume for repo persistence
+      AutoRemove: false,  // We need to inspect exit code before removal
+      NetworkMode: 'bridge',
+    },
+  });
 
-**Registration change in `lib/ai/agent.js`:**
-```javascript
-const tools = [createJobTool, getJobStatusTool, getSystemTechnicalSpecsTool, createInstanceJobTool];
-```
+  await container.start();
+  const { StatusCode } = await container.wait();
 
-### Modified: `instances/noah/config/EVENT_HANDLER.md`
+  // Collect logs for debugging
+  const logs = await container.logs({ stdout: true, stderr: true });
 
-Add a section describing how the agent should handle instance creation requests. This is instruction-based guidance, not code.
+  await container.remove();
 
-The intake pattern for the agent:
-
-1. Detect intent: "create an instance", "add a new agent", "set up instance for X"
-2. Gather required fields across turns — ask one question at a time, not a form dump
-3. Required fields before calling the tool: name/slug, persona name, owner/user, purpose, channels enabled, repos
-4. Optional fields: Slack allowed users/channels, Telegram chat ID, communication style
-5. When all required fields are gathered, present the complete configuration as a readable summary
-6. Ask for explicit approval before calling `create_instance_job`
-7. After the job is created, tell the user what to expect (PR with setup checklist, what to do after merging)
-
-The existing SQLite checkpointer persists conversation state across Slack messages automatically. The agent reads its own message history at each turn to track what has been gathered.
-
-### New: `lib/tools/instance-job.js`
-
-A helper that constructs the structured job description for instance provisioning:
-
-```javascript
-// lib/tools/instance-job.js
-function buildInstanceJobDescription(instanceConfig) {
-  return `# Instance Generation Job
-
-## Instance Configuration
-
-\`\`\`json
-${JSON.stringify(instanceConfig, null, 2)}
-\`\`\`
-
-## Task
-
-Generate a complete new ClawForge instance at \`instances/${instanceConfig.name}/\`
-using the configuration above.
-
-Use /gsd:quick for this task.
-
-### Files to Create
-
-1. \`instances/${instanceConfig.name}/Dockerfile\`
-   - Use \`instances/noah/Dockerfile\` as the reference baseline
-   - Replace all \`noah\` references with \`${instanceConfig.name}\`
-   - Update all COPY paths to point to this instance's config directory
-
-2. \`instances/${instanceConfig.name}/config/SOUL.md\`
-   - Agent identity: name="${instanceConfig.persona.name}", owner="${instanceConfig.persona.owner}"
-   - Purpose: ${instanceConfig.persona.purpose}
-   - Style: ${instanceConfig.persona.style}
-
-3. \`instances/${instanceConfig.name}/config/AGENT.md\`
-   - Copy verbatim from \`instances/noah/config/AGENT.md\`
-   - The GSD reference and tool list applies identically to all instances
-
-4. \`instances/${instanceConfig.name}/config/EVENT_HANDLER.md\`
-   - Adapt from \`instances/noah/config/EVENT_HANDLER.md\`
-   - Update persona name, owner, available repos section to match this instance
-
-5. \`instances/${instanceConfig.name}/config/REPOS.json\`
-   - Generate from the repos array in the configuration above
-
-6. \`instances/${instanceConfig.name}/.env.example\`
-   - Include variables for all enabled channels: ${instanceConfig.channels.join(', ')}
-   - Use \`instances/noah/.env.example\` as the variable name reference
-
-7. Update \`docker-compose.yml\`
-   - Add new service \`${instanceConfig.name}-event-handler\`
-   - Add network \`${instanceConfig.name}-net\`
-   - Add volumes for \`${instanceConfig.name}-data\` and \`${instanceConfig.name}-config\`
-   - Follow the existing noah/ses service block pattern exactly
-
-### PR Body
-
-The PR body must include a complete operator setup checklist covering:
-- GitHub secrets required (exact variable names)
-- Slack app creation steps (if Slack is enabled)
-- Telegram bot registration steps (if Telegram is enabled)
-- docker-compose env variables to populate in the host .env
-- Commands to build and start the new instance
-`;
+  return { statusCode: StatusCode, logs };
 }
-
-export { buildInstanceJobDescription };
 ```
 
----
+**Why dockerode:** De facto standard Node.js Docker library. 14M+ weekly downloads. Promise-based API. Direct socket communication. No HTTP overhead. The upstream thepopebot uses it in production (referenced in VISION.md).
 
-## Architectural Patterns
+**Why NOT raw HTTP to Docker socket:** dockerode handles stream multiplexing, auth, and API versioning. Raw fetch to Unix socket requires manual handling of Docker's chunked transfer encoding and multiplexed streams.
 
-### Pattern 1: Instruction-Driven Intake — No New State Machine
+### 2. Dispatch Decision Logic
 
-**What:** Guide the LangGraph agent through multi-turn intake via EVENT_HANDLER.md instructions, not new graph nodes or custom state schemas.
+The `create_job` tool in `tools.js` needs a routing decision: Docker API or GitHub Actions.
 
-**When to use:** When the agent already has thread-scoped memory (via SQLite checkpointer) and the intake is linear enough that the LLM can track completion by reading its message history.
-
-**Trade-offs:**
-- Pro: Zero changes to `agent.js` graph structure or state schema. Works with existing `createReactAgent` and its SQLite checkpointer.
-- Pro: The LLM naturally handles partial answers, corrections, and follow-ups without explicit state tracking code.
-- Pro: Proven approach — imperative instructions in EVENT_HANDLER.md already govern the approval gate for `create_job` and produce consistent behavior.
-- Con: The agent cannot programmatically assert "all required fields are collected" — it reasons from message history. Risk of early tool invocation if instructions are not sufficiently explicit.
-- Con: If the conversation is very long, message history grows. Not a concern at 2-instance scale with bounded intake flows.
-
-**Why this beats building a custom StateGraph:** Adding a custom state schema to `createReactAgent` has confirmed compatibility issues in LangGraph JS (GitHub issue #803: `stateModifier` does not support custom `stateSchema` types). Building a separate StateGraph would require maintaining two parallel graph systems with separate checkpointers and channel adapter integration. The existing system's power comes from simplicity — one agent, one SQLite checkpointer, one `thread_id` per conversation.
-
-**Mitigation for early firing:** The `create_instance_job` tool description explicitly states "Call this ONLY after gathering complete instance configuration from the user and receiving explicit approval." The EVENT_HANDLER.md instructions enumerate required fields. This mirrors the existing `create_job` approval gate, which works correctly in production (v1.0 verification).
-
-### Pattern 2: Structured Config Payload in Job Description
-
-**What:** Embed a JSON blob in the `job.md` task prompt that contains all instance configuration. Claude Code reads the structured config and generates all files from it.
-
-**When to use:** When the job requires generating multiple related files that all derive from the same configuration source and consistency between files is critical.
-
-**Trade-offs:**
-- Pro: Single source of truth — the config JSON drives all generated files. No ambiguity about what name, channels, or repos were intended.
-- Pro: Claude Code can validate the config against expected fields at the start of the job before generating anything.
-- Pro: The PR body and setup checklist are generated from the same config JSON, guaranteeing they match the generated files.
-- Con: Job description is longer than typical. Not a concern — the 8k char cap applies to the CLAUDE.md injection, not the job description itself.
-
-**Format:**
 ```
-# Instance Generation Job
+Decision tree:
+1. Is Docker socket available? (check at startup)
+   NO  -> GitHub Actions (current path)
+   YES -> Continue
+2. Is the target repo configured for CI-integrated dispatch?
+   YES -> GitHub Actions (needs workflow triggers)
+   NO  -> Docker Engine API (fast path)
+```
 
-## Instance Configuration
+**Implementation approach:** Add a `dispatch` field to `REPOS.json` entries:
+
 ```json
-{ "name": "epic", "channels": ["slack"], "repos": [...], "persona": {...} }
+{
+  "repos": [
+    { "slug": "clawforge", "dispatch": "docker" },
+    { "slug": "strategyes-lab", "dispatch": "docker" },
+    { "slug": "ci-heavy-repo", "dispatch": "actions" }
+  ]
+}
 ```
 
-## Task
-Generate all instance files at instances/epic/ using the config above.
-...
+Default to `"docker"` when socket is available. The `create_job` tool still creates the job branch via GitHub API (audit trail), then dispatches the container directly instead of waiting for Actions to trigger.
+
+### 3. Layer 2 Context Hydration (entrypoint.sh changes)
+
+**Current prompt structure (5 sections):**
+1. Target (repo slug)
+2. Repository Documentation (CLAUDE.md, truncated to 8K chars)
+3. Stack (package.json dependencies)
+4. Task (job description + prior context)
+5. GSD Hint (quick vs plan-phase)
+
+**New prompt structure (7 sections):**
+1. Target (repo slug)
+2. Repository Documentation (CLAUDE.md)
+3. Stack (package.json dependencies)
+4. **Project State (STATE.md)** -- NEW
+5. **Roadmap Context (ROADMAP.md excerpt)** -- NEW
+6. Task (job description + prior context + **recent git history**)
+7. GSD Hint
+
+**Implementation in entrypoint.sh:**
+
+```bash
+# NEW: Read project state (STATE.md) -- capped at 4K chars
+REPO_STATE=""
+if [ -f "${WORK_DIR}/.planning/STATE.md" ]; then
+    RAW_STATE=$(cat "${WORK_DIR}/.planning/STATE.md")
+    if [ "${#RAW_STATE}" -gt 4000 ]; then
+        REPO_STATE=$(printf '%s' "$RAW_STATE" | head -c 4000)
+        REPO_STATE="${REPO_STATE}\n\n[TRUNCATED]"
+    else
+        REPO_STATE="$RAW_STATE"
+    fi
+fi
+
+# NEW: Read roadmap (ROADMAP.md) -- capped at 6K chars
+REPO_ROADMAP=""
+if [ -f "${WORK_DIR}/.planning/ROADMAP.md" ]; then
+    RAW_ROADMAP=$(cat "${WORK_DIR}/.planning/ROADMAP.md")
+    if [ "${#RAW_ROADMAP}" -gt 6000 ]; then
+        REPO_ROADMAP=$(printf '%s' "$RAW_ROADMAP" | head -c 6000)
+        REPO_ROADMAP="${REPO_ROADMAP}\n\n[TRUNCATED]"
+    else
+        REPO_ROADMAP="$RAW_ROADMAP"
+    fi
+fi
+
+# NEW: Recent git history (last 10 commits, one-line format)
+RECENT_HISTORY=""
+if git log --oneline -10 2>/dev/null; then
+    RECENT_HISTORY=$(git log --oneline -10 2>/dev/null)
+fi
 ```
 
-### Pattern 3: Existing Instance as Scaffold Baseline
+**Token budget:** STATE.md (4K chars ~1K tokens) + ROADMAP.md (6K chars ~1.5K tokens) + git history (~200 tokens) = ~2.7K tokens added. Current prompt is ~3-4K tokens. Total ~7K tokens. Well within budget.
 
-**What:** Instruct Claude Code to read an existing instance (noah) and transform it rather than generating from scratch, substituting config values.
+### 4. Named Volumes for Warm Start
 
-**When to use:** When target output has a known-good reference with low risk of omission.
+**Problem:** Every job clones the repo fresh. For a repo like clawforge (~12K LOC), this takes 5-10 seconds. For larger repos, much longer.
 
-**Trade-offs:**
-- Pro: No separate templates directory needed. The live `instances/noah/` is the effective template. Template sync concerns are eliminated.
-- Pro: Claude Code reads existing files, understands their structure, and produces correct variants reliably. Files will always be structurally current.
-- Con: Soft coupling to noah instance structure. If noah's Dockerfile changes substantially, generated instances may diverge in style (not correctness — they are independent after generation).
+**Solution:** Named Docker volumes persist the repo clone between jobs. Subsequent jobs do `git fetch + reset` instead of full clone.
 
-**This is preferred over adding a `templates/instance/` directory** because that would create a third source of truth alongside the live instances and require manual sync discipline.
+**Volume naming convention:**
+```
+clawforge-repo-{repo-slug}    # e.g., clawforge-repo-clawforge, clawforge-repo-strategyes-lab
+```
 
----
+**entrypoint.sh changes for volume-aware clone:**
+
+```bash
+# Volume-aware clone: reuse cached repo if available
+REPO_CACHE="/repo-cache"
+
+if [ -d "${REPO_CACHE}/.git" ]; then
+    echo "=== WARM START: Reusing cached repo ==="
+    cd "${REPO_CACHE}"
+    git fetch origin "${BRANCH}" --depth 1
+    git checkout "${BRANCH}"
+    git reset --hard "origin/${BRANCH}"
+    # Update WORK_DIR to use cache
+    ln -sfn "${REPO_CACHE}" /job
+else
+    echo "=== COLD START: Fresh clone ==="
+    git clone --single-branch --branch "$BRANCH" --depth 1 "$REPO_URL" "${REPO_CACHE}"
+    ln -sfn "${REPO_CACHE}" /job
+fi
+```
+
+**Critical: Branch isolation.** Job branches are unique (`job/{UUID}`), so there is no branch collision risk. The volume caches the repo state from `main` (the branch base), and the job branch is fetched on top.
+
+**Critical: Cross-repo volumes.** Each target repo gets its own named volume. The volume name is derived from the repo slug, ensuring isolation.
+
+**docker-compose.yml additions:**
+
+```yaml
+services:
+  noah-event-handler:
+    volumes:
+      - noah-data:/app/data
+      - noah-config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock  # NEW: Docker socket access
+    # Event handler needs socket to dispatch job containers
+
+volumes:
+  noah-data:
+  noah-config:
+  # Job repo cache volumes are created dynamically by dockerode
+  # No need to pre-declare them in compose
+```
+
+### 5. Notification Flow Changes
+
+**Current flow (GitHub Actions):**
+```
+run-job.yml completes -> auto-merge.yml -> notify-pr-complete.yml -> curl webhook -> Event Handler
+```
+
+**New flow (Docker Engine dispatch):**
+```
+docker.js: container.wait() returns -> inspect exit code -> read logs/artifacts
+  -> If PR created: parse pr-result.json or check GitHub API for PR
+  -> Build notification payload (same shape as webhook payload)
+  -> Call handleJobCompletion() directly (no HTTP webhook needed)
+```
+
+**Key insight:** When dispatching via Docker API, the Event Handler is the process that started the container. It can collect results directly after `container.wait()` resolves. No need for the GH Actions notification workflow.
+
+**Same-repo jobs:** After container exits, check if PR was created via GitHub API. Build the same payload structure used by `handleGithubWebhook()` and call the summarize+notify logic directly.
+
+**Cross-repo jobs:** The entrypoint still creates PRs on target repos and writes `pr-result.json`. The Event Handler reads this from the container's filesystem (via `docker cp` or volume mount) after completion.
+
+### 6. Job Status for Docker-Dispatched Jobs
+
+`getJobStatus()` currently queries GitHub Actions workflow runs. For Docker-dispatched jobs, it needs a parallel lookup.
+
+**Approach:** Track running Docker containers in memory (Map) or query Docker API:
+
+```javascript
+// In docker.js
+async function getRunningJobs() {
+  const containers = await docker.listContainers({
+    filters: { name: ['clawforge-job-'] },
+  });
+  return containers.map(c => ({
+    job_id: c.Names[0].replace('/clawforge-job-', ''),
+    status: c.State,
+    started_at: c.Created,
+  }));
+}
+```
+
+`getJobStatus()` in `github.js` merges results from both sources.
 
 ## Data Flow
 
-### Multi-Turn Intake Flow
+### Docker-Dispatched Job (Happy Path)
 
 ```
-Turn 1: User says "create a new instance"
-    |
-    v
-Agent detects intent (reads message + thread history)
-Agent asks: "What should this instance be called?"
-    |
-Turn 2: User: "Call it Epic, for Jim's team at StrategyES"
-    |
-    v
-Agent records in conversation memory (SQLite checkpointer — automatic)
-Agent asks: "Which channels should Epic support? (Slack, Telegram, Web)"
-    |
-Turn 3: User: "Just Slack"
-    |
-    v
-Agent asks: "Which repos should Epic have access to?"
-    |
-Turn 4: User: "strategyes-lab only"
-    |
-    v
-Agent asks: "Describe Epic's purpose and persona (name, who it serves)"
-    |
-Turn 5: User provides purpose
-    |
-    v
-Agent has all required fields.
-Agent presents complete config summary.
-Agent: "Here's the configuration for Epic. Want me to create the PR?"
-    |
-Turn 6: User: "looks good, go ahead"
-    |
-    v
-Agent calls create_instance_job({ name: "epic", channels: ["slack"], ... })
-    |
-    v
-Returns: { job_id, branch, instance_name }
-Agent: "Job started (id: {uuid}). I'll create all instance files in a PR..."
+1. User sends message in Slack
+2. Layer 1 (LangGraph) decides to create job
+3. create_job tool:
+   a. Creates job/{UUID} branch via GitHub API (audit trail)
+   b. Writes job.md to branch
+   c. Checks dispatch mode -> "docker"
+   d. Calls docker.js runJobContainer()
+4. docker.js:
+   a. Creates container with named volume mount
+   b. Passes env vars (REPO_URL, BRANCH, SECRETS, LLM_SECRETS, DISPATCH_MODE)
+   c. Starts container, begins wait()
+5. entrypoint.sh (inside container):
+   a. Detects /repo-cache/.git -> warm start (fetch+checkout)
+   b. Reads STATE.md, ROADMAP.md, git history (NEW context hydration)
+   c. Builds 7-section FULL_PROMPT
+   d. Runs claude -p
+   e. Commits, pushes, creates PR
+6. docker.js:
+   a. container.wait() resolves with StatusCode
+   b. Reads pr-result.json from volume or queries GitHub API
+   c. Builds notification payload
+   d. Calls summarizeJob() + routes to originating thread
+7. Container removed. Volume persists for next job.
 ```
 
-### Job Execution Flow (Instance Generation)
+### Fallback to GitHub Actions
 
 ```
-GitHub Actions triggers on job/{uuid} branch creation in clawforge
-    |
-    v
-Docker container: entrypoint.sh runs (unchanged)
-    |
-    v
-entrypoint.sh reads logs/{uuid}/job.md (same as all jobs)
-    |
-    v
-Claude Code CLI receives FULL_PROMPT (instance config JSON in Task section)
-No target.json = same-repo job (clawforge) — all generated files go here
-    |
-    v
-Claude Code (via /gsd:quick):
-  1. Reads instances/noah/ and instances/strategyES/ as reference
-  2. Reads current docker-compose.yml
-  3. Creates instances/{name}/ directory and all config files
-  4. Writes Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, REPOS.json, .env.example
-  5. Updates docker-compose.yml (new service block, network, volumes)
-    |
-    v
-entrypoint.sh: git add -A, commit, push, gh pr create (same-repo path)
-    |
-    v
-notify-pr-complete.yml fires after auto-merge.yml (same-repo notification path)
-    |
-    v
-summarizeJob() + addToThread() + Slack notification with PR URL
+1-3. Same as above
+3c. Checks dispatch mode -> "actions"
+3d. Returns { job_id, branch } (current behavior)
+4. GitHub Actions run-job.yml triggers on branch creation
+5-7. Existing flow (unchanged)
 ```
 
-**Key point:** This is a same-repo job (clawforge), not cross-repo. The generated files go into the clawforge repository. The existing same-repo PR pipeline (which is the more reliable path) handles everything. No changes to entrypoint.sh or GitHub Actions workflows are needed.
+## Patterns to Follow
 
-### State Management — What Changes vs What Stays
+### Pattern 1: Socket Availability Check at Startup
 
-```
-UNCHANGED:
-- LangGraph SQLite checkpointer (thread-scoped memory works as-is)
-- createReactAgent singleton in agent.js
-- Tool invocation pattern in tools.js (new tool follows exact same pattern)
-- createJob() in lib/tools/create-job.js (instance job uses it unchanged)
-- entrypoint.sh (reads job.md regardless of content format)
-- All GitHub Actions workflows (run-job.yml, notify-pr-complete.yml, etc.)
-- Docker job container image
-- PR notification flow (same-repo path handles this)
-- DB schema (no new tables needed)
+**What:** Probe Docker socket at Event Handler startup. Set a module-level flag.
+**When:** Always. Determines default dispatch mode.
+**Example:**
+```javascript
+// lib/tools/docker.js
+let socketAvailable = false;
 
-NEW:
-- createInstanceJobTool in lib/ai/tools.js
-- buildInstanceJobDescription() in lib/tools/instance-job.js
+export async function checkDockerSocket() {
+  try {
+    const docker = new Docker({ socketPath: '/var/run/docker.sock' });
+    await docker.ping();
+    socketAvailable = true;
+    console.log('Docker socket available -- Docker dispatch enabled');
+  } catch {
+    socketAvailable = false;
+    console.log('Docker socket not available -- falling back to GitHub Actions');
+  }
+}
 
-MODIFIED:
-- lib/ai/agent.js: register createInstanceJobTool in tools array (1 line)
-- instances/noah/config/EVENT_HANDLER.md: add instance creation intake section
-```
-
----
-
-## Recommended File Structure Changes
-
-```
-lib/
-├── ai/
-│   ├── tools.js          # MODIFIED: add createInstanceJobTool export
-│   └── agent.js          # MODIFIED: register createInstanceJobTool (1 line)
-├── tools/
-│   └── instance-job.js   # NEW: buildInstanceJobDescription() helper
-instances/
-└── noah/
-    └── config/
-        └── EVENT_HANDLER.md  # MODIFIED: add instance creation intake section
+export function isDockerAvailable() { return socketAvailable; }
 ```
 
-No new directories at the top level. No schema changes. No new DB tables. No new GitHub Actions workflows. No changes to the Docker job image.
+### Pattern 2: Entrypoint Backward Compatibility
 
----
+**What:** All entrypoint.sh changes must be additive. The same entrypoint must work for both Docker-dispatched and Actions-dispatched jobs.
+**When:** Always.
+**Example:** Use `DISPATCH_MODE` env var to conditionally enable volume-aware clone. If unset, fall through to current `git clone` behavior. Context hydration (STATE.md, ROADMAP.md, git history) is unconditional -- it benefits both dispatch modes.
 
-## Build Order
+### Pattern 3: Same Notification Payload Shape
 
-Dependencies flow from instruction layer to tool layer to job content to generated output.
+**What:** Docker-dispatched job completions must produce the same JSON payload shape as `notify-pr-complete.yml`.
+**When:** Building the completion notification in docker.js.
+**Why:** The `handleGithubWebhook()` handler, `summarizeJob()`, `saveJobOutcome()`, and channel notification routing all expect a specific payload shape. Reusing it avoids duplication.
 
-**Phase 1 — Tool Definition (no dependencies on other new work)**
-- Write `lib/tools/instance-job.js` with `buildInstanceJobDescription()`
-- Add `createInstanceJobTool` to `lib/ai/tools.js`
-- Register in `lib/ai/agent.js`
-- Verify: tool schema is correct and callable; `buildInstanceJobDescription()` produces valid job.md content
+```javascript
+// The payload shape both paths must produce:
+{
+  job_id, branch, status, job, run_url, pr_url,
+  changed_files, commit_message, log, merge_result,
+  target_repo  // optional
+}
+```
 
-**Phase 2 — Agent Instructions (depends on Phase 1 for tool name)**
-- Add instance creation intake section to `instances/noah/config/EVENT_HANDLER.md`
-- Defines intake questions, required fields, approval gate behavior, and tool call trigger conditions
-- Verify: agent asks appropriate questions in the right order, accumulates config, presents summary before firing tool
+### Pattern 4: Volume-per-Repo Isolation
 
-**Phase 3 — Job Content Completeness (depends on Phase 2 for config schema validation)**
-- Refine `buildInstanceJobDescription()` with complete file-generation instructions
-- Verify: manually review a sample generated `job.md` for coverage of all 7 file generation tasks
+**What:** Each target repo gets its own named volume. Never share volumes between repos.
+**When:** Creating containers via Docker API.
+**Why:** Prevents cross-contamination of repo state. Different repos have different CLAUDE.md, package.json, and .planning/ files.
 
-**Phase 4 — Claude Code Job Execution (depends on Phase 3)**
-- Submit a real job with a sample instance config (e.g., a test instance)
-- Verify Claude Code generates all required files
-- Verify docker-compose.yml update is syntactically correct and structurally follows existing patterns
-- Verify PR body includes complete setup checklist
+## Anti-Patterns to Avoid
 
-**Phase 5 — End-to-End Conversation Test**
-- Full multi-turn conversation through Slack → approval → job creation → PR → notification
-- Verify PR URL in notification is correct
-- Verify generated instance files are structurally valid (Dockerfile builds, configs parse)
+### Anti-Pattern 1: Bind-Mounting Host Paths
 
-**Rationale for this order:** Phase 1 and 2 can be done in parallel (tool and instructions are independent). Phase 3 refines based on what Phase 2 reveals about how the agent uses the schema. Phase 4 requires Phase 3 to be complete because the job content is what Claude Code executes. Phase 5 is the full integration proof.
+**What:** Using `-v /host/path:/container/path` instead of named volumes.
+**Why bad:** Ties container to specific host filesystem layout. Named volumes are portable, Docker-managed, and work consistently across environments.
+**Instead:** Use named volumes exclusively. Docker creates and manages them.
 
----
+### Anti-Pattern 2: Polling for Container Completion
 
-## Anti-Patterns
+**What:** Using `setInterval` to check if the container is still running.
+**Why bad:** Wastes CPU, introduces latency, and races with container cleanup.
+**Instead:** Use `container.wait()` which blocks (non-blocking promise) until the container exits.
 
-### Anti-Pattern 1: Separate Intake Graph with Custom State
+### Anti-Pattern 3: Passing Secrets as Container Labels or Build Args
 
-**What people do:** Build a dedicated LangGraph StateGraph for the intake flow with custom state annotations (name, channels, repos, persona as explicit state slots) and `interrupt()` calls between each question.
+**What:** Putting secrets in container metadata visible to `docker inspect`.
+**Why bad:** Any process with Docker socket access can read labels. Build args are cached in image layers.
+**Instead:** Pass secrets as environment variables to `createContainer()`. They are only visible inside the running container and via `docker inspect` (which requires socket access the Event Handler already has).
 
-**Why it's wrong for this codebase:** The existing `createReactAgent` uses `MessagesAnnotation` internally. LangGraph JS has documented incompatibility between `createReactAgent` and custom `stateSchema` types (GitHub issue #803). Building a second graph creates two parallel agent systems that need separate checkpointers, thread management, and channel adapter wiring. The existing system's power comes from its simplicity — one agent, one thread-scoped SQLite checkpointer. The LangChain `interrupt()` pattern requires resuming with `Command({ resume: value })` on the same thread, which would require changes to every channel adapter's message processing path.
+### Anti-Pattern 4: Removing Volumes on Every Job
 
-**Do this instead:** Put intake instructions in EVENT_HANDLER.md. The LLM reads conversation history and can determine what has been gathered. This is already proven to work at the approval gate level for `create_job`.
+**What:** Deleting the named volume after each job completes.
+**Why bad:** Defeats the purpose of warm start. The volume IS the cache.
+**Instead:** Only remove volumes during explicit cleanup (e.g., admin action, stale volume pruning).
 
-### Anti-Pattern 2: Storing Instance Config in a New DB Table
+### Anti-Pattern 5: Dual Notification Paths
 
-**What people do:** Create an `instance_drafts` table to persist in-progress intake, tracking which fields have been collected per thread.
+**What:** Having Docker-dispatched jobs ALSO trigger the GitHub Actions notification workflow.
+**Why bad:** Creates duplicate notifications. The push to the job branch after container commits would trigger `notify-pr-complete.yml`.
+**Instead:** For Docker-dispatched jobs, handle notifications directly in `docker.js` after `container.wait()`. The Actions workflows should detect `DISPATCH_MODE=docker` and skip, OR the Event Handler should suppress the webhook for Docker-dispatched jobs.
 
-**Why it's wrong:** The SQLite LangGraph checkpointer already persists full conversation history per thread. The agent can read its own messages to determine what fields have been gathered. Adding a parallel DB table creates two sources of truth that can diverge (e.g., DB says channels = slack but message history shows user changed it to web). It also adds a migration, schema table, query helpers, and cleanup logic for abandoned drafts.
+## Files Changed vs New
 
-**Do this instead:** Let the agent's message history be the state. The conversation IS the state. When the agent calls `create_instance_job`, it synthesizes the config from the accumulated history — exactly the same way it synthesizes job descriptions for `create_job` today.
+| File | Status | Changes |
+|------|--------|---------|
+| `lib/tools/docker.js` | **NEW** | Docker Engine API wrapper (create, start, wait, logs, cleanup, status) |
+| `lib/ai/tools.js` | Modified | Dispatch routing in `create_job` tool: Docker vs Actions |
+| `lib/tools/create-job.js` | Unchanged | Still creates job branches (audit trail for both paths) |
+| `templates/docker/job/entrypoint.sh` | Modified | Volume-aware clone, STATE.md/ROADMAP.md/git-history hydration |
+| `docker-compose.yml` | Modified | Docker socket mount for Event Handler containers |
+| `lib/tools/github.js` | Modified | `getJobStatus()` merges Docker + Actions sources |
+| `api/index.js` | Possibly modified | Dedup notifications for Docker-dispatched jobs |
+| `instances/*/REPOS.json` | Modified | Add `dispatch` field per repo entry |
+| `lib/tools/repos.js` | Modified | Parse `dispatch` field from REPOS.json |
+| `.env.example` | Modified | Add `JOB_IMAGE` env var |
 
-### Anti-Pattern 3: Instance Template Files in a Separate Directory
+## Suggested Build Order
 
-**What people do:** Create `templates/instance/SOUL.md`, `templates/instance/AGENT.md`, etc. as checked-in template files that the job copies and fills in.
+Build order respects dependencies. Each phase is independently testable.
 
-**Why it's wrong:** The existing instances (noah, strategyES) are already the reference templates. Adding a separate `templates/instance/` directory creates a third source of truth alongside the live instances and requires manual sync discipline. The CLAUDE.md in `templates/` explicitly states: "Templates exist solely to scaffold a new user's project folder... NEVER add event handler code, API route handlers, or core logic here."
+### Phase 1: Layer 2 Context Hydration (no Docker API needed)
 
-**Do this instead:** Instruct Claude Code to use `instances/noah/` as the reference baseline in the job description. The job reads existing files and generates adapted versions. No new template directory needed.
+**Modify:** `templates/docker/job/entrypoint.sh`
+**What:** Add STATE.md + ROADMAP.md + git history to FULL_PROMPT
+**Test:** Run existing GitHub Actions job pipeline, verify expanded prompt
+**Why first:** Zero risk to dispatch mechanism. Benefits both dispatch modes. Immediate value.
 
-### Anti-Pattern 4: Auto-Provisioning GitHub Secrets or Slack Apps
+### Phase 2: Docker Engine API Dispatch (core)
 
-**What people do:** Have the Claude Code job or Event Handler call the GitHub API or Slack API to create secrets and app credentials for the new instance.
+**New:** `lib/tools/docker.js`
+**Modify:** `lib/ai/tools.js`, `docker-compose.yml`
+**What:** dockerode wrapper, socket mount, dispatch routing in create_job
+**Test:** Dispatch a job via Docker API on the host, verify container runs and PR is created
+**Dependency:** Needs entrypoint.sh to work with volume-aware clone (Phase 3), BUT can be tested without volumes first (cold clone into /repo-cache, symlink to /job)
 
-**Why it's wrong:** Already explicitly out of scope in PROJECT.md. Requires broader infrastructure permissions than appropriate, creates a security surface area, and the actual secret values (ANTHROPIC_API_KEY, SLACK_BOT_TOKEN, etc.) are operator secrets that are not known at job creation time.
+### Phase 3: Named Volumes for Warm Start
 
-**Do this instead:** Generate a complete `.env.example` and a PR body setup checklist listing every required secret with its exact variable name and where to obtain it. The human operator performs the actual secret provisioning.
+**Modify:** `templates/docker/job/entrypoint.sh`, `lib/tools/docker.js`
+**What:** Volume-aware clone logic, volume naming convention, volume creation in dockerode
+**Test:** Run two jobs against the same repo. Second job should skip clone.
+**Dependency:** Phase 2 (needs Docker dispatch to mount volumes)
 
-### Anti-Pattern 5: Generating the Instance as a Cross-Repo Job
+### Phase 4: Notification + Status Integration
 
-**What people do:** Set `target_repo` on the instance generation job to put the generated files in some other repository.
+**Modify:** `lib/tools/docker.js`, `lib/tools/github.js`, `api/index.js`
+**What:** Direct notification after container.wait(), merged status reporting, dedup guard
+**Test:** Full end-to-end: Slack message -> Docker dispatch -> PR -> notification in Slack thread
+**Dependency:** Phase 2
 
-**Why it's wrong:** Instance files belong in the clawforge repository (`instances/{name}/`). They are part of the clawforge project structure. Putting them elsewhere breaks the Dockerfile build context (which uses repo root), the docker-compose.yml service discovery, and the existing instance management conventions.
+### Phase 5: GitHub Actions Fallback + Cleanup
 
-**Do this instead:** Instance generation is always a same-repo job (clawforge). The generated PR goes into clawforge. No `target.json` sidecar needed.
+**Modify:** `instances/*/REPOS.json`, `lib/tools/repos.js`
+**What:** `dispatch` field, volume pruning, documentation
+**Test:** Verify Actions-dispatched jobs still work, verify dispatch routing by repo config
+**Dependency:** Phases 2-4
 
----
+## Scalability Considerations
 
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Change Required |
-|---------|---------------------|-----------------|
-| GitHub API | Unchanged — createJob() creates job branch + job.md | None |
-| Slack | Unchanged — same SlackAdapter | None |
-| SQLite Checkpointer | Unchanged — thread_id persists intake across turns | None |
-
-### Internal Boundaries
-
-| Boundary | Communication | Change |
-|----------|---------------|--------|
-| Agent → createInstanceJobTool | Tool call with instanceConfig Zod schema | New tool registration |
-| createInstanceJobTool → createJob() | Direct function call, same as createJobTool | None — reuses existing function |
-| createJob() → entrypoint.sh | job.md content (config JSON in Task section) | None — entrypoint reads job.md format-agnostically |
-| Claude Code → repo files | Read/Write/Bash tools | None — Claude Code operates on clawforge working tree |
-| entrypoint.sh → PR | Same same-repo PR creation path | None — same-repo job, no cross-repo logic needed |
-| PR → notification | notify-pr-complete.yml → summarizeJob → addToThread | None — standard same-repo notification flow |
-
----
-
-## Confidence Assessment
-
-| Area | Confidence | Basis |
-|------|------------|-------|
-| Instruction-driven intake approach | HIGH | Validated by existing EVENT_HANDLER.md approval gate pattern in production |
-| No custom StateGraph needed | HIGH | Direct analysis: createReactAgent + SQLite checkpointer handles all required state |
-| createReactAgent custom state limitations | MEDIUM | GitHub issue #803 confirms incompatibility; LangGraph official docs were unreachable (redirects) during research |
-| Tool schema approach | HIGH | Mirrors createJobTool exactly; same Zod + tool() pattern |
-| Claude Code generating instance files | HIGH | Claude Code generates files routinely; instance files are well-understood patterns with clear reference |
-| docker-compose.yml update by Claude Code | MEDIUM | Claude Code can read/write YAML; update is additive. Verified by reading existing compose structure. |
-| No DB schema changes needed | HIGH | Conversation history in LangGraph checkpointer is sufficient; no new persistence layer required |
-| Same-repo job path (not cross-repo) | HIGH | Instance files belong in clawforge; same-repo PR pipeline is simpler and more reliable |
-
----
+| Concern | At 2 instances | At 10 instances | At 50+ instances |
+|---------|---------------|-----------------|------------------|
+| Docker socket | Single socket, sufficient | Single socket, sufficient | Consider Docker API over TCP with TLS |
+| Named volumes | ~5-10 volumes | ~50 volumes | Volume pruning policy needed |
+| Concurrent containers | 2-3 concurrent jobs fine | Resource limits per container | Container resource quotas, queue |
+| Event Handler memory | Negligible | Track running containers in-memory map | Move to Redis/DB for container state |
+| Job image pulls | Pull once, cached | Pull once per version | Private registry with pull-through cache |
 
 ## Sources
 
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/lib/ai/agent.js`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/lib/ai/tools.js`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/lib/ai/index.js`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/lib/tools/create-job.js`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/templates/docker/job/entrypoint.sh`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/instances/noah/config/EVENT_HANDLER.md`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/instances/noah/config/AGENT.md`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/instances/noah/config/SOUL.md`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/instances/noah/config/REPOS.json`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/instances/noah/.env.example`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/docker-compose.yml`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/.planning/codebase/ARCHITECTURE.md`
-- Direct codebase analysis: `/Users/nwessel/Claude Code/Business/Products/clawforge/.planning/codebase/CONCERNS.md`
-- [LangGraph human-in-the-loop interrupt patterns](https://blog.langchain.com/making-it-easier-to-build-human-in-the-loop-agents-with-interrupt/)
-- [LangGraph JS interrupt() documentation](https://docs.langchain.com/oss/javascript/langgraph/interrupts)
-- [LangGraph createReactAgent + custom stateSchema incompatibility (issue #803)](https://github.com/langchain-ai/langgraphjs/issues/803)
-- [LangGraph Command for state updates from tools](https://changelog.langchain.com/announcements/modify-graph-state-from-tools-in-langgraph)
-- [LangGraph state management patterns](https://medium.com/@bharatraj1918/langgraph-state-management-part-1-how-langgraph-manages-state-for-multi-agent-workflows-da64d352c43b)
-
----
-
-*Architecture research for: ClawForge v1.3 — Instance Generator*
-*Researched: 2026-02-27*
+- [Dockerode GitHub](https://github.com/apocas/dockerode) -- Node.js Docker API library, 14M+ weekly downloads
+- [Dockerode npm](https://www.npmjs.com/package/dockerode) -- Package details and API reference
+- [Docker Engine API SDK Docs](https://docs.docker.com/reference/api/engine/sdk/) -- Official Docker SDK documentation
+- [Docker Volumes Documentation](https://docs.docker.com/engine/storage/volumes/) -- Named volume lifecycle and best practices
+- [Persisting Container Data](https://docs.docker.com/get-started/docker-concepts/running-containers/persisting-container-data/) -- Docker official guide
+- ClawForge `.planning/VISION.md` -- Stripe gap analysis, thepopebot upstream feature inventory
+- ClawForge `templates/docker/job/entrypoint.sh` -- Current prompt assembly and execution flow
+- ClawForge `lib/ai/tools.js` -- Current dispatch and enrichment logic
+- ClawForge `lib/tools/create-job.js` -- Current GitHub API branch creation

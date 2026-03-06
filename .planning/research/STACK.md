@@ -1,246 +1,232 @@
 # Stack Research
 
-**Domain:** AI agent gateway — instance generator with conversational intake, file scaffolding, and docker-compose modification
-**Milestone:** v1.3 Instance Generator
-**Researched:** 2026-02-27
-**Confidence:** HIGH for existing stack integration; MEDIUM for LangGraph multi-turn pattern rationale; HIGH for file generation and YAML manipulation choices
+**Domain:** AI agent gateway -- Docker Engine API dispatch, Layer 2 context hydration, named volumes
+**Milestone:** v1.4 Docker Engine Foundation
+**Researched:** 2026-03-06
+**Confidence:** HIGH for dockerode integration; HIGH for context hydration (bash-only changes); HIGH for named volumes (Docker Compose config)
 
 ---
 
 ## Scope
 
-This document covers **additions and changes** needed for v1.3 Instance Generator only. The existing stack (LangGraph `createReactAgent`, SQLite checkpointer, Next.js API routes, Drizzle ORM, Slack/Telegram/Web adapters, REPOS.json resolver) is validated from v1.0-v1.2 and not re-researched here.
+This document covers **additions and changes** needed for v1.4 Docker Engine Foundation only. The existing stack (LangGraph `createReactAgent`, SQLite checkpointer, Next.js API routes, Drizzle ORM, Slack/Telegram/Web adapters, REPOS.json resolver, `yaml` package, instance generation pipeline) is validated from v1.0-v1.3 and not re-researched here.
 
 Three new capability areas:
 
-1. **Multi-turn conversational state** — how LangGraph handles the intake flow for instance creation
-2. **Template-based file generation** — scaffolding instance config files (Dockerfile, SOUL.md, AGENT.md, REPOS.json, .env.example, EVENT_HANDLER.md)
-3. **Dynamic docker-compose.yml modification** — programmatic YAML read/write for adding a new instance service block
+1. **Docker Engine API dispatch** -- replace GitHub Actions as primary job dispatch with direct Docker socket calls
+2. **Layer 2 context hydration** -- inject STATE.md + ROADMAP.md + recent git history into job container prompts
+3. **Named volumes** -- persistent repo clones across jobs for warm-start containers
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies (Existing — No Change)
-
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| `@langchain/langgraph` | `^1.1.4` | ReAct agent orchestration | Existing — keep |
-| `@langchain/langgraph-checkpoint-sqlite` | `^1.0.1` | Agent state checkpointing | Existing — keep |
-| `@langchain/core` | `^1.1.24` | Tool framework, message types | Existing — keep |
-| `zod` | `^4.3.6` | Tool schema validation | Existing — keep |
-| `better-sqlite3` | `^12.6.2` | SQLite storage | Existing — keep |
-
-### New Additions for v1.3
+### New Addition: Dockerode
 
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| `yaml` | `^2.8.2` | Parse and serialize docker-compose.yml | Only ESM-native YAML library that preserves comments on round-trip. The existing `templates/docker-compose.yml` contains commented-out TLS/HTTPS blocks operators depend on — comment-destructive serializers break the operator experience. |
+| `dockerode` | `^4.0.9` | Docker Engine API client for Node.js | The de facto standard Node.js Docker client. 2.7M weekly downloads. Promise-based API. Covers container lifecycle (create, start, wait, logs, remove), volume management (create, inspect, list, remove), and image operations. The upstream thepopebot uses Docker Engine API dispatch in production (`lib/tools/docker.js`), validating this approach. |
 
-**That is the only new npm dependency.** Everything else uses existing patterns.
+**No other new npm dependencies are needed for v1.4.**
 
-### Supporting Capabilities (No New Libraries — Existing)
+### Why Dockerode Over Alternatives
 
-| Capability | How It Works | v1.3 Usage |
-|------------|--------------|------------|
-| JavaScript template literals | Native ESM, Node built-in | Generate instance file contents (Dockerfile, SOUL.md, AGENT.md, REPOS.json, .env.example) as strings |
-| `fs.writeFileSync` (Node built-in) | Node 18+ | Write scaffolded file strings to `instances/{name}/` paths |
-| `path.join` (Node built-in) | Node 18+ | Resolve instance directory paths portably |
-| LLM-driven multi-turn via tool return values | Existing LangGraph + SQLite checkpoint | Agent asks follow-up questions when `gather_instance_config` returns `{ status: "need_more_info" }` |
+| Criterion | `dockerode` v4.0.9 | `node-docker-api` | Raw HTTP to socket | Docker CLI subprocess |
+|-----------|--------------------|--------------------|--------------------|-----------------------|
+| Weekly downloads | 2.7M | 12K | N/A | N/A |
+| Maintained | Yes (last publish ~5 months ago) | Stale (last update years ago) | N/A | N/A |
+| Promise support | Native (callback + promise) | Promise-only (thinner API surface) | Manual | Manual JSON parsing |
+| Volume management | Full API (`docker.createVolume`, `docker.listVolumes`) | Partial | Manual | Shell parsing fragile |
+| Stream handling | Built-in demuxing for container logs | Basic | Manual | Buffered only |
+| Container wait | `container.wait()` returns StatusCode promise | Supported | Manual | Blocking subprocess |
+| Community/docs | Extensive GitHub issues, 4.8K stars | Limited | N/A | N/A |
 
----
+**Verdict:** Dockerode is the only serious option. `node-docker-api` uses the same underlying `docker-modem` but has a fraction of the community and maintenance. Raw HTTP or CLI subprocess wrapping adds unnecessary complexity.
 
-## Multi-Turn Conversational State in LangGraph
+### Core Technologies (Existing -- No Change)
 
-### The Right Approach: LLM-Driven Intake via Tool Return Values
+| Technology | Version | Purpose | v1.4 Relevance |
+|------------|---------|---------|----------------|
+| `@langchain/langgraph` | `^1.1.4` | ReAct agent orchestration | `create_job` tool gains dispatch_method parameter |
+| `@langchain/core` | `^1.1.24` | Tool framework, message types | Zod schema update for create_job |
+| `zod` | `^4.3.6` | Tool schema validation | New optional `dispatch_method` field |
+| `uuid` | `^9.0.0` | Job ID generation | Unchanged -- still generates UUIDs for job branches |
+| `better-sqlite3` | `^12.6.2` | SQLite storage | `job_outcomes` table gains `dispatch_method` column |
+| `drizzle-orm` | `^0.44.0` | Database ORM | Schema update for new column |
 
-The existing `createReactAgent` already supports multi-turn conversation natively. Each Slack/Telegram message invokes `chat(threadId, text)`, which creates a new LangGraph execution that reads full prior message history from the SQLite checkpoint using the `thread_id`. The agent has complete conversation context every time.
+### Layer 2 Context Hydration (No New Libraries)
 
-**Pattern for v1.3 intake:** Add a new `gather_instance_config` tool that accepts all instance parameters as optional Zod fields. The tool checks which required fields are present and returns either:
+Context hydration is entirely a **bash entrypoint change** in `templates/docker/job/entrypoint.sh`. No Node.js libraries needed.
 
-- `{ status: "need_more_info", question: "What channels should this instance use? (slack, telegram, or both)" }` — when required fields are missing
-- `{ status: "ready", config: { ... complete config object ... } }` — when all required fields are present
+| Capability | Implementation | Notes |
+|------------|----------------|-------|
+| Fetch STATE.md from target repo | `gh api` in entrypoint.sh | Already have `gh auth setup-git` in entrypoint; `gh api` uses the same auth. Fetch via GitHub Contents API raw mode. |
+| Fetch ROADMAP.md from target repo | `gh api` in entrypoint.sh | Same pattern as STATE.md |
+| Recent git history | `git log --oneline -20` after clone | Shallow clone with `--depth 20` instead of `--depth 1` gives us commit history |
+| Inject into FULL_PROMPT | Bash string concatenation | New sections between Stack and Task in the 5-section prompt |
 
-The LLM receives the `need_more_info` response, understands it cannot proceed, and asks the user the provided question in natural language. The user replies in the same thread. The agent invokes `gather_instance_config` again with accumulated information from the conversation. This repeats until `status: "ready"`, at which point the agent calls `create_instance_scaffold`.
+**Why `gh api` over `curl`:** The `gh` CLI is already installed in the job container Dockerfile (line 29-32) and authenticated via `gh auth setup-git` (entrypoint line 26). Using `gh api repos/{owner}/{repo}/contents/.planning/STATE.md` avoids duplicating auth header logic and handles rate limiting gracefully. The GitHub Contents API returns raw file content with `Accept: application/vnd.github.raw`.
 
-This is zero new infrastructure. The LangGraph ReAct loop + SQLite thread memory already does exactly this.
+**Why not fetch from the volume clone:** For same-repo jobs, STATE.md is in the working tree. For cross-repo jobs, STATE.md is in the target repo which gets cloned separately. Using `gh api` works uniformly for both cases and fetches from the default branch (main) rather than the job branch, which is the correct source for project state.
 
-### Why Not LangGraph `interrupt()`
+### Named Volumes (Docker Compose + Dockerode Config)
 
-The `interrupt()` function from `@langchain/langgraph` pauses a graph mid-execution and resumes it when `Command({ resume: value })` is invoked with the same `thread_id`. It is designed for cases where a single graph invocation must halt to wait for external input.
+| Capability | Implementation | Notes |
+|------------|----------------|-------|
+| Persistent repo clones | Docker named volumes | One volume per `{instance}-{repo-slug}` combination (e.g., `noah-clawforge-repo`, `noah-neurostory-repo`) |
+| Volume creation | `docker.createVolume()` via dockerode | Created on first job for a repo; reused on subsequent jobs |
+| Volume mount in container | `HostConfig.Binds` in `createContainer()` | Maps named volume to `/workspace` in container |
+| Warm clone detection | Entrypoint checks if `/workspace/.git` exists | If exists: `git fetch && git checkout` instead of fresh `git clone` |
 
-ClawForge's architecture is incompatible with this model:
-
-1. Each Slack/Telegram message calls `chat(threadId, text)` — a new graph invocation each time. The interrupt resume mechanism assumes a single long-running invocation.
-2. Surfacing `__interrupt__` values requires changing `chat()`, `chatStream()`, and all three channel adapters (Slack, Telegram, Web) to detect interrupt state and route `Command` objects on subsequent messages.
-3. The SQLite checkpointer already persists all message history across invocations — the state continuity that `interrupt()` provides for single invocations already exists across invocations via the checkpoint.
-
-Using `interrupt()` here would require significant refactoring of the channel layer for zero UX benefit. The tool-return pattern achieves the same result with no infrastructure changes.
-
-**Confidence: MEDIUM** — this conclusion is based on reading the LangGraph interrupt docs and understanding ClawForge's invocation model from codebase inspection. The `interrupt()` + `createReactAgent` combination's exact behavior is not fully documented in official sources; the incompatibility is inferred from the architectural mismatch.
-
-### Why Not Migrate to `createAgent` from `langchain` for v1.3
-
-`createReactAgent` from `@langchain/langgraph/prebuilt` is deprecated in LangGraph v1.x in favor of `createAgent` from the `langchain` package. It is not removed — it still functions in v1.1.4 and will continue to in v1.x. Removal is planned for v2.0.
-
-Migrating to `createAgent` for v1.3 would require:
-- Import changes (`@langchain/langgraph/prebuilt` → `langchain`)
-- Parameter rename (`prompt` → `systemPrompt`)
-- Behavior review to confirm all existing tool invocations, checkpointing, and streaming continue correctly
-
-This migration is meaningful refactoring orthogonal to Instance Generator features. Bundling it into v1.3 creates two different risk areas in the same PR. Flag as post-v1.3 tech debt: plan a standalone `createAgent` migration task before v2.0 alpha adoption.
-
-**Confidence: HIGH** — confirmed from LangGraph V1 Alpha issue #1602 and official migration guide at `docs.langchain.com/oss/javascript/migrate/langgraph-v1`.
-
-### New Tool: `gather_instance_config`
-
-Located in `lib/ai/tools.js`. All parameters optional in Zod schema so the tool can be called at any stage of the conversation.
-
-**Required fields the tool collects:**
-
-| Field | Type | Example | Used In |
-|-------|------|---------|---------|
-| `instance_name` | string | `"strategyES"` | Directory path, Docker container name, network name |
-| `agent_name` | string | `"Epic"` | SOUL.md identity, .env.example comment |
-| `owner_name` | string | `"Jim"` | SOUL.md owner reference |
-| `channels` | string[] | `["slack"]` | Which channel adapters to configure |
-| `allowed_repos` | object[] | `[{ owner, slug, name, aliases }]` | REPOS.json content |
-
-**Fields documented in PR setup checklist (not gathered in conversation):**
-
-- GitHub secrets (`SLACK_BOT_TOKEN`, `TELEGRAM_BOT_TOKEN`, etc.) — operator provisions these
-- Slack app creation steps and required scopes — operator creates the Slack app
-- Docker network isolation name — derived from `instance_name`
-
-### New Tool: `create_instance_scaffold`
-
-Located in `lib/ai/tools.js`. Accepts the complete config object from `gather_instance_config`. Creates a Claude Code job via the existing `createJob` mechanism. The job container generates instance files and opens a PR.
-
-### Tool Integration Point
-
-Add both tools to the tools array in `lib/ai/agent.js` — no structural changes to `createReactAgent` call.
-
-```javascript
-// lib/ai/agent.js — append new tools to existing array, no other changes
-const tools = [
-  createJobTool,
-  getJobStatusTool,
-  getSystemTechnicalSpecsTool,
-  gatherInstanceConfigTool,       // NEW
-  createInstanceScaffoldTool,     // NEW
-];
-```
+**Volume naming convention:** `clawforge-{instance}-{repo-slug}` (e.g., `clawforge-noah-neurostory`). Prefix with `clawforge-` to avoid collisions with other Docker volumes on the host.
 
 ---
 
-## Template-Based File Generation
+## Docker Engine API Integration Architecture
 
-### Approach: JavaScript Template Literals — Zero Dependencies
+### Connection: Unix Socket (Sibling Container Pattern)
 
-For scaffolding instance files, use JavaScript template literals with `fs.writeFileSync`. No template engine is needed.
-
-**Why not Handlebars (v4.7.8):** Published 3 years ago. CommonJS only — no native ESM export. ClawForge is `"type": "module"` throughout. Using CommonJS in an ESM project requires either `createRequire` from `module` or `import()` with `.default` — workarounds that add friction with zero benefit. Handlebars' power features (partials, block helpers) are unnecessary for static file generation with simple variable substitution.
-
-**Why not Mustache (v4.x):** Same CommonJS ESM problem. Mustache.js 4.x publishes CJS only.
-
-**Why not EJS (v3.x):** Same CommonJS ESM problem.
-
-**Why template literals are correct here:** Instance files are small (50-100 lines each), fixed-structure documents with straightforward variable interpolation. A dedicated `lib/scaffold/instance.js` module with one function per file type gives:
-- Zero new dependencies
-- Full ESM compatibility with zero workarounds
-- IDE syntax highlighting inside template strings
-- Trivial unit testing (call function, assert returned string matches expected)
-- Maintainability directly alongside the live instance files they mirror
-
-### Implementation: `lib/scaffold/instance.js`
-
-One exported function per generated file. Each function takes a config object and returns the file contents as a string. The caller writes the string with `fs.writeFileSync`.
+The event handler container connects to the Docker daemon on the host via the Unix socket `/var/run/docker.sock`. This is the "sibling container" pattern -- the event handler does not run Docker-in-Docker; it asks the host's Docker daemon to create sibling containers.
 
 ```javascript
-// lib/scaffold/instance.js
-export function generateDockerfile({ instanceName }) { /* ... */ }
-export function generateSoulMd({ agentName, ownerName }) { /* ... */ }
-export function generateAgentMd({ instanceName, channels }) { /* ... */ }
-export function generateReposJson({ allowedRepos }) { /* ... */ }
-export function generateEnvExample({ instanceName, channels }) { /* ... */ }
-export function generateEventHandlerMd({ agentName, ownerName, allowedRepos }) { /* ... */ }
+// lib/tools/docker.js
+import Docker from 'dockerode';
+
+const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 ```
 
-### Template Sources
+**docker-compose.yml change for event handler services:**
+```yaml
+noah-event-handler:
+  volumes:
+    - noah-data:/app/data
+    - noah-config:/app/config
+    - /var/run/docker.sock:/var/run/docker.sock  # NEW: Docker Engine API access
+```
 
-Use the live `instances/noah/` files as the canonical template baseline — not `templates/config/`. The live instance files represent the validated production state; `templates/config/` may diverge.
+Note: Traefik already mounts `/var/run/docker.sock` (docker-compose.yml line 38), so this pattern is established in the codebase.
 
-Files to mirror:
-- `instances/noah/Dockerfile` → Dockerfile generation
-- `instances/noah/config/SOUL.md` → SOUL.md generation
-- `instances/noah/config/AGENT.md` → AGENT.md generation
-- `instances/noah/config/REPOS.json` → REPOS.json generation
-- `instances/noah/.env.example` → .env.example generation
-- `instances/noah/config/EVENT_HANDLER.md` → EVENT_HANDLER.md generation
+### Container Lifecycle
 
-### PR Delivery via Claude Code Job
+```
+1. docker.createVolume({ Name: volumeName })     // Idempotent -- no-op if exists
+2. docker.createContainer({                       // Configure job container
+     Image: 'clawforge-job:latest',
+     Env: [...secrets, ...config],
+     HostConfig: {
+       Binds: [`${volumeName}:/workspace`],
+       NetworkMode: `${instance}-net`,
+       AutoRemove: true,                          // Clean up after exit
+     },
+   })
+3. container.start()                              // Non-blocking
+4. container.wait()                               // Returns { StatusCode }
+5. container.logs({ stdout: true, stderr: true }) // Capture output for notifications
+```
 
-The `create_instance_scaffold` tool does NOT write files directly from the Event Handler. It creates a Claude Code job via the existing `createJob` mechanism. The job container:
+### Dispatch Method Selection
 
-1. Receives the gathered config as a structured JSON block in the job description
-2. Generates each file using the template functions (or equivalent generation logic for a JS environment in the container)
-3. Writes files to `instances/{instanceName}/`
-4. Updates `docker-compose.yml` with the new service block
-5. Opens a PR with the operator setup checklist as the PR body
+The `create_job` tool gains an optional `dispatch_method` parameter:
 
-This preserves the git-as-audit-trail invariant. The operator reviews the PR before anything lands in the repo.
+| Value | Behavior | When |
+|-------|----------|------|
+| `"docker"` (default) | Docker Engine API dispatch | Standard jobs -- fast start, volume-mounted |
+| `"actions"` | GitHub Actions dispatch (existing) | Repos needing CI integration, fallback |
+| `"auto"` | Docker if available, Actions fallback | Future -- health-check Docker socket first |
+
+For v1.4, default to `"docker"`. Keep the entire GitHub Actions pipeline intact as fallback. The `create-job.js` module branches on dispatch method:
+
+```javascript
+// lib/tools/create-job.js (conceptual)
+if (dispatchMethod === 'docker') {
+  return await createDockerJob(enrichedDescription, options);
+} else {
+  return await createActionsJob(enrichedDescription, options);  // existing flow
+}
+```
+
+### Job Branch Still Required
+
+Even with Docker dispatch, the job branch (`job/{UUID}`) is still created via GitHub API. The entrypoint clones this branch. This preserves:
+- Git-as-audit-trail (all changes are commits on a branch)
+- PR creation flow (container pushes to the job branch, opens PR)
+- Notification pipeline (GitHub webhooks fire on PR events)
+- `getJobStatus()` lookups via the `job_outcomes` table
+
+The difference is only in **how the container is started**: Docker API instead of GitHub Actions workflow trigger.
 
 ---
 
-## Dynamic docker-compose.yml Modification
+## Entrypoint Changes for Context Hydration
 
-### Approach: `yaml` npm package (v2.8.2)
+### New Sections in FULL_PROMPT
 
-Use the `yaml` package (`npm: yaml`, `github: eemeli/yaml`) to parse, modify, and serialize `docker-compose.yml`.
+The current 5-section prompt structure (Target, Docs, Stack, Task, GSD Hint) expands to 7 sections:
 
-**Why `yaml` over `js-yaml`:**
-
-| Criterion | `yaml` v2.8.2 | `js-yaml` v4.x |
-|-----------|---------------|----------------|
-| ESM support | Native — `import { parseDocument } from 'yaml'` works directly | CommonJS only — requires `createRequire` workaround |
-| Comment preservation | Yes — explicitly documented feature | No — `dump()` serializes from plain JS object, comments are lost during `load()` |
-| Round-trip safety | Yes — preserves blank lines, comments, formatting | No — reformats on `dump()` |
-| API for structural edits | `doc.addIn()`, `doc.set()` on AST nodes | Only object mutation before `dump()` |
-
-The existing `templates/docker-compose.yml` has commented-out TLS/HTTPS configuration blocks (`--entrypoints.web.http.redirections...`, Let's Encrypt resolver settings) that operators uncomment during production deployment. Destroying these comments on the first programmatic edit breaks the operator workflow.
-
-**Why not string/regex manipulation:** The docker-compose.yml has nested structure (Traefik command arrays, service labels, volume definitions). String insertion at incorrect indentation produces silently broken YAML. Parse-modify-serialize is the only correct approach for structural edits.
-
-**Version:** `yaml@2.8.2` (released November 30, 2025). Latest stable.
-
-### Usage Pattern in Claude Code Job
-
-The scaffold job container receives the gathered instance config. It:
-
-1. Reads `docker-compose.yml` with `fs.readFileSync`
-2. Parses to a mutable AST with `parseDocument()`
-3. Appends a new service block following the existing event-handler service pattern
-4. Serializes back to string with `doc.toString()`
-5. Writes to `docker-compose.yml` with `fs.writeFileSync`
-
-```javascript
-import { parseDocument } from 'yaml';
-import fs from 'fs';
-
-const raw = fs.readFileSync('docker-compose.yml', 'utf8');
-const doc = parseDocument(raw);
-
-// Append new instance service without destroying existing Traefik TLS comments
-doc.addIn(['services'], newInstanceServicePair);
-
-fs.writeFileSync('docker-compose.yml', doc.toString());
+```
+1. Target (repo slug)
+2. Repository Documentation (CLAUDE.md)
+3. Stack (package.json dependencies)
+4. Project State (STATE.md)          # NEW
+5. Recent History (git log)           # NEW
+6. Task (job description)
+7. GSD Hint
 ```
 
-The new service block mirrors the structure of the existing `event-handler` service, substituting:
-- Container name: `clawforge-{instanceName}`
-- Image tag: parameterized per instance
-- Traefik hostname label: derived from `APP_HOSTNAME` env var for the instance
-- Docker network: `{instanceName}-net`
+### Fetching STATE.md and ROADMAP.md
+
+```bash
+# After clone, before building FULL_PROMPT
+# Derive owner/repo from REPO_URL for API calls
+PROJECT_STATE=""
+if gh api "repos/${REPO_SLUG}/contents/.planning/STATE.md" \
+   --header "Accept: application/vnd.github.raw" 2>/dev/null > /tmp/state.md; then
+    PROJECT_STATE=$(head -c 4000 /tmp/state.md)
+fi
+
+PROJECT_ROADMAP=""
+if gh api "repos/${REPO_SLUG}/contents/.planning/ROADMAP.md" \
+   --header "Accept: application/vnd.github.raw" 2>/dev/null > /tmp/roadmap.md; then
+    PROJECT_ROADMAP=$(head -c 6000 /tmp/roadmap.md)
+fi
+```
+
+Character caps: STATE.md at 4000 chars (~1000 tokens), ROADMAP.md at 6000 chars (~1500 tokens). These match the caps used by `get_project_state` in Layer 1 (`lib/tools/github.js:200-201`).
+
+### Fetching Git History
+
+```bash
+# Change clone depth from 1 to 20 for history
+git clone --single-branch --branch "$BRANCH" --depth 20 "$REPO_URL" /job
+
+# After clone
+GIT_HISTORY=$(cd /job && git log --oneline -15 --no-decorate 2>/dev/null || echo "[no history available]")
+```
+
+**Why `--depth 20` not unlimited:** Shallow clone with 20 commits gives enough context for recent activity without downloading full repo history. The job container does not need ancient commits. 20 commits covers roughly 1-2 weeks of active development.
+
+### Warm Clone with Named Volumes
+
+When a named volume is mounted at `/workspace`, the entrypoint detects an existing clone and updates it instead of cloning fresh:
+
+```bash
+WORK_DIR="/workspace"  # or /job for non-volume jobs
+
+if [ -d "${WORK_DIR}/.git" ]; then
+    echo "Warm clone detected -- fetching updates"
+    cd "${WORK_DIR}"
+    git fetch origin
+    git checkout -B "${BRANCH}" "origin/${BRANCH}" 2>/dev/null || \
+    git checkout -B "${BRANCH}" "origin/main"
+    git log --oneline -5
+else
+    echo "Cold clone -- initial setup"
+    git clone --single-branch --branch "$BRANCH" --depth 20 "$REPO_URL" "${WORK_DIR}"
+    cd "${WORK_DIR}"
+fi
+```
+
+**Warm start benefit:** Skip the `git clone` step entirely (~10-30s depending on repo size). Only fetch new commits.
 
 ---
 
@@ -248,64 +234,71 @@ The new service block mirrors the structure of the existing `event-handler` serv
 
 ```bash
 # The one new runtime dependency
-npm install yaml@^2.8.2
+npm install dockerode@^4.0.9
 ```
 
 No dev dependency additions. No peer dependency changes. No build tooling changes.
+
+Dockerode's dependencies (`docker-modem`, `tar-fs`, `uuid`, `@grpc/grpc-js`, `protobufjs`) are all pulled transitively. The `uuid` dependency in dockerode (v10) does not conflict with ClawForge's `uuid@^9.0.0` -- they coexist via npm's nested node_modules resolution.
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| JavaScript template literals for file generation | Handlebars 4.7.8 | If the project were CommonJS. Not applicable here — `"type": "module"` throughout. |
-| JavaScript template literals for file generation | EJS 3.x | Same CommonJS problem as Handlebars. |
-| JavaScript template literals for file generation | Mustache 4.x | Same CommonJS problem. |
-| `yaml` package for docker-compose modification | `js-yaml` 4.x | If comment preservation were not required and CommonJS were acceptable. Neither condition holds. |
-| `yaml` package for docker-compose modification | String/regex YAML manipulation | Never correct for nested YAML structural edits — silently broken indentation risk. |
-| LLM-driven multi-turn via tool return `{ status: "need_more_info" }` | LangGraph `interrupt()` | Use `interrupt()` if the graph is a single long-running invocation that needs to pause. ClawForge's channel adapter model uses independent per-message invocations — interrupt does not compose with this model without invasive channel adapter refactoring. |
-| Stay on `createReactAgent` for v1.3 | Migrate to `createAgent` from `langchain` | Migrate in a dedicated task after v1.3 ships. `createReactAgent` is deprecated but functional in v1.1.4. Bundling migration into v1.3 adds orthogonal risk. |
-| Claude Code job writes scaffolded files as PR | Event Handler writes files directly to disk | Direct writes bypass git-as-audit-trail. All file mutations in ClawForge go through the job → PR pipeline. |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Docker API client | `dockerode` ^4.0.9 | `node-docker-api` | 200x fewer weekly downloads; uses same `docker-modem` underneath; thinner API surface means more manual work for volume management |
+| Docker API client | `dockerode` ^4.0.9 | Raw `http.request` to Unix socket | Reinventing docker-modem; error handling, stream demuxing, and auth all manual |
+| Docker API client | `dockerode` ^4.0.9 | `child_process.exec('docker ...')` | Shell parsing fragile; no streaming; harder to test; subprocess overhead per call |
+| Context hydration source | `gh api` (GitHub Contents API) | `curl` with PAT header | `gh` already installed and authenticated; `curl` requires manual auth header construction |
+| Context hydration source | `gh api` (GitHub Contents API) | Read from volume after clone | Volume clone is the job branch, not main; STATE.md should come from main (default branch) |
+| Clone depth | `--depth 20` | `--depth 1` (current) | Depth 1 has no history for context injection |
+| Clone depth | `--depth 20` | Full clone (no depth) | Full history wastes bandwidth and time; 20 commits is sufficient context |
+| Volume naming | `clawforge-{instance}-{repo}` | `{repo}` only | Risk of collision if two instances target the same repo |
 
 ---
 
-## What NOT to Use
+## What NOT to Add
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `handlebars` | CommonJS only — incompatible with `"type": "module"` without `createRequire` workaround | JavaScript template literals |
-| `mustache` | CommonJS only — same ESM problem | JavaScript template literals |
-| `ejs` | CommonJS only — same ESM problem | JavaScript template literals |
-| `js-yaml` | CommonJS only; `dump()` destroys comments on round-trip | `yaml` package |
-| `docker-compose` npm package | Wraps docker-compose CLI subprocess — not useful for static YAML file modification | `yaml` package |
-| LangGraph `interrupt()` | Requires refactoring `chat()`, `chatStream()`, and all three channel adapters — invasive and incompatible with per-message invocation model | LLM-driven multi-turn via `{ status: "need_more_info" }` tool return pattern |
-| `@langchain/langgraph@next` or any v2 alpha | `createReactAgent` is removed in v2 — breaking change on import | Remain on v1.1.4; plan `createAgent` migration as a dedicated post-v1.3 task |
+| `docker-compose` npm package | Wraps CLI subprocess; we need container-level API control, not compose orchestration | `dockerode` for direct Docker Engine API |
+| `@docker/sdk` or official Docker SDK | Does not exist for Node.js as of March 2026 | `dockerode` is the community standard |
+| `kubernetes-client` | ClawForge explicitly targets Docker Compose, not k8s (see VISION.md) | `dockerode` |
+| Container orchestration libraries (Nomad, etc.) | Overengineered for 2 instances on a single host | Direct Docker API via dockerode |
+| `simple-git` or `isomorphic-git` | Context hydration runs in bash entrypoint, not Node.js; git CLI already present in container | `git` CLI commands in entrypoint.sh |
+| Any new bash utilities in container | Job container Dockerfile already has `git`, `jq`, `curl`, `gh` -- everything needed for context hydration | Existing tools |
 
 ---
 
-## Stack Patterns by Variant
+## Docker Socket Security Considerations
 
-**If the new instance supports Slack only:**
-- Generate `.env.example` with Slack vars populated, Telegram vars commented out
-- `AGENT.md` channels section references Slack only
-- PR setup checklist includes Slack app creation and bot token steps
-- No Telegram webhook registration step in checklist
+Mounting `/var/run/docker.sock` gives the event handler container **full control over the Docker daemon**. This is acceptable because:
 
-**If the new instance supports Telegram only:**
-- Generate `.env.example` with Telegram vars populated, Slack vars commented out
-- PR setup checklist includes Telegram bot creation via BotFather
-- No Slack app steps in checklist
+1. The event handler already runs as a trusted component (it has GitHub tokens, LLM API keys, Slack tokens)
+2. Traefik in the same docker-compose.yml already mounts the socket (established pattern)
+3. The event handler is not exposed to untrusted input -- all messages come through authenticated channels (Slack signing secret, Telegram webhook secret, NextAuth credentials)
+4. Container creation is scoped programmatically -- the code only creates containers from the `clawforge-job` image with controlled env vars
 
-**If the new instance is repo-scoped (like StrategyES):**
-- `REPOS.json` contains only the scoped repos for that instance
-- `SOUL.md` notes the repo access restriction in the identity section
-- `docker-compose.yml` service block uses a distinct Docker network (`{instanceName}-net`)
+For defense in depth, the dockerode client should be instantiated once and scoped to job-related operations only. No arbitrary container management exposed to the LLM agent.
 
-**If the new instance is for a different GitHub org:**
-- `REPOS.json` uses the correct org as `owner`
-- `.env.example` documents `GH_OWNER` override to the new org
-- PR setup checklist notes GitHub runner registration at org level for the new org
+---
+
+## Database Schema Addition
+
+The `job_outcomes` table gains a `dispatch_method` column to track how each job was dispatched:
+
+```javascript
+// lib/db/schema.js addition
+dispatch_method: text('dispatch_method').default('actions'),  // 'docker' | 'actions'
+```
+
+This enables:
+- Monitoring Docker vs Actions dispatch ratio
+- Fallback detection (if Docker dispatch fails, retry via Actions)
+- Future analytics on dispatch method performance
+
+Migration: Add column with `DEFAULT 'actions'` so existing rows are correctly classified.
 
 ---
 
@@ -313,34 +306,31 @@ No dev dependency additions. No peer dependency changes. No build tooling change
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| `yaml@^2.8.2` | Node 18+ | ESM-native; no peer dependency conflicts with existing packages |
-| `yaml@^2.8.2` | `@langchain/langgraph@^1.1.4` | No interaction — independent modules |
-| `yaml@^2.8.2` | `"type": "module"` projects | First-class support; no workaround needed |
-| `@langchain/langgraph@^1.1.4` | Node 18+ (current project engines) | LangGraph v1.x docs state Node 20+ is required (Node 18 EOL March 2025). Current `package.json` specifies `"engines": { "node": ">=18.0.0" }`. This is acceptable for v1.3 — flag Node version upgrade as a separate task before major version bump. |
-
-**Deprecation tracking:**
-- `createReactAgent` from `@langchain/langgraph/prebuilt` — deprecated in v1.x, removed in v2.0. Shows deprecation warnings. Functional in v1.1.4. Do not upgrade to v2 alpha during v1.3.
-- Plan `createAgent` migration from `langchain` package as a standalone post-v1.3 task.
+| `dockerode@^4.0.9` | Node 18+ | Tested with Node 22 (job container base image) |
+| `dockerode@^4.0.9` | Docker Engine API 1.24+ | Docker 1.12+; production hosts run Docker 24+ |
+| `dockerode@^4.0.9` | `"type": "module"` | Dockerode uses CommonJS but imports fine via Node's ESM interop (`import Docker from 'dockerode'`) |
+| `dockerode@^4.0.9` | Existing `uuid@^9.0.0` | Dockerode depends on `uuid@^10.0.0` internally; npm resolves both without conflict |
 
 ---
 
 ## Sources
 
-- Direct codebase inspection: `package.json` — existing dependencies, `"type": "module"`, Node 18+ engine (HIGH confidence)
-- Direct codebase inspection: `lib/ai/agent.js` — `createReactAgent` singleton pattern, `SqliteSaver`, tool array (HIGH confidence)
-- Direct codebase inspection: `lib/ai/tools.js` — tool structure, Zod schema patterns, `config` access for `thread_id` (HIGH confidence)
-- Direct codebase inspection: `instances/noah/Dockerfile`, `instances/noah/config/SOUL.md`, `instances/noah/config/REPOS.json` — canonical template baseline for instance files (HIGH confidence)
-- Direct codebase inspection: `templates/docker-compose.yml` — confirmed commented-out TLS blocks that must survive round-trip YAML modification (HIGH confidence)
-- [LangGraph interrupt docs](https://docs.langchain.com/oss/javascript/langgraph/interrupts) — interrupt() pauses single execution, requires Command resume; available in JS (MEDIUM confidence — createReactAgent compatibility not addressed)
-- [LangChain blog: interrupt announcement](https://blog.langchain.com/making-it-easier-to-build-human-in-the-loop-agents-with-interrupt/) — interrupt in Python and JS, December 14, 2024 (MEDIUM confidence)
-- [LangGraph V1 Alpha issue #1602](https://github.com/langchain-ai/langgraphjs/issues/1602) — `createReactAgent` deprecated, moved to `langchain` package; stable v1.0 late October 2025 (HIGH confidence — official LangChain team post)
-- [LangGraph v1 migration guide](https://docs.langchain.com/oss/javascript/migrate/langgraph-v1) — breaking changes: `createReactAgent` deprecated, `prompt` → `systemPrompt`, Node.js 20+ (HIGH confidence — official docs)
-- [yaml package GitHub: eemeli/yaml](https://github.com/eemeli/yaml) — v2.8.2 (Nov 30, 2025); comment preservation confirmed; ESM native; `parseDocument()` + `addIn()` API (HIGH confidence — official source)
-- [js-yaml GitHub: nodeca/js-yaml](https://github.com/nodeca/js-yaml) — CommonJS only; `dump()` does not preserve comments (HIGH confidence — official source; limitation confirmed in README)
-- [Handlebars npm](https://www.npmjs.com/package/handlebars) — v4.7.8, published 3 years ago, CommonJS (HIGH confidence — npm registry)
-- [npm-compare: ejs vs handlebars vs mustache vs pug](https://npm-compare.com/ejs,handlebars,mustache,pug) — all major JS template engines surveyed; none with native ESM in stable releases as of 2025 (MEDIUM confidence — aggregator, cross-validated against individual npm pages)
+- [dockerode GitHub repository](https://github.com/apocas/dockerode) -- v4.0.9, 4.8K stars, 2.7M weekly downloads (HIGH confidence -- official source)
+- [dockerode npm page](https://www.npmjs.com/package/dockerode) -- version and dependency verification (HIGH confidence)
+- [npm trends: dockerode vs alternatives](https://npmtrends.com/docker-modem-vs-dockerode-vs-node-docker-api) -- download comparison (HIGH confidence)
+- [Docker Volumes documentation](https://docs.docker.com/engine/storage/volumes/) -- named volume lifecycle and management (HIGH confidence -- official Docker docs)
+- Direct codebase inspection: `docker-compose.yml` -- Traefik already mounts `/var/run/docker.sock` at line 38 (HIGH confidence)
+- Direct codebase inspection: `templates/docker/job/entrypoint.sh` -- current 5-section prompt structure, clone logic, `gh auth` usage (HIGH confidence)
+- Direct codebase inspection: `templates/docker/job/Dockerfile` -- `gh` CLI installed at lines 29-32, Node 22 base image (HIGH confidence)
+- Direct codebase inspection: `lib/tools/github.js` -- `fetchRepoFile()` at lines 234-264 validates GitHub Contents API pattern for STATE.md/ROADMAP.md (HIGH confidence)
+- Direct codebase inspection: `lib/ai/tools.js` -- `getProjectStateTool` at lines 185-235 validates char caps (4000/6000) for STATE.md/ROADMAP.md (HIGH confidence)
+- Direct codebase inspection: `.planning/VISION.md` -- upstream thepopebot Docker Engine API dispatch confirmed in production (HIGH confidence)
+- Direct codebase inspection: `.planning/PROJECT.md` -- v1.4 requirements and existing architecture (HIGH confidence)
+- [Docker sibling container pattern](https://medium.com/@andreacolangelo/sibling-docker-container-2e664858f87a) -- socket mount approach for container spawning (MEDIUM confidence -- community article, pattern validated by Traefik usage in codebase)
+- `npm view dockerode version` -- confirmed 4.0.9 as latest (HIGH confidence -- direct npm registry query)
+- `npm view dockerode dependencies` -- confirmed dependency tree: docker-modem, tar-fs, uuid, grpc-js, protobufjs (HIGH confidence)
 
 ---
 
-*Stack research for: ClawForge v1.3 Instance Generator*
-*Researched: 2026-02-27*
+*Stack research for: ClawForge v1.4 Docker Engine Foundation*
+*Researched: 2026-03-06*

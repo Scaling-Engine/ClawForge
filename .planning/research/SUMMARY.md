@@ -1,189 +1,162 @@
 # Project Research Summary
 
-**Project:** ClawForge v1.3 — Instance Generator
-**Domain:** Multi-turn conversational intake + instance provisioning via Claude Code job
-**Researched:** 2026-02-27
+**Project:** ClawForge v1.4 -- Docker Engine Foundation
+**Domain:** Docker Engine API dispatch, Layer 2 context hydration, named volumes
+**Researched:** 2026-03-06
 **Confidence:** HIGH
 
 ## Executive Summary
 
-ClawForge v1.3 adds a single capability to the existing system: Archie (the LangGraph ReAct agent) can create a fully-configured new ClawForge instance through a guided multi-turn Slack/Telegram/Web conversation. The operator provides a name, purpose, repos, and channel preferences; Archie gathers these across turns using its existing SQLite-persisted thread memory; the agent dispatches a Claude Code job that generates all instance files as a pull request. The research conclusion is unambiguous: almost no new infrastructure is needed. The existing `createReactAgent`, SQLite checkpointer, `createJob` mechanism, and Docker job pipeline handle the heavy lifting. The new work is one new tool (`createInstanceJobTool`), one helper module (`lib/tools/instance-job.js`), a 1-line change in `lib/ai/agent.js`, a new section in `instances/noah/config/EVENT_HANDLER.md`, and one new npm package.
+ClawForge v1.4 replaces GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls via the Unix socket. This is a well-understood pattern -- the upstream thepopebot already runs this in production with `dockerApi()`, `createHeadlessCodeContainer()`, named volumes, and container lifecycle management. The v1.4 milestone adds three capabilities: Docker Engine API dispatch (cold start drops from ~60s to ~10-15s), Layer 2 context hydration (STATE.md + ROADMAP.md + git history injected into job prompts), and named volumes for warm-start containers (subsequent jobs fetch in ~2-3s instead of cloning in ~10-15s). Only one new npm dependency is needed: `dockerode@^4.0.9`.
 
-The recommended approach for multi-turn intake is instruction-driven slot filling via the system prompt, not a custom LangGraph StateGraph or `interrupt()` calls. The conversation history in the SQLite checkpointer is the intake state — the LLM reads what has been asked and answered at each turn. This pattern is already proven in production via the existing `create_job` approval gate. The only new npm dependency is `yaml@^2.8.2` for comment-preserving round-trip modification of `docker-compose.yml`. All template engines (Handlebars, EJS, Mustache) are CommonJS-only and incompatible with ClawForge's `"type": "module"` project; JavaScript template literals are the correct zero-dependency alternative.
+The recommended approach is to build context hydration first (zero dependency on Docker API, immediate value for all jobs via both dispatch paths), then the Docker API client, then headless container dispatch, then named volumes, then migration/fallback integration. This ordering respects dependency chains and delivers incremental value at each step. Context hydration is a pure entrypoint.sh change that works with both GitHub Actions and Docker dispatch, making it risk-free to ship first.
 
-The critical risks are not architectural — they are correctness risks in generated file content. Generated configs that are syntactically valid but semantically broken (wrong Dockerfile COPY paths, incorrect REPOS.json owner slugs, malformed docker-compose service names, `$` characters in SOUL.md that shell-expand in the entrypoint) will fail silently during deployment rather than at PR creation time. The mitigations are: a strict structured JSON config payload from agent to job container, explicit validation instructions embedded in the job prompt, provision of literal file templates in the job prompt (especially AGENT.md, where tool name casing is critical), and exclusion of `instances/` paths from auto-merge so every instance scaffolding PR requires operator review before merge.
-
----
+The primary risks are Docker socket security (socket access grants root-equivalent control over the host), stale volume state causing silent job failures, and zombie container accumulation if the Event Handler crashes between container creation and cleanup. All three have concrete mitigations: a Docker socket proxy for security, a volume hygiene step in the entrypoint for stale state, and DB-tracked container IDs with startup reconciliation for zombies. A notable research tension exists around the Docker API client approach -- STACK.md recommends dockerode while FEATURES.md recommends raw `http` module matching thepopebot's pattern. This must be resolved before Phase 2 begins.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack is unchanged. One new runtime dependency is justified: `yaml@^2.8.2` (ESM-native, comment-preserving) for `docker-compose.yml` modification. All template engine alternatives (`handlebars`, `ejs`, `mustache`, `js-yaml`) are disqualified by ESM incompatibility or comment-destructive serialization. JavaScript template literals with `fs.writeFileSync` handle file generation with zero new dependencies. The `createReactAgent` from `@langchain/langgraph/prebuilt` is deprecated in v1.x but functional in v1.1.4; migration to `createAgent` from the `langchain` package is flagged as a post-v1.3 task, not bundled into this milestone.
+One new runtime dependency: `dockerode@^4.0.9` (2.7M weekly downloads, Promise-based API, covers container lifecycle + volume management + log streaming). All other v1.4 capabilities use existing tools -- context hydration is pure bash in entrypoint.sh using `gh api` (already installed/authenticated in the job container), and named volumes are Docker Compose + dockerode config.
 
-**Core technologies:**
-- `@langchain/langgraph@^1.1.4`: ReAct agent orchestration — existing, no change
-- `@langchain/langgraph-checkpoint-sqlite@^1.0.1`: Thread-scoped multi-turn memory — existing, no change; conversation history IS the intake state
-- `zod@^4.3.6`: Tool schema validation for structured instance config handoff — existing, provides the Zod object that defines the config contract between intake and job
-- `yaml@^2.8.2`: Round-trip YAML modification with comment preservation — the only new dependency; required to preserve the commented TLS/HTTPS blocks in `templates/docker-compose.yml` that operators uncomment for production
-- JavaScript template literals + `fs.writeFileSync`: Zero-dependency file generation for instance scaffolding — correct approach for ESM `"type": "module"` project
+**Core additions:**
+- `dockerode@^4.0.9`: Docker Engine API client -- de facto standard for Node.js, handles stream demuxing, volume management, container wait
+- `entrypoint.sh` modifications: Context hydration (STATE.md, ROADMAP.md, git history) -- no new libraries, bash-only changes
+- `docker-compose.yml` modifications: Socket mount for event handler, dynamic named volume creation
+
+**Research conflict:** FEATURES.md anti-features section recommends raw `http` module over dockerode, arguing thepopebot uses raw HTTP and that dockerode adds transitive dependencies for ~100 lines of HTTP client code. STACK.md makes the opposite case, arguing dockerode handles stream demuxing, auth, and API versioning that raw HTTP requires manually. Resolution recommendation: use dockerode -- the stream demuxing and `container.wait()` promise alone justify the dependency, and 2.7M weekly downloads means battle-tested edge case handling.
 
 ### Expected Features
 
-The feature research confirms a tightly scoped MVP. The agent handles conversational intake and approval gating; the Claude Code job handles all file generation. There is no feature in v1.3 that requires new database tables, new GitHub Actions workflows, new Docker images, or changes to the job container entrypoint.
-
 **Must have (table stakes):**
-- Intent detection — EVENT_HANDLER.md section teaches Archie to recognize "create an instance" from natural language; no code changes to agent loop
-- Multi-turn intake — agent collects: instance name/slug, agent purpose, allowed repos, enabled channels (Slack/Telegram/Web); 3-4 turns max, not one-question-per-turn
-- Confirmation before dispatch — agent presents gathered config summary and waits for explicit operator approval; same pattern as existing `create_job` approval gate
-- Claude Code job: generate 6 instance files — Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, REPOS.json, .env.example under `instances/{name}/`
-- Claude Code job: update `docker-compose.yml` — new service block, network, volumes appended following existing pattern
-- Claude Code job: update `.env.example` — new instance section with prefixed env vars
-- Claude Code job: instance-specific operator setup checklist in PR body
+- Docker Engine API client with Unix socket connection
+- `createHeadlessCodeContainer()` -- direct replacement for GH Actions dispatch
+- Container wait + exit code capture for notification triggering
+- Feature-flagged dispatch per repo via REPOS.json `dispatch` field
+- GH Actions fallback preserved (zero changes to existing workflows)
+- Layer 2 context hydration: STATE.md + ROADMAP.md + recent git history in FULL_PROMPT
+- Named volumes per repo for warm-start containers
+- Container cleanup after job completion
+- Network isolation for job containers (per-instance networks)
 
-**Should have (competitive — natural Claude Code behavior, low cost):**
-- SOUL.md and AGENT.md scoped to stated purpose — LLM-authored content calibrated to the operator's description, not generic boilerplate
-- EVENT_HANDLER.md for generated instance scoped to its allowed repos and channels only
-- Setup checklist is instance-specific (exact secret names with correct prefix, exact scopes, exact commands)
-- Agent captures optional fields if volunteered (Slack user IDs, Telegram chat ID) without requiring a separate question
+**Should have (differentiators):**
+- Dynamic system prompt scoping (AGENT_QUICK.md vs full AGENT.md based on GSD hint)
+- Container startup time instrumentation (prove speed improvement)
+- Volume pre-warming at instance startup
+- `inspectContainer()` for stuck job detection
+- Parallel job dispatch (Docker Engine handles natively)
 
-**Defer (v2+):**
-- Instance update/deletion via conversation — requires a safe model for modifying live config; out of scope for v1.3
-- Automated GitHub secrets provisioning — security risk; requires elevated permissions beyond current scope; intentionally excluded
-- Automated Slack app creation — not possible via Slack API (platform limitation); revisit if Slack adds programmatic support
-- Instance health dashboard — requires additional job_outcomes aggregation
+**Defer:**
+- Interactive workspace containers (v1.5 scope)
+- MCP server integration in job containers (v1.6 scope)
+- Container resource limits CPU/memory (not blocking at 2-instance scale)
+- Real-time log streaming to Slack (batch notification sufficient)
+- Auto-scaling / k8s (deliberate single-VPS architecture)
 
 ### Architecture Approach
 
-The v1.3 architecture is additive, not structural. The Event Handler (LangGraph agent) owns conversational intake and approval gating. The Claude Code job container owns all file generation, YAML modification, and PR creation. Component boundaries are clear: the agent passes a structured JSON config block to the job via `job.md`; the job reads the JSON and generates deterministic file content. The same-repo PR pipeline (more reliable than the cross-repo path from v1.2) handles delivery. No new state machine, no new graph structure, no custom StateGraph, no new DB tables, no changes to GitHub Actions workflows or the Docker job image.
+Two-layer architecture remains unchanged. The Event Handler gains a new `lib/tools/docker.js` module that communicates with the Docker daemon via Unix socket. Job containers are created programmatically instead of via GitHub Actions workflow triggers, but the job branch (`job/{UUID}`) is still created for audit trail, PR flow, and notification pipeline. The entrypoint.sh expands from a 5-section to 7-section prompt structure (adding Project State and Roadmap Context). Named volumes mount at `/repo-cache` for persistent repo clones, with the entrypoint detecting warm vs cold start.
 
 **Major components:**
-1. `createInstanceJobTool` (lib/ai/tools.js) — new tool accepting structured `instanceConfig` Zod schema; builds job description via `buildInstanceJobDescription()`; calls existing `createJob()` function unchanged; registered with 1-line change in `lib/ai/agent.js`
-2. `buildInstanceJobDescription()` (lib/tools/instance-job.js) — new helper that serializes the validated config as a JSON block embedded in a structured job.md prompt, with explicit file-generation instructions for each of the 7 output artifacts; includes literal AGENT.md template and validation checklist
-3. EVENT_HANDLER.md intake section (instances/noah/config/EVENT_HANDLER.md) — instruction-driven slot filling: detect intent, ask for fields in groups of 2-3, present summary, gate on approval, call `create_instance_job`; includes cancellation handling
+1. `lib/tools/docker.js` (NEW) -- Docker Engine API wrapper: create, start, wait, logs, cleanup
+2. `templates/docker/job/entrypoint.sh` (MODIFIED) -- Volume-aware clone, 7-section context-hydrated prompt
+3. `lib/ai/tools.js` (MODIFIED) -- Dispatch routing: Docker API vs GitHub Actions based on REPOS.json config
+4. `docker-compose.yml` (MODIFIED) -- Socket mount for event handlers, dynamic named volumes
 
 ### Critical Pitfalls
 
-1. **Agent singleton corrupts in-flight conversations when a new tool is added mid-session** — LangGraph `createReactAgent` compiles tool list at startup; existing SQLite checkpoints reference tools by name; adding a tool after live conversations begin causes checkpoint replay to fail. Fix: add `createInstanceJobTool` to the tools array from the first commit as a stub, even before the tool body is complete. Never add tools to a live agent without a full server restart.
-
-2. **Generated configs are syntactically valid but semantically broken** — Dockerfile COPY paths are case-sensitive (instance name must be lowercase in all paths); REPOS.json `owner` must be exact GitHub org slug (not display name); docker-compose service names must be lowercase-hyphenated; SOUL.md content with `$` characters shell-expands via `echo -e "$SYSTEM_PROMPT"` in the entrypoint. Fix: embed explicit post-generation validation instructions in the job prompt; use structured JSON config block (not prose) so the container agent uses exact values verbatim.
-
-3. **Generated AGENT.md with wrong tool name casing causes silent Claude Code job failure** — `--allowedTools` is case-sensitive; `read` instead of `Read` causes Claude Code to run with no tools, producing empty job output. Fix: provide the exact AGENT.md content as a literal template in the job prompt, not as an instruction to "write something similar to noah."
-
-4. **docker-compose.yml merge conflicts when multiple instance PRs are in flight** — Single shared file; concurrent PRs both modifying it conflict. Fix: job prompt must append new service at end of `services:` block (not inline); PR checklist must require `docker compose config` before merge; instance PRs excluded from auto-merge.
-
-5. **Incomplete intake abandonment leaves dangling state that contaminates later conversations** — LangGraph thread history persists indefinitely; if operator says "never mind" mid-intake, the next unrelated message on the same thread may resume intake context. Fix: define explicit cancellation phrases in EVENT_HANDLER.md; validate all required fields in `createInstanceJobTool` before dispatching; instance name must match `^[a-z][a-z0-9-]{0,18}[a-z0-9]$` (validates at intake time, not just at job dispatch).
-
----
+1. **Docker socket grants root-equivalent access** -- Use a Docker socket proxy (Tecnativa/docker-socket-proxy) between Event Handler and daemon. Each instance gets its own proxy with endpoint allowlisting. Must be first thing added to docker-compose.yml.
+2. **Stale volume state causes silent job failures** -- Implement volume hygiene step: remove `.git/index.lock`, `git reset --hard origin/main`, `git clean -fdx` before any git operation. Per-repo volumes with `clawforge-repo-{owner}-{slug}` naming.
+3. **Zombie containers accumulate on Event Handler crash** -- Track container IDs in SQLite immediately after `createContainer()`. On startup, reconcile running containers with DB. Periodic cleanup sweep every 5 minutes. Label containers with `com.clawforge.job-id`.
+4. **Context hydration bloats simple job prompts** -- Gate hydration on GSD hint: `quick` jobs get CLAUDE.md + task only; `plan-phase` jobs get full hydration. Cap STATE.md at 4K chars, ROADMAP.md at 6K chars.
+5. **Concurrent jobs corrupt shared named volume** -- Use volume as read-only cache, clone locally into per-container working directory. Or serialize jobs per repo with an in-memory lock.
 
 ## Implications for Roadmap
 
-The research points to a 5-phase build order with strict dependencies. Tool schema must exist before intake can be written against it. Intake must be validated before the job prompt is refined. Job prompt must be complete before end-to-end execution is tested. Phases 1 and 2 can be worked in parallel (tool definition and intake instructions are independent); Phases 3-5 are sequential.
+Based on research, suggested phase structure:
 
-### Phase 1: Tool Infrastructure
+### Phase 1: Layer 2 Context Hydration
+**Rationale:** Zero dependency on Docker API. Works with both dispatch paths. Immediate agent quality improvement for every job. Implementation plan with code already exists in `docs/CONTEXT_ENGINEERING.md`.
+**Delivers:** 7-section FULL_PROMPT with STATE.md, ROADMAP.md, and recent git history. Conditional hydration gated on GSD hint.
+**Addresses:** STATE.md + ROADMAP.md injection, recent git history, dynamic prompt scoping
+**Avoids:** Prompt bloat (Pitfall 4) by gating on GSD hint; wrong repo context (Pitfall 13) by reading from WORK_DIR only
+**Changes:** `templates/docker/job/entrypoint.sh` only. Clone depth from 1 to 20.
 
-**Rationale:** The `createInstanceJobTool` Zod schema is the single source of truth for all downstream work — intake questions map to its required fields, the job prompt serializes its output, and the PR checklist reflects its structure. Defining this schema first prevents drift between intake design and job execution. Critically, the tool must be registered in the agent's tools array from the first commit (even as a stub) to avoid the checkpoint corruption pitfall.
-**Delivers:** `lib/tools/instance-job.js` with `buildInstanceJobDescription()` skeleton, `createInstanceJobTool` registered in `lib/ai/tools.js` and `lib/ai/agent.js`, `npm install yaml@^2.8.2`
-**Addresses:** Structured config handoff (Zod schema defines the payload contract); tool registered before any live conversation
-**Avoids:** Pitfall 1 (agent singleton corruption from mid-session tool addition), Pitfall 2 (unstructured free-text config handoff)
+### Phase 2: Docker Engine API Client
+**Rationale:** Foundation library that all subsequent phases depend on. Pure library with no behavioral change to the system. Testable by inspecting existing containers.
+**Delivers:** `lib/tools/docker.js` with dockerode wrapper: create, start, wait, logs, cleanup, ping, version check. Socket availability check at startup. Container labels for tracking.
+**Uses:** `dockerode@^4.0.9`, Docker socket mount in docker-compose.yml
+**Avoids:** Socket security (Pitfall 1) by adding socket proxy first; API version mismatch (Pitfall 5) by version check at startup; zombie containers (Pitfall 3) by DB-tracked container IDs from day 1
+**Changes:** New `lib/tools/docker.js`, modified `docker-compose.yml` (socket mount + socket proxy container)
 
-### Phase 2: Intake Flow and Agent Instructions
+### Phase 3: Headless Job Container Dispatch
+**Rationale:** The actual speed improvement. Depends on Phase 2 Docker API client. Must handle env var passing, network selection, and notification after exit.
+**Delivers:** `createHeadlessCodeContainer()` wired into `createJob()` behind feature flag. Docker-dispatched jobs produce identical outputs (commits, PR, notifications) to Actions-dispatched jobs.
+**Implements:** Dispatch routing in `lib/ai/tools.js`, direct notification flow (no webhook needed), merged job status from Docker + Actions sources
+**Avoids:** Network isolation bypass (Pitfall 6) by explicit NetworkMode; dual notification (Architecture anti-pattern 5) by detecting dispatch mode; log collection race (Pitfall 11) by sequential cleanup
 
-**Rationale:** With the tool schema defined, the EVENT_HANDLER.md intake section can be written against concrete field names. This phase also establishes the cancellation handling and name validation that prevent abandoned intakes from producing phantom jobs or broken instance names.
-**Delivers:** Updated `instances/noah/config/EVENT_HANDLER.md` with instance creation section — intent detection, field grouping strategy (3-4 turns max, not one-field-per-turn), cancellation handling, approval gate, post-dispatch conversation reset marker injected into thread
-**Avoids:** Pitfall 3 (context window bloat — conversation reset marker injected after dispatch signals future turns to ignore prior intake messages), Pitfall 5 (incomplete intake abandonment — cancellation handling and required field gate), Pitfall 8 (instance name collision — name validated as `^[a-z][a-z0-9-]{0,18}[a-z0-9]$` before dispatch)
+### Phase 4: Named Volumes for Warm Start
+**Rationale:** Depends on Phase 2 for volume management API. Depends on Phase 3 for container creation with volume mounts. The warm-start optimization that makes repeat jobs fast.
+**Delivers:** Named volumes per repo per instance. Entrypoint detects warm vs cold start. `git fetch` (2-3s) replaces `git clone` (10-15s) on subsequent jobs.
+**Avoids:** Stale volume state (Pitfall 2) by volume hygiene step; concurrent corruption (Pitfall 10) by using volume as cache with per-container working directory; permission mismatch (Pitfall 7) by documenting root-user decision
+**Changes:** Modified entrypoint.sh (warm-start detection), modified `lib/tools/docker.js` (volume creation/naming)
 
-### Phase 3: Job Prompt Completeness
-
-**Rationale:** The job prompt (`buildInstanceJobDescription()` output) is what Claude Code executes. This phase refines it based on what Phase 2 reveals about intake conversation patterns, then adds explicit post-generation validation instructions, the literal AGENT.md template, semantic validation checklist, and docker-compose append-at-end strategy. This is the highest-effort phase.
-**Delivers:** Refined `buildInstanceJobDescription()` with complete file-generation instructions for all 7 artifacts, literal AGENT.md template embed, semantic validation checklist (Dockerfile paths, REPOS.json schema, SOUL.md shell safety, docker-compose service name format), `yaml@^2.8.2` usage for docker-compose modification, PR body generation with instance-specific values
-**Uses:** `yaml@^2.8.2` — `parseDocument()` + `addIn()` for comment-preserving docker-compose modification
-**Avoids:** Pitfall 4 (semantically broken generated configs), Pitfall 6 (docker-compose merge conflicts — append-at-end strategy), Pitfall 7 (wrong AGENT.md tool name format — literal template in job prompt)
-
-### Phase 4: PR Pipeline and Auto-Merge Exclusion
-
-**Rationale:** Instance scaffolding PRs must not auto-merge — broken instance configs must be reviewed before they reach `main`. This is a short phase but must be completed before end-to-end testing to prevent a test PR from auto-merging. The PR title convention also needs to be set so instance PRs are identifiable in the PR list.
-**Delivers:** `auto-merge.yml` updated to exclude `instances/` path from ALLOWED_PATHS; verified PR title convention (`feat(instances): add {name} instance`); `--body-file` or `--body` approach confirmed against entrypoint.sh implementation
-**Avoids:** Security risk (auto-merge on broken instance scaffolding PR), Pitfall 6 (compose validation step in PR checklist)
-
-### Phase 5: End-to-End Validation
-
-**Rationale:** Full integration proof. Run a real multi-turn conversation through Slack, approve the gathered config, receive the PR, execute the "looks done but isn't" checklist from PITFALLS.md against the generated files, run `docker compose config`, and confirm the new instance builds. All prior phases are unit-level; this phase is the acceptance gate.
-**Delivers:** A verified test instance provisioned end-to-end via Archie; all 10 items from PITFALLS.md verification checklist executed; any job prompt refinements from real execution fed back to Phase 3 artifacts; PR closed (not merged) unless the test instance is intentional
-**Uses:** All components from Phases 1-4; real Slack/Telegram channel; real GitHub Actions → Docker → PR pipeline
+### Phase 5: Migration, Fallback, and Hardening
+**Rationale:** Depends on Phases 3 + 4 being stable. Dual-dispatch mode with per-repo config. Regression verification across both paths.
+**Delivers:** `dispatch` field in REPOS.json. Both dispatch paths verified identical. Startup reconciliation for orphaned containers. Volume pruning. Operator documentation.
+**Avoids:** Divergent behavior (Pitfall 9) by path-agnostic entrypoint; cross-repo regression (Pitfall 8) by running VERIFICATION-RUNBOOK across all 4 combinations (same-repo cold/warm, cross-repo cold/warm)
 
 ### Phase Ordering Rationale
 
-- Tool schema first because the Zod object in `createInstanceJobTool` is the contract between intake (Phase 2) and job execution (Phase 3). Building intake before the schema exists guarantees drift.
-- Phases 1 and 2 are independent and can be developed in parallel if two developers are available. Phase 1 is a prerequisite for Phase 3; Phase 2 informs Phase 3 but does not block starting it.
-- Job prompt after intake because Phase 2 reveals which field names, question groupings, and edge cases produce clean operator input — the job prompt in Phase 3 is refined against that reality.
-- Auto-merge exclusion (Phase 4) is separated to prevent it from being forgotten when it's most at risk: just before end-to-end testing when real PRs start landing.
-- End-to-end last because it requires all prior components in place and requires real execution against the live GitHub Actions pipeline.
+- **Context hydration first** because it has zero dependencies on Docker API, is purely additive to entrypoint.sh, and delivers immediate value to all jobs via both dispatch paths. It also validates entrypoint modification patterns before the more complex volume-aware changes.
+- **Docker API client before dispatch** because the client is a pure library with no behavioral change. It can be tested by inspecting existing containers without dispatching any jobs.
+- **Dispatch before volumes** because dispatch can work without volumes (cold clone into /repo-cache). Volumes are an optimization on top of working dispatch.
+- **Migration last** because it requires both dispatch paths to be stable before verifying they produce identical outputs.
 
 ### Research Flags
 
-Phases with standard patterns (no additional research needed):
-- **Phase 1 (Tool Infrastructure):** Mirrors `createJobTool` exactly; `yaml` package API is clearly documented with official examples; no novel patterns
-- **Phase 2 (Intake Flow):** Instruction-driven slot filling is proven in the existing EVENT_HANDLER.md approval gate; no new LangGraph patterns
-- **Phase 4 (Auto-merge exclusion):** Simple YAML edit to existing workflow; no research needed
+Phases likely needing deeper research during planning:
+- **Phase 2 (Docker API Client):** Socket proxy configuration needs research -- which endpoints to allow, how to configure per-instance policies, error semantics when proxy blocks a call
+- **Phase 3 (Headless Dispatch):** Notification flow change needs careful design -- direct notification vs webhook deduplication, payload shape consistency
+- **Phase 4 (Named Volumes):** Concurrency model (volume as cache vs working directory) needs design spike -- the choice affects entrypoint architecture
 
-Phases that may benefit from targeted review during planning:
-- **Phase 3 (Job Prompt Completeness):** The exact prompt structure for Claude Code to generate 7 files correctly from a JSON config block may need iteration. Recommend a sample `job.md` dry-run review before treating this phase as complete. The `yaml` package's `parseDocument()` + `addIn()` API for docker-compose modification warrants a focused test against the actual `docker-compose.yml` (nested structure, Traefik command arrays) before including in the job prompt.
-- **Phase 5 (End-to-End Validation):** The 10-item "looks done but isn't" checklist from PITFALLS.md should be the formal acceptance criteria. Decide upfront whether the test instance PR will be merged or closed — if merged, it creates a `instances/test-alpha/` directory that needs cleanup tracking.
-
----
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (Context Hydration):** Well-documented, implementation code already exists in `docs/CONTEXT_ENGINEERING.md`. Pure bash changes to entrypoint.sh.
+- **Phase 5 (Migration):** Standard feature-flag rollout pattern. REPOS.json config + verification runbook.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | One new dependency (`yaml@^2.8.2`); all others are existing and production-validated. ESM incompatibility of all template engine alternatives confirmed against official npm packages and package source. LangGraph deprecation warning on `createReactAgent` confirmed from official issue #1602 and migration guide. |
-| Features | HIGH | Feature scope derived from direct codebase inspection of production instances (noah, strategyES) and the existing job pipeline. MVP is minimal and well-bounded. Anti-features are explicitly justified with specific reasons (Slack API limitation, security blast radius, etc.). |
-| Architecture | HIGH | All major architectural decisions (no custom StateGraph, same-repo job, instruction-driven intake, structured JSON config payload, literal AGENT.md template in job prompt) are validated against direct codebase analysis of the production system. One medium-confidence point: `createReactAgent` + custom stateSchema incompatibility inferred from GitHub issue #803 rather than current official docs (docs returned redirects during research). |
-| Pitfalls | HIGH (codebase-based) / MEDIUM (LangGraph-specific) | Primary pitfalls grounded in direct codebase inspection: entrypoint.sh `echo -e "$SYSTEM_PROMPT"` shell expansion (confirmed line 156), agent singleton pattern in agent.js, monolithic docker-compose.yml structure. LangGraph context window bloat and checkpoint format stability pitfalls are from official LangGraph persistence docs and confirmed community patterns but not empirically measured in this codebase. |
+| Stack | HIGH | Single new dependency (dockerode). All sources verified via npm registry + codebase inspection. Minor conflict with FEATURES.md on raw HTTP vs dockerode -- resolvable. |
+| Features | HIGH | Feature set derived from upstream thepopebot production code + codebase gap analysis. Clear table stakes vs differentiators vs anti-features. |
+| Architecture | HIGH | Pattern validated by thepopebot in production. Sibling container pattern established by Traefik in existing docker-compose.yml. Component boundaries well-defined. |
+| Pitfalls | HIGH | 13 pitfalls identified from codebase inspection + Docker official docs + community patterns. Critical pitfalls have concrete prevention strategies. Recovery costs assessed. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **`createReactAgent` + custom stateSchema incompatibility (GitHub issue #803):** The recommendation to avoid a custom StateGraph is directionally correct and consistent with all research, but confirm the incompatibility persists in `@langchain/langgraph@1.1.4` specifically before treating it as a hard constraint. If it turns out custom state is possible, the architecture remains valid — instruction-driven intake is still the simpler approach.
-
-- **PR body via `--body-file` convention:** FEATURES.md notes that the Claude Code job must write the PR checklist to a file (e.g., `pr-checklist.md`) for entrypoint's `gh pr create --body-file` flag. Confirm whether entrypoint.sh supports `--body-file` or uses `--body "$(cat ...)"` inline — this affects the job prompt instructions for how Claude Code should write the checklist file.
-
-- **Message trimming threshold:** PITFALLS.md recommends a 30-message or 40k-token trim threshold to prevent context window bloat, but ClawForge has no message trimmer currently. The right threshold for instance creation threads (8-12 messages) vs. ongoing job threads is not empirically determined. Implement conservatively and monitor `data/clawforge.sqlite` size after first 3 instance creation conversations.
-
-- **`createAgent` migration timing:** `createReactAgent` shows deprecation warnings in v1.1.4 and is removed in v2.0 alpha. Flag as a named post-v1.3 task. Do not adopt any `@langchain/langgraph@next` or v2 alpha builds during v1.3 development — `createReactAgent` import breaks on v2.
-
----
+- **Dockerode vs raw HTTP:** STACK.md and FEATURES.md disagree. Decide before Phase 2. Recommendation: dockerode (stream demuxing + container.wait() justify the dependency).
+- **Socket proxy selection:** Tecnativa vs wollomatic. Neither was tested against ClawForge's specific endpoint needs. Needs evaluation during Phase 2 planning.
+- **Cross-repo volume mounting:** The Event Handler must determine the correct volume at dispatch time (before container creation). The target.json sidecar flow may need rethinking for Docker dispatch -- pass target repo as env var instead.
+- **Concurrent volume access model:** "Volume as cache with local clone" vs "volume as working directory with locking" -- needs a design spike before Phase 4 implementation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase inspection: `lib/ai/agent.js` — agent singleton pattern (`_agent`), `resetAgent()`, tools array, no message trimmer configured
-- Direct codebase inspection: `lib/ai/tools.js` — `createJobTool` schema (job_description only), `detectPlatform()`, Zod + `tool()` pattern to mirror
-- Direct codebase inspection: `lib/ai/index.js` — `chat()` append-only invocation, `addToThread()` state injection, no message trimming
-- Direct codebase inspection: `templates/docker/job/entrypoint.sh` — `echo -e "$SYSTEM_PROMPT"` at line 156 (shell expansion risk), `ALLOWED_TOOLS` format, `--append-system-prompt` flag
-- Direct codebase inspection: `docker-compose.yml` — monolithic file, commented TLS blocks requiring comment preservation, service/network/volume naming convention
-- Direct codebase inspection: `instances/noah/Dockerfile` — `COPY instances/noah/config/` paths (case-sensitive), canonical scaffold baseline
-- Direct codebase inspection: `instances/noah/config/REPOS.json` — exact schema required for generated REPOS.json
-- Direct codebase inspection: `instances/noah/config/EVENT_HANDLER.md` — existing approval gate pattern ("CRITICAL: NEVER call create_job without explicit user approval")
-- [LangGraph V1 Alpha issue #1602](https://github.com/langchain-ai/langgraphjs/issues/1602) — `createReactAgent` deprecated, moved to `langchain` package, `createAgent` migration path
-- [LangGraph v1 migration guide](https://docs.langchain.com/oss/javascript/migrate/langgraph-v1) — breaking changes, Node.js 20+ requirement, `prompt` → `systemPrompt` rename
-- [yaml package GitHub: eemeli/yaml](https://github.com/eemeli/yaml) — v2.8.2 (Nov 30, 2025), comment preservation documented, ESM-native, `parseDocument()` + `addIn()` API
+- ClawForge codebase: `templates/docker/job/entrypoint.sh`, `templates/docker/job/Dockerfile`, `docker-compose.yml`, `lib/tools/create-job.js`, `lib/ai/tools.js`, `lib/tools/github.js`
+- ClawForge planning: `.planning/VISION.md`, `.planning/PROJECT.md`, `docs/CONTEXT_ENGINEERING.md`
+- [dockerode GitHub](https://github.com/apocas/dockerode) -- v4.0.9, 4.8K stars, 2.7M weekly downloads
+- [Docker Engine API docs](https://docs.docker.com/reference/api/engine/sdk/) -- Container lifecycle, volume management
+- [Docker Volumes documentation](https://docs.docker.com/engine/storage/volumes/) -- Named volume lifecycle
 
 ### Secondary (MEDIUM confidence)
-- [LangGraph JS Persistence Docs](https://langchain-ai.github.io/langgraphjs/concepts/persistence/) — checkpoint-per-step behavior, full state snapshot (not delta) written at each node; confirmed no automatic pruning
-- [LangGraph interrupt docs](https://docs.langchain.com/oss/javascript/langgraph/interrupts) — `interrupt()` + `Command` resume model requires single long-running invocation; incompatible with ClawForge per-message invocation model
-- [LangGraph createReactAgent + custom stateSchema issue #803](https://github.com/langchain-ai/langgraphjs/issues/803) — incompatibility between `createReactAgent` and custom `stateSchema` types
-- [LangGraph Breaking Change: langgraph-prebuilt 1.0.2](https://github.com/langchain-ai/langgraph/issues/6363) — minor version upgrades can break checkpoints; confirms pinning `@langchain/*` to exact versions
-- [Docker Compose `include:` directive docs](https://docs.docker.com/compose/how-tos/multiple-compose-files/include/) — modular compose strategy for conflict mitigation (requires Compose v2.20+)
-- Creating Task-Oriented Dialog systems with LangGraph and LangChain (Medium) — slot filling via conversation history as state
-- [Conversational AI Design in 2025 (Botpress)](https://botpress.com/blog/conversation-design) — one question at a time, progressive disclosure, confirmation before action
-
-### Tertiary (LOW confidence)
-- [NeurIPS 2025: Why Multi-Agent LLM Systems Fail](https://arxiv.org/pdf/2503.13657) — conflicting state updates, multi-agent failure patterns; general risk framing
-- [Claude Code Security: Shell injection via `${VAR}`](https://flatt.tech/research/posts/pwning-claude-code-in-8-different-ways/) — SOUL.md shell expansion risk; confirmed as known issue, fixed in Claude Code v1.0.93; relevant to entrypoint.sh `echo -e` pattern
+- [Tecnativa/docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) -- Socket proxy for endpoint allowlisting
+- [Docker v29 API version breaking change](https://www.portainer.io/blog/docker-v29-and-the-fall-out) -- Minimum API version raised to 1.44
+- [Docker Socket Security (OWASP)](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html) -- Socket exposure risks
+- [Docker sibling container pattern](https://medium.com/@andreacolangelo/sibling-docker-container-2e664858f87a) -- Validated by Traefik in codebase
 
 ---
-*Research completed: 2026-02-27*
+*Research completed: 2026-03-06*
 *Ready for roadmap: yes*

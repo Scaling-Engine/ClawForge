@@ -1,324 +1,345 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** Instance Generator — adding multi-turn conversational intake, template-based file generation, and docker-compose.yml modification to the existing ClawForge LangGraph/Docker architecture
-**Researched:** 2026-02-27
-**Confidence:** HIGH (direct codebase inspection of agent.js, tools.js, index.js, entrypoint.sh, docker-compose.yml, instances/) / MEDIUM (LangGraph state management from official docs + community patterns) / LOW (provisioning system architecture patterns — flagged where applicable)
+**Domain:** Docker Engine API dispatch, Layer 2 context hydration, and named volumes for an existing agent platform (ClawForge v1.4)
+**Researched:** 2026-03-06
+**Confidence:** HIGH (codebase inspection + Docker official docs) / MEDIUM (community patterns, dockerode docs) / LOW (flagged where applicable)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Agent Singleton Rebuilt After Tool Addition Corrupts In-Flight Conversations
+### Pitfall 1: Docker Socket Exposure Grants Root-Equivalent Access to Event Handler Container
 
 **What goes wrong:**
-`getAgent()` in `lib/ai/agent.js` uses a module-level singleton `_agent`. The singleton is compiled once at startup with the current tool list: `[createJobTool, getJobStatusTool, getSystemTechnicalSpecsTool]`. When a new `createInstanceTool` is added to this array, the singleton must be rebuilt — either by server restart or by calling `resetAgent()`. During a rolling deployment or hot-reload, a conversation thread that started with the old agent (3 tools) may be resumed against the new agent (4 tools). The SQLite checkpoint contains the old tool call schema. LangGraph's replay logic attempts to re-hydrate the state with tool call references from the old graph structure, and the `createInstanceTool` name is absent from the checkpoint's tool registry.
+The Event Handler container (noah-event-handler, ses-event-handler) needs to call the Docker Engine API to create/start/stop job containers. The standard approach is mounting `/var/run/docker.sock` into the Event Handler container. This grants the container full control over the Docker daemon -- it can start any container, mount the host filesystem, read other containers' environment variables, and effectively gain root access to the host. A vulnerability in the Event Handler (e.g., a compromised LLM response that triggers arbitrary code execution via LangGraph tools) could escalate to full host compromise.
 
-The failure mode is silent: the agent resumes but ignores the pending intake state, responds as if the conversation just started, and the user has to repeat their request. More severe: if an instance creation was mid-intake (Archie had collected name and channels but not repos), the resume strips the partially-collected data and Archie asks from scratch, producing duplicate data collection.
+Currently, the Event Handler containers have no Docker socket access. Adding it is a security surface area expansion that affects both instances (noah and strategyES). The strategyES instance is scoped to a single repo and restricted users -- but with Docker socket access, a compromised strategyES container could inspect noah's containers, read noah's environment variables (including API keys), or spawn containers on noah's network.
 
 **Why it happens:**
-LangGraph `createReactAgent` stores the tool list at compile time in the graph's node definitions. SQLite checkpoints store tool call messages by tool name. Adding a tool does not automatically update existing checkpoints. When old checkpoints reference a tool that no longer exists in the compiled graph, LangGraph's behavior is version-dependent and not guaranteed to be safe. The `_agent = null` reset path in `resetAgent()` forces a full rebuild but is only called explicitly — it does not trigger automatically on tool list changes, and there is no checkpoint migration.
+The Docker Engine API is an all-or-nothing interface when accessed via the Unix socket. There is no built-in capability model -- any process with socket access can perform any operation. The `:ro` (read-only) mount flag does NOT restrict API operations; it only prevents deleting the socket file itself.
 
-**How to avoid:**
-1. Define `createInstanceTool` in the same `tools.js` file as the existing tools and include it in the initial `tools` array from day one of the instance (even before the intake flow is built). This way, existing checkpoints are never interrupted by a new tool appearing mid-conversation.
-2. Never add tools to a live LangGraph agent without a full server restart (not just module reload). Add this as a deployment note.
-3. If the intake flow has already started when deployment happens, the user-facing risk is a reset conversation, not a crash. Document the "restart gracefully" behavior in AGENT.md so Archie knows to say "It looks like I lost our conversation context — let's start over."
+**Consequences:**
+- Instance isolation (separate Docker networks) is bypassed -- socket access can inspect/control containers on any network
+- API keys and secrets in environment variables of any container are readable via `docker inspect`
+- An attacker could mount the host filesystem into a new container and read/write anything
 
-**Warning signs:**
-- After deployment, users report Archie "forgot" what they were discussing.
-- LangGraph checkpoint errors appear in server logs referencing unknown tool names.
-- `resetAgent()` is called mid-intake by any code path — trace all callers.
+**Prevention:**
+1. Use a Docker socket proxy (Tecnativa/docker-socket-proxy or wollomatic/socket-proxy) between the Event Handler and the Docker daemon. The proxy allows only specific API endpoints (POST /containers/create, POST /containers/{id}/start, GET /containers/{id}/json, DELETE /containers/{id}) and blocks dangerous ones (GET /containers/{id}/exec, POST /images/create with host binds).
+2. Each instance gets its own socket proxy container with its own allowlist -- strategyES's proxy cannot call endpoints that noah's proxy allows if the policies differ.
+3. The socket proxy runs on the same Docker network as its Event Handler but the actual `/var/run/docker.sock` is only mounted into the proxy container, never into the Event Handler directly.
+
+**Detection:**
+- Audit: `docker inspect <event-handler-container>` and check Binds for `/var/run/docker.sock`
+- If the socket is mounted directly (no proxy), flag as a security gap immediately
 
 **Phase to address:**
-Phase 1 (Add `createInstanceTool` to tools array) — include the tool in the tools array from the first commit, even if the tool body is a stub. Never add it after conversations are live.
+Phase 1 (Docker Engine API integration) -- the socket proxy must be the FIRST thing added to docker-compose.yml, before any API client code is written. Writing the dockerode client against a direct socket mount and then retrofitting a proxy later changes the connection path and error semantics.
 
 ---
 
-### Pitfall 2: Multi-Turn Intake State Lives Only in LangGraph Checkpoints — Not in a Queryable Store
+### Pitfall 2: Named Volumes With Stale Git State Cause Silent Job Failures
 
 **What goes wrong:**
-The intake flow asks Archie to collect: instance name, channels, allowed repos, access restrictions, and persona. This data accumulates across multiple messages in the LangGraph conversation history (SQLite checkpoints, thread-scoped). There is no separate "intake session" record in the application database — the data only exists as unstructured text in the message history.
+Named volumes persist repo clones across ephemeral job containers so subsequent jobs start "warm" (no re-clone). But the volume contains a git working tree from the previous job -- which may have uncommitted changes, a detached HEAD, checked-out job branch, or a `.git/index.lock` left behind by a killed container. The next job container mounts this volume and expects a clean repo state, but gets whatever the previous container left behind.
 
-When Archie calls `createInstanceTool` to dispatch the scaffolding job, it must pass all collected fields as a structured payload. The only source of truth for those fields is the conversation history — Archie must re-extract them from messages or the operator must include them in the tool call. If the conversation history is long (the thread also has prior job discussions), extracting the right fields becomes fragile. If the operator says "actually, change the name to 'jupiter'" mid-intake, the history has two conflicting values and the LLM must resolve the ambiguity at tool-call time.
-
-The scaffolding job receives a `job_description` string (how `createJob` works today). That string is free text injected into a job container. The Claude Code agent inside the container must parse the job description to extract structured config and generate files. If the job description is ambiguous or incomplete, the container-level agent generates incorrect files, but the operator doesn't know until they inspect the PR diff.
+Specific failure modes:
+- **Stale branch:** Volume has `job/abc-123` checked out. New job tries `git checkout -b job/def-456` but the working tree has uncommitted changes from the prior job. `git checkout` fails or silently carries forward prior changes.
+- **Lock file:** Prior container was killed (30-min timeout). `.git/index.lock` exists. All git operations fail with "fatal: Unable to create lock file".
+- **Diverged history:** Volume's `main` branch is 50 commits behind remote `main`. A `git pull` brings in 50 commits of changes, potentially conflicting with the job's assumptions about the codebase.
+- **Modified CLAUDE.md:** Prior job modified CLAUDE.md in the working tree. The entrypoint reads CLAUDE.md from the working tree for prompt enrichment (line 111-120 of entrypoint.sh). The new job gets the wrong CLAUDE.md content.
 
 **Why it happens:**
-The existing `createJob` tool passes a free-text `job_description`. There is no structured config handoff between the Event Handler agent and the job container. For simple one-shot jobs, this is fine. For instance scaffolding (which requires precise values for Dockerfile `COPY` paths, REPOS.json structure, docker-compose service names, and env var prefixes), free-text is insufficient — small ambiguities produce broken configs.
+The current entrypoint does a fresh `git clone --single-branch --branch "$BRANCH" --depth 1` every time (line 35). This is clean but slow. Named volumes aim to skip the clone. But git repos are stateful -- the working tree, index, HEAD, and refs all carry state from the previous operation. There is no "reset to clean" primitive that handles all edge cases atomically.
 
-**How to avoid:**
-1. Define the intake schema upfront as a Zod object mirroring the exact fields the job container needs. Make `createInstanceTool` accept this structured schema, not free text. The tool validates completeness before dispatching.
-2. Structure the `job_description` for scaffolding jobs as a well-defined JSON block embedded in the markdown prompt — not prose. The entrypoint or Claude Code agent in the container parses the JSON, not the prose.
-3. Build Archie's intake prompts around explicit confirmation: after collecting all fields, Archie outputs a summary ("Here's what I'll create: ...") and asks for confirmation before calling `createInstanceTool`. This is the last chance to catch ambiguity before the job runs.
-4. Store the confirmed config as a JSON block in the job's `logs/{uuid}/job.md` in addition to the prose description. The container agent reads the JSON block first, falls back to prose only if JSON is absent.
+**Consequences:**
+- Jobs silently operate on stale code (wrong branch, old commits)
+- Git lock files cause immediate failure -- but the failure stage detection (which looks for `preflight.md` and `claude-output.jsonl`) may categorize this as a "clone" failure when it is actually a "stale volume" failure
+- Cross-repo jobs (target.json flow) compound the problem -- the volume may contain repo A's clone but the job targets repo B
 
-**Warning signs:**
-- The generated Dockerfile uses wrong instance name in `COPY instances/{name}/...` lines.
-- REPOS.json is generated with placeholder values rather than the repos the operator specified.
-- `docker-compose.yml` PR has service name that differs from what Archie said during intake.
-- Archie calls `createInstanceTool` with missing fields (no channels specified, no REPOS.json content).
+**Prevention:**
+1. The entrypoint must perform a "volume hygiene" step before any git operation: remove `.git/index.lock`, `git checkout main`, `git reset --hard origin/main`, `git clean -fdx` (excluding specific paths like `.claude/` if settings need preserving). This adds 2-3 seconds but prevents all stale-state failures.
+2. Use per-repo volumes, not a single volume. Volume naming: `clawforge-repo-{owner}-{slug}` (e.g., `clawforge-repo-scalingengine-clawforge`). Cross-repo jobs mount the correct volume for their target repo.
+3. The entrypoint should detect if the volume is "first use" (empty directory) vs "warm" (has `.git/`). If first use, do a full clone. If warm, do `git fetch origin main && git reset --hard origin/main`.
+4. For cross-repo jobs with target.json, the volume mount decision must happen BEFORE container creation (at the Docker API call site in the Event Handler), not inside the entrypoint. The Event Handler reads target.json and mounts the correct repo volume.
+
+**Detection:**
+- Job fails with "fatal: Unable to create lock file" -- stale lock from killed container
+- Job PR contains files that weren't part of the job description -- carried forward from prior job's working tree
+- Job operates on code that doesn't match current `main` -- volume's HEAD is behind
 
 **Phase to address:**
-Phase 1 (`createInstanceTool` schema) and Phase 2 (job description format) — the structured schema must be decided before any intake flow is built. Changing the schema after intake conversations are running breaks the handoff.
+Phase 2 (named volumes) -- the volume hygiene step must be designed and tested before volumes are used in production. Shipping volumes without hygiene guarantees silent failures within the first week.
 
 ---
 
-### Pitfall 3: LangGraph Context Window Bloat From Long Intake Conversations
+### Pitfall 3: Event Handler Creates Containers But Loses Track of Them -- Zombie Containers Accumulate
 
 **What goes wrong:**
-The LangGraph ReAct agent appends every message (human, AI, tool call, tool result) to the thread's message history. The SQLite checkpoint stores the full accumulated history. For a multi-turn instance creation intake (8-12 messages to collect all fields plus confirmation), plus the prior job context that already exists in the thread, plus tool call/result pairs, the message history for an active operator's thread can grow to 20,000+ tokens by the time `createInstanceTool` is called.
+Currently, GitHub Actions manages the entire container lifecycle: Actions starts the container, waits for completion, and the runner cleans up. With Docker Engine API dispatch, the Event Handler creates containers via dockerode and must manage their full lifecycle: create, start, wait for completion, collect logs, remove container. If the Event Handler crashes, restarts, or loses the container ID between creation and cleanup, the container runs to completion (or hangs at the 30-min timeout) with no process waiting for it. The container becomes a zombie -- consuming resources, holding volume locks, and never getting cleaned up.
 
-This approaches context limits for Claude Sonnet (200k tokens total, but the prompt itself — SOUL.md + AGENT.md + full history + current message — can exceed practical limits for API latency and cost). The instance creation conversation is especially dense because operators ask clarifying questions that generate long AI explanations about channels, scopes, and Docker networking.
-
-The SQLite checkpoint grows proportionally — a new checkpoint is written after every graph node execution. For a 12-message intake conversation on one thread, 24+ checkpoints accumulate (each containing the full message history at that point, not deltas). The `@langchain/langgraph-checkpoint-sqlite` package stores full state snapshots, not diffs.
+Failure scenarios:
+- Event Handler calls `docker.createContainer()` + `container.start()`, stores the container ID in memory (not DB), then crashes. On restart, the container ID is lost. The container runs its 30-min timeout, finishes, and sits as a stopped container consuming disk.
+- Event Handler calls `container.wait()` (blocking promise) but the HTTP connection to the Docker socket drops. The promise rejects, the Event Handler moves on, but the container is still running.
+- Multiple concurrent jobs create multiple containers. The Event Handler tracks them in a Map or array. PM2 restarts the process -- all tracking is lost.
 
 **Why it happens:**
-`createReactAgent` uses an append-only message history by default. There is no message trimming configured in the current `getAgent()` implementation. The SQLite checkpoint database at `data/clawforge.sqlite` has no pruning strategy for old checkpoints. At 2 instances with moderate usage, this has not been a problem. Adding the instance creation flow (which is by nature more conversational than job-dispatching) accelerates the per-thread message count.
+The current system has no container tracking because GitHub Actions owns the lifecycle. Moving to Docker Engine API means the Event Handler must become a container orchestrator -- a role it is not currently designed for. In-memory state (Maps, variables) is lost on process restart. The SQLite `job_outcomes` table records outcomes after completion but does not track running containers.
 
-**How to avoid:**
-1. When implementing `createInstanceTool`, immediately after the tool call completes and the job is dispatched, inject a "conversation reset hint" into the thread state: `addToThread(threadId, "[INTAKE COMPLETE] Instance configuration has been dispatched as job {jobId}. The intake conversation is complete.")`. This signals to future invocations that prior messages before this marker are no longer relevant.
-2. Consider a message trimmer in `getAgent()` that preserves the last N messages and the system prompt. LangGraph's `trimMessages` utility (available in `@langchain/core`) can be applied as a pre-processor on the messages state. Set the threshold conservatively (e.g., last 30 messages or 40k tokens).
-3. After the instance creation job completes and the PR lands, clear the thread state (or start a new thread) rather than carrying the intake history into subsequent conversations.
-4. Monitor the SQLite checkpoint file size. If `data/clawforge.sqlite` exceeds 100MB, the checkpoint history needs pruning. Add a note in the operator setup docs.
+**Consequences:**
+- Stopped containers accumulate (each ~500MB with node_modules + repo clone)
+- Running containers consume CPU/memory with no process collecting their results
+- Volume locks from zombie containers prevent new containers from mounting the same volume
+- Host runs out of disk space after dozens of uncleaned containers
 
-**Warning signs:**
-- Archie's responses become slow (>10s) for threads that have had instance creation conversations — LLM latency grows with context.
-- Claude API returns 400 errors citing context length exceeded.
-- `data/clawforge.sqlite` grows faster than usual after instance creation conversations.
-- Archie starts confusing fields from one instance creation with another (context contamination from overloaded history).
+**Prevention:**
+1. Record container ID in the SQLite database immediately after `docker.createContainer()` succeeds, BEFORE calling `container.start()`. Add a `container_id` and `container_status` column to `job_outcomes` (or a new `running_jobs` table).
+2. On Event Handler startup, query Docker for all containers with a ClawForge label (e.g., `com.clawforge.job-id={uuid}`). For any container that exists but is not tracked in the DB, adopt it (update DB) or remove it (cleanup).
+3. Implement a periodic cleanup sweep (every 5 minutes): query Docker for stopped containers with the ClawForge label older than 10 minutes. Remove them after extracting logs.
+4. Use container labels to tag every container with: `com.clawforge.job-id`, `com.clawforge.instance`, `com.clawforge.created-at`. Labels survive process restarts and are queryable via the Docker API.
+5. Set `HostConfig.AutoRemove: false` (need the container for log extraction) but implement explicit removal after log collection.
+
+**Detection:**
+- `docker ps -a --filter label=com.clawforge.job-id` shows containers older than 1 hour
+- Host disk usage grows steadily between deployments
+- `docker system df` shows high container/image storage usage
 
 **Phase to address:**
-Phase 2 (intake flow implementation) — implement the conversation reset hint immediately after `createInstanceTool` dispatches. Do not defer message management to a later phase.
+Phase 1 (Docker Engine API integration) -- container lifecycle management is not a "nice to have"; it is the core of replacing GitHub Actions. Ship it with the first Docker API implementation, not as a follow-up.
 
 ---
 
-### Pitfall 4: Template Generation Produces Syntactically Valid But Semantically Broken Config Files
+### Pitfall 4: Context Hydration Bloats Job Prompts Beyond Claude Code's Effective Window
 
 **What goes wrong:**
-The scaffolding job generates: `Dockerfile`, `SOUL.md`, `AGENT.md`, `REPOS.json`, `.env.example`, and a `docker-compose.yml` patch/addition. Each file is generated by Claude Code from a template plus the structured config passed in `job_description`. The generated files can be syntactically valid (parseable) but semantically broken in ways that are not obvious until the operator tries to use them:
+Layer 2 context hydration adds STATE.md + ROADMAP.md + recent git history to the job prompt. The current FULL_PROMPT is already structured (Target + Docs + Stack + Task + GSD Hint). Adding three more sections increases prompt size significantly:
+- STATE.md: typically 2-4KB
+- ROADMAP.md: typically 4-8KB
+- Git history (last 20 commits with diffs summary): 2-6KB
+- Existing CLAUDE.md injection: up to 8KB (capped)
+- Existing job description: 1-4KB
 
-- **Dockerfile**: The `COPY instances/{name}/config/SOUL.md ./config/SOUL.md` path works only if the instance directory name matches exactly (case-sensitive). If Archie collected "Jupiter" (capitalized) and the Dockerfile uses `instances/Jupiter/` but the PR creates `instances/jupiter/`, the Docker build fails with `COPY failed: file not found`.
-- **REPOS.json**: The `owner` field must be the exact GitHub organization or user slug (`ScalingEngine`, not `scaling-engine` or `Scaling Engine`). If the operator says "Scaling Engine" during intake and Claude Code generates `"owner": "Scaling Engine"`, the gh CLI calls in the entrypoint fail silently.
-- **docker-compose.yml addition**: The service name (`jupiter-event-handler`) must be unique, DNS-safe (no underscores for some compose versions), and the Traefik router label hostname must match the operator's actual DNS record. Claude Code generating a plausible-looking but incorrect hostname causes TLS provisioning to fail days later.
-- **`.env.example`**: Missing env vars cause the operator to unknowingly run the instance without required secrets. Claude Code may omit uncommon vars (e.g., `TELEGRAM_CHAT_ID`) if the operator said "Telegram channel" without the chat ID.
+Total prompt could reach 25-30KB (roughly 6,000-8,000 tokens). Add the system prompt (SOUL.md + AGENT.md, ~3KB) and the model has consumed 8,000-10,000 tokens before it starts working. This is not a hard limit problem (Claude Code handles 200K tokens) but a signal-to-noise problem: the more context injected, the more likely the agent ignores specific task instructions in favor of broad project context. Jobs that should be targeted ("fix this typo in README") receive 8KB of roadmap context they don't need, diluting the task signal.
 
 **Why it happens:**
-Claude Code inside the job container operates from the `job_description` string. The container agent has the existing instances (`noah/`, `strategyES/`) as reference, but template generation requires precise values that are context-dependent. The agent uses the best available information — if the job description says "owner: ScalingEngine" but the operator actually wants a different org, the error is in the input, not the generation. The PR diff will show the generated files, but the operator reviews it quickly and misses the subtle errors.
+Context hydration is designed for the general case ("agent needs project awareness") but applied uniformly to all jobs. The entrypoint has no mechanism to select which context sections are relevant. The GSD hint already differentiates `quick` vs `plan-phase` jobs, but the context injection does not vary with the hint.
 
-**How to avoid:**
-1. Include explicit validation instructions in the job prompt: "After generating all files, verify: (a) Dockerfile COPY paths match the instance directory name exactly as lowercase; (b) REPOS.json owner fields are exact GitHub slugs; (c) docker-compose service name is lowercase-hyphenated with no special characters; (d) all env var names from the existing noah/.env.example are present in the new .env.example."
-2. The PR description must include a "Generated file checklist" that the operator executes before merging. Each item is a specific thing to verify — not general advice.
-3. Store the exact canonical values (GitHub org slug, instance name in lowercase) in the job's JSON config block and instruct the container agent to use these verbatim, not to infer or reformat them.
-4. The generated REPOS.json should include only the repos Archie confirmed during intake, in the exact format of the existing `instances/noah/config/REPOS.json` — the container agent should copy the structure directly, not invent new field names.
+**Consequences:**
+- Simple jobs take longer because the agent reads and considers irrelevant context
+- Claude Code's first actions become "reading STATE.md" and "understanding the roadmap" instead of executing the task
+- Token costs increase for every job (hydration context is input tokens billed regardless of whether the agent uses them)
+- For cross-repo jobs, the hydrated STATE.md/ROADMAP.md may come from the clawforge repo rather than the target repo, providing misleading context
 
-**Warning signs:**
-- Docker build fails with `COPY failed: file not found` after applying the PR.
-- `gh api repos/{owner}/{repo}` returns 404 because the owner slug is formatted incorrectly.
-- `docker compose config` reports validation errors after applying the docker-compose.yml addition.
-- The new instance container starts but Traefik returns 404 because the router hostname doesn't match DNS.
+**Prevention:**
+1. Gate context hydration on GSD hint: `quick` jobs get only CLAUDE.md + task. `plan-phase` jobs get the full hydration (STATE.md + ROADMAP.md + git history). This leverages the existing routing decision.
+2. Cap each hydration section independently: STATE.md at 2KB, ROADMAP.md at 4KB, git history at 2KB. Truncation with `[TRUNCATED]` markers (matching the existing CLAUDE.md pattern).
+3. For cross-repo jobs, hydrate from the TARGET repo's STATE.md/ROADMAP.md (fetched via GitHub API at dispatch time or read from the target volume), not from clawforge's. The `get_project_state` tool already exists in Layer 1 -- reuse its logic at the entrypoint level.
+4. Include the hydrated content in a clearly-marked "Reference Only" section with an explicit instruction: "This context is for awareness. Focus on the Task section for your specific work."
+
+**Detection:**
+- Simple jobs (typo fixes, single-file edits) take >10 minutes when they should take 2-3
+- Claude Code's first tool calls are `Read` on STATE.md/ROADMAP.md instead of the task-relevant files
+- Job logs show the agent "planning" for 5 minutes on a task that needs no planning
 
 **Phase to address:**
-Phase 3 (scaffolding job prompt) — the job prompt must include the validation instructions and the JSON config block. This is the single point where precision is enforced.
+Phase 2 (context hydration) -- implement conditional hydration from the start. Adding it uniformly and then pruning later means every job in the interim gets bloated context.
 
 ---
 
-### Pitfall 5: docker-compose.yml Modification via PR Creates Merge Conflicts With Concurrent Changes
+## Moderate Pitfalls
+
+### Pitfall 5: Dockerode API Version Mismatch With Host Docker Engine
 
 **What goes wrong:**
-The scaffolding job generates a new service block to add to `docker-compose.yml` and a new network to add to the `networks:` section. This is delivered as a PR that modifies `docker-compose.yml`. If any other change to `docker-compose.yml` has been merged to `main` since the PR was created, the merge will conflict.
+Docker Engine v29 (released 2025) raised the minimum supported API version from 1.25 to 1.44. If the Event Handler uses dockerode with a hardcoded or default API version that's below the host's minimum, all API calls fail with `400 Bad Request: client version X is too old`. Conversely, if dockerode requests a version newer than the host supports, calls fail with `400 Bad Request: client version X is too new`.
 
-More critically: if two instance creation jobs run concurrently (unlikely for 2-instance production but possible in testing), both PRs modify `docker-compose.yml`. The second PR to merge will conflict on the `volumes:` and `networks:` sections even if the service blocks are distinct. The operator must resolve the conflict manually — but the context for what each PR added is now split across two PR descriptions, making it easy to accidentally drop one service block.
+The VPS running ClawForge may have Docker Engine v28 (API 1.45) or v29 (API 1.48). The dockerode client defaults to negotiating the API version, but if the socket proxy (Pitfall 1) or an intermediate layer does not forward version negotiation headers correctly, the mismatch surfaces as opaque HTTP errors.
 
-Additionally, the existing pattern of `git add -A` + `git commit` in the entrypoint followed by `--base main` PR creation means the PR is always branched from `main` at job start time. If `main` changes before the PR is reviewed (another service added, traefik config updated), the diff grows stale but the PR shows no conflict — Docker Compose is YAML and line-based diff tools may not surface semantic conflicts.
-
-**Why it happens:**
-`docker-compose.yml` is a single file shared across all instances. There is no modular compose file strategy currently (no `docker-compose.override.yml` per instance). Adding a service block is a direct modification to the shared file. PR-based delivery of infrastructure changes is correct for audit trail but introduces the conflict risk of any shared-file modification.
-
-**How to avoid:**
-1. Use Docker Compose `include:` directive (supported since Compose v2.20) to split each instance into its own `docker-compose.{name}.yml`. The main `docker-compose.yml` uses `include:` to pull in instance-specific files. The scaffolding job then only creates the new `docker-compose.{name}.yml` — it never modifies the shared `docker-compose.yml` beyond adding one `include:` line (low conflict risk). Each instance's compose file is its own PR artifact.
-2. If keeping a monolithic `docker-compose.yml` is preferred (simpler for the operator), include a note in the PR: "If another compose PR has merged since this branch was created, manually rebase before merging." Add `docker compose config` to the PR checklist.
-3. The job prompt must instruct Claude Code to append the new service at the end of the `services:` block, add the new network at the end of `networks:`, and add volumes at the end of `volumes:`. Consistent append-at-end reduces the surface area of line-level conflicts.
-4. Do not run two instance creation jobs simultaneously. The `createInstanceTool` should check for an existing open instance-creation PR before dispatching.
-
-**Warning signs:**
-- Git merge conflict markers appear in `docker-compose.yml` after the PR is merged.
-- `docker compose up` fails after the PR is applied because a service definition is malformed from a bad conflict resolution.
-- `docker compose config` shows duplicate network or volume names.
-- The Traefik container fails to start because its network list in the compose file is incomplete.
+**Prevention:**
+1. Do not hardcode the API version in dockerode constructor. Let it negotiate, or read the version from `docker version` at startup and pass it explicitly.
+2. Pin the Docker Engine version in deployment docs. Document minimum: Docker Engine v28.0+ (API v1.45+).
+3. Test the Docker API connection at Event Handler startup (health check) -- call `docker.ping()` and `docker.version()` and log the negotiated API version. Fail fast if the version is unsupported.
 
 **Phase to address:**
-Phase 3 (scaffolding job prompt) and Phase 4 (PR description) — the job prompt must specify the correct append-at-end strategy; the PR description must include the `docker compose config` verification step.
+Phase 1 -- include version check in the initial dockerode setup, not after the first production failure.
 
 ---
 
-### Pitfall 6: Incomplete Intake Abandonment Leaves No Cleanup Path
+### Pitfall 6: Container Network Isolation Breaks When Job Containers Join Wrong Network
 
 **What goes wrong:**
-An operator starts the instance creation flow with Archie, provides some information (name, channels), then stops responding or changes their mind. The LangGraph thread retains the partial intake state. The next time the operator messages Archie (even days later on the same thread), Archie's context includes the partial intake — it may resume the intake instead of responding to the new unrelated question. Worse: if the operator says "never mind" and Archie interprets this as a signal to dispatch with partial data, the scaffolding job creates an incomplete instance with missing REPOS.json or placeholder values.
+Currently, noah-event-handler is on `noah-net` and ses-event-handler is on `strategyES-net`. Job containers spawned by the Event Handler must join the correct network (or no network, if they only need outbound internet). If the Docker API call creates a job container on the default bridge network (Docker's default when no network is specified), the container can see other containers on that network. If it accidentally joins `noah-net`, a strategyES job container could reach noah's Event Handler.
 
-There is also no recovery path if the dispatched job creates broken files and the PR is merged by accident. The broken files (`instances/{name}/Dockerfile`, etc.) now exist in `main` and must be manually deleted.
+The current GitHub Actions containers run in GitHub's infrastructure with no access to ClawForge's Docker networks. Moving to local Docker Engine dispatch means job containers share the same Docker daemon and can potentially reach anything.
 
-**Why it happens:**
-LangGraph conversation threads are persistent and stateful. The intake conversation context does not expire. There is no "cancel intake" operation that clears the partial state from the thread. The `create_job` tool only has a gate (missing fields), but a partially-filled intake with plausible placeholder values may pass validation.
-
-**How to avoid:**
-1. Define explicit cancellation phrases in EVENT_HANDLER.md: "If the operator says 'cancel', 'never mind', 'stop', or 'forget it' during an instance creation flow, do NOT dispatch the job. Confirm cancellation and clear your context."
-2. Do not store intake state in LangGraph conversation history alone. Use a short-lived DB record (or a `pending_instances` table in SQLite) that tracks in-progress intakes with a TTL. If the intake is not confirmed within 30 minutes, mark it expired. The `createInstanceTool` checks for an active record before dispatching.
-3. Generate the PR description with a prominent "DRAFT — DO NOT MERGE until setup checklist is complete" warning. Even if an incomplete instance PR is merged, the warning prevents the operator from deploying it immediately.
-4. The `createInstanceTool` must validate all required fields before calling `createJob`. Required fields: instance name (lowercase, alphanumeric+hyphen only), at least one channel configured (Slack or Telegram), at least one allowed repo in REPOS.json.
-
-**Warning signs:**
-- Archie asks "What's the instance name?" in the middle of an unrelated conversation on the same thread.
-- An instance creation PR is opened with placeholder values (`my-instance`, `YOUR_REPO_HERE`).
-- The operator reports confusion about why Archie is asking about instance creation when they asked about something else.
+**Prevention:**
+1. Create a dedicated `jobs-net` network (or per-instance: `noah-jobs-net`, `ses-jobs-net`) for job containers. This network has no other services attached.
+2. In the dockerode `createContainer` call, explicitly set `NetworkingMode` to the jobs network. Never rely on the default.
+3. Job containers need outbound internet (for `git clone`, `gh api`, `npm install`) but should not be able to reach the Event Handler's HTTP port. Use Docker network policies or separate networks to enforce this.
+4. Validate at container creation time that the network exists -- if it doesn't (docker-compose down removed it), fail the job with a clear error rather than falling back to the default network.
 
 **Phase to address:**
-Phase 2 (intake flow) — cancellation handling and required field validation must be part of the initial intake implementation, not added after.
+Phase 1 -- network assignment is part of the container creation call. Get it right in the first implementation.
 
 ---
 
-### Pitfall 7: Generated AGENT.md Uses Wrong Tool Allowlist Format — Claude Code Ignores It
+### Pitfall 7: Volume Permissions Mismatch Between Job Container User and Volume Owner
 
 **What goes wrong:**
-The `AGENT.md` file is the instruction file baked into the Docker image at `/defaults/AGENT.md` and read by the entrypoint to construct the system prompt for Claude Code jobs. It contains the `--allowedTools` instructions. The generated AGENT.md for a new instance must match the exact format and tool names expected by the `claude -p --allowedTools` CLI flag.
+The job container Dockerfile uses `node:22-bookworm-slim` which runs as root by default. Named volumes created by Docker are owned by root. This works today. But if a future security hardening changes the container to run as a non-root user (e.g., `node` user, UID 1000), the named volume's root-owned files become unreadable. Git operations fail with permission denied. The `.git/` directory created by root in a previous run cannot be modified by UID 1000 in the next run.
 
-Claude Code's tool names are case-sensitive and version-specific. If the generated AGENT.md uses `"read"` instead of `"Read"`, or `"bash"` instead of `"Bash"`, the Claude Code CLI either ignores the directive or throws a parse error. If it ignores it, Claude Code runs with no tool access and produces empty output. If it throws, the job fails at the `claude` stage with a cryptic error that is not surfaced in the failure_stage detection (which looks for `preflight.md` presence, not `claude -p` flag errors).
-
-Similarly, the `SOUL.md` persona must be in a format that the `--append-system-prompt` flag accepts cleanly. Markdown characters that are special in shell (backticks, dollar signs) must not appear unescaped in the SOUL.md content — or the `echo -e "$SYSTEM_PROMPT"` in the entrypoint will expand them as shell variables, corrupting the prompt.
-
-**Why it happens:**
-Claude Code is responsible for generating AGENT.md from a template. The container agent sees the existing `instances/noah/config/AGENT.md` as reference. But if the LLM deviates slightly from the format (different capitalization, added explanatory comments that break the allowedTools list format), the generated file is syntactically valid markdown but behaviorally incorrect. This failure mode is invisible in the PR diff — the file looks correct to a reviewer who doesn't know the exact expected format.
-
-**How to avoid:**
-1. Include the exact AGENT.md content as a literal template in the job prompt — instruct Claude Code to use it verbatim except for the instance-specific persona name. Do not ask the LLM to "write a similar AGENT.md" — give it the exact source.
-2. Add to the PR checklist: "Open AGENT.md and confirm `--allowedTools` line matches exactly: `Read,Write,Edit,Bash,Glob,Grep,Task,Skill`."
-3. Include `SOUL.md` as a similar literal template with clear markers for the instance-specific sections that should be filled in.
-4. In the job prompt, add a constraint: "SOUL.md must not contain backtick characters, `$`, or `\`` outside of code blocks, as these will be expanded by the entrypoint shell." This constraint is specific to the entrypoint's `echo -e "$SYSTEM_PROMPT"` pattern.
-
-**Warning signs:**
-- New instance Claude Code jobs produce empty output (no files changed, no PR content beyond log files).
-- Entrypoint log shows `claude: unrecognized option '--allowedTools read,write'` (lowercase tool names).
-- System prompt for the new instance contains literal `$VARIABLE_NAME` text instead of resolved values.
-- GSD invocations are zero for all jobs from the new instance — AGENT.md did not correctly mandate Skill tool use.
+**Prevention:**
+1. If running as root: document this as a conscious decision, not an oversight. Add a comment in the Dockerfile.
+2. If switching to non-root: the entrypoint must `chown -R` the volume directory before git operations. This adds startup time proportional to volume size.
+3. Use a consistent UID across all job containers. Pin it in the Dockerfile: `RUN useradd -u 1000 agent` and `USER agent`. Ensure the entrypoint runs as this user.
+4. For now, keep running as root (matches current behavior) and defer non-root hardening to a security milestone.
 
 **Phase to address:**
-Phase 3 (scaffolding job prompt) — the job prompt must include the exact AGENT.md template content, not instructions to "write something similar."
+Phase 2 (named volumes) -- document the root-user decision. Don't ship volumes without deciding on the container user model.
 
 ---
 
-### Pitfall 8: Instance Name Collisions Produce Ambiguous docker-compose Service Names and Network Names
+### Pitfall 8: Entrypoint Rewrite Introduces Regression in Cross-Repo Job Flow
 
 **What goes wrong:**
-The `docker-compose.yml` uses service name, container name, network name, and volume name all derived from the instance name. For a new instance "marketing", the job generates:
-- Service: `marketing-event-handler`
-- Container: `clawforge-marketing`
-- Network: `marketing-net`
-- Volumes: `marketing-data`, `marketing-config`
+The current entrypoint.sh handles two flows: same-repo jobs (clone clawforge, work in `/job`) and cross-repo jobs (clone clawforge to `/job`, read `target.json`, clone target repo to `/workspace`, work in `/workspace`). Adding named volumes and context hydration requires modifying the entrypoint significantly -- the clone step becomes conditional (volume warm vs cold), context files need fetching, and the working directory logic changes.
 
-If an operator previously created and deleted an instance named "marketing", the Docker volumes `marketing-data` and `marketing-config` may still exist on the host. `docker compose up` will reuse those volumes, which may contain stale configuration from the old instance (old SQLite db, old config files). The new instance starts with a prior instance's conversation history and API keys in its database.
+The cross-repo flow is the most fragile path: it depends on `target.json` being on the job branch, the two-phase clone working correctly, SOUL.md/AGENT.md being read from `/defaults/` not `/job/config/`, and PR creation happening against the target repo. Any entrypoint modification that changes the `/job` vs `/workspace` directory logic, the clone order, or the config file resolution path can break cross-repo jobs while same-repo jobs continue working -- making the regression invisible in basic testing.
 
-Additionally, if the instance name contains characters that are valid in the intake conversation but invalid in docker-compose service names (uppercase, underscores, spaces), the generated compose file causes `docker compose config` validation errors.
-
-**Why it happens:**
-Docker Compose volume names persist until explicitly deleted with `docker volume rm`. The scaffolding job has no awareness of existing volumes. The `createInstanceTool` has no pre-check for naming conflicts. Instance name validation during intake does not account for the full set of docker-compose naming constraints.
-
-**How to avoid:**
-1. During intake, validate the instance name immediately: lowercase, alphanumeric, hyphens only, max 20 characters. Reject anything else at the Event Handler layer (in `createInstanceTool` validation) before the job is dispatched.
-2. The job prompt must include a check: "Before writing docker-compose.yml additions, verify the service name `{name}-event-handler` does not already appear in the current docker-compose.yml."
-3. The PR description must include: "If this instance name was previously used, run `docker volume rm {name}-data {name}-config` before `docker compose up` to avoid state contamination from prior runs."
-4. The generated docker-compose.yml service block must include a `restart: unless-stopped` policy and a clear `container_name` so the operator can identify which container corresponds to which instance.
-
-**Warning signs:**
-- `docker compose up` starts the new instance but it already has chat history in its database.
-- `docker compose config` returns a validation error about the service name.
-- The Traefik router for the new instance conflicts with an existing router label.
+**Prevention:**
+1. Before modifying the entrypoint, run the VERIFICATION-RUNBOOK.md scenarios S1-S5 (already documented) to establish a baseline.
+2. Structure the entrypoint modification as additive: keep the existing flow as the "cold start" path, add the volume-based "warm start" path as a conditional branch early in the script. Do not refactor the existing flow while adding new capabilities.
+3. Test cross-repo jobs explicitly after every entrypoint change. The test matrix is: same-repo cold, same-repo warm, cross-repo cold, cross-repo warm (4 combinations).
+4. The target.json sidecar approach works for GitHub Actions (job branch carries metadata). For Docker Engine API dispatch, the Event Handler knows the target repo at dispatch time -- pass it as an environment variable (`TARGET_REPO`, `TARGET_OWNER`) directly, eliminating the need to read target.json from the git branch inside the container.
 
 **Phase to address:**
-Phase 2 (intake flow) for name validation, Phase 3 (job prompt) for collision detection in compose file.
+Phase 2-3 (entrypoint modification) -- run verification runbook before AND after entrypoint changes. Test all 4 combinations.
 
 ---
 
-## Technical Debt Patterns
+### Pitfall 9: GitHub Actions Fallback Creates Two Dispatch Paths With Divergent Behavior
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Free-text `job_description` for intake config | No schema change needed | Container agent must parse prose for precise config values; ambiguous values produce broken files silently | Never for instance creation — use JSON config block |
-| Store intake state only in LangGraph checkpoints | No new DB table | State is unretrievable without replaying the conversation; no TTL; no cancellation | Never for multi-turn flows that dispatch irreversible actions |
-| Monolithic `docker-compose.yml` modification | Simpler file structure | Merge conflicts when multiple instance PRs are in flight; single-file blast radius | Acceptable only if instance creation is strictly serialized |
-| Copy AGENT.md template by instruction ("write something similar") | Faster job prompt | LLM deviates from exact tool name format; Claude Code silently fails | Never — provide exact template as literal |
-| Skip instance name validation in intake | Faster implementation | Invalid names produce broken Docker resources that require manual cleanup | Never — validate on input, before the job is dispatched |
-| Dispatch job with partial intake (missing repos) | Faster UX | Generated REPOS.json has placeholders; instance cannot target any repo; operator confused | Never — enforce required field gate before dispatch |
+**What goes wrong:**
+The v1.4 design retains GitHub Actions as a fallback for CI-integrated repos. This means the system has TWO dispatch paths: Docker Engine API (fast, volume-mounted) and GitHub Actions (slow, fresh clone). If these paths produce different behavior -- different prompt structure, different context injection, different volume state, different notification flow -- bugs will be path-dependent and hard to reproduce.
 
----
+Specifically:
+- Docker Engine API path has named volumes (warm start). GitHub Actions path does a fresh clone (cold start). Same job, different working tree state.
+- Docker Engine API path injects context hydration (STATE.md, ROADMAP.md). If the GitHub Actions path doesn't inject the same context, agents behave differently on the same task.
+- Notification flow differs: Docker Engine API containers must notify the Event Handler directly (no GitHub webhook). GitHub Actions containers notify via the existing workflow-based webhook.
 
-## Integration Gotchas
+**Prevention:**
+1. Keep the entrypoint identical for both paths. The entrypoint should not know or care whether it was started by Docker Engine API or GitHub Actions. All behavioral differences should be in the container's environment variables, not in entrypoint logic.
+2. Context hydration must happen in the entrypoint (where it can be consistent across both paths), not in the Docker Engine API dispatch code (where it would only apply to one path).
+3. Document which path each job will take in the `create_job` tool response. The operator should know if their job went through Docker API or Actions.
+4. If a feature only works on one path (e.g., warm volumes only work with Docker API), make this explicit in the job prompt: "This job is running with a cold start -- full clone will be performed."
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| LangGraph agent singleton + new tool | Adding `createInstanceTool` to tools array requires `resetAgent()` + server restart to take effect | Include tool in initial tools array; never add mid-session; restart server on deploy |
-| LangGraph checkpoint + long intake | Default append-only history grows to 20k+ tokens for conversational intake threads | Implement `trimMessages` preprocessor in `getAgent()`; inject completion marker after dispatch |
-| `addToThread()` for job completion injection | Injecting completion message into thread that already has 15+ messages may confuse Archie about intake state | Always inject with explicit marker prefix: `[INTAKE COMPLETE]` so EVENT_HANDLER.md can pattern-match |
-| `createJob` free-text + container agent | Passing intake config as prose in `job_description` lets container agent guess at field values | Embed JSON config block at top of `job_description` in a fenced code block; instruct container agent to parse JSON first |
-| `docker-compose.yml` + include directive | docker-compose `include:` requires Compose v2.20+ — older `docker-compose` v1 does not support it | Verify `docker compose version` on target host before using `include:`; document minimum version |
-| `echo -e "$SYSTEM_PROMPT"` in entrypoint | SOUL.md content with `$` or backticks gets shell-expanded during echo | Sanitize generated SOUL.md content: escape `$` as `\$` in template; use `printf '%s'` instead of `echo -e` for safer expansion |
-| GitHub Actions `--base main` in same-repo PR | Instance scaffolding PR targets clawforge's `main` — if this is a branch-protected environment, it may require review | Same as existing jobs — same-repo PRs go through `auto-merge.yml`; instance creation PRs should go through same path with path-restriction allow for `instances/` |
+**Phase to address:**
+Phase 3 (fallback integration) -- design the entrypoint to be path-agnostic from the start. Don't build Docker-API-specific entrypoint logic that then needs to be backported to the Actions path.
 
 ---
 
-## Performance Traps
+### Pitfall 10: Concurrent Job Containers Compete for Same Named Volume
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Long intake conversation accumulates checkpoint writes | SQLite grows rapidly; every LangGraph step writes full state snapshot | Add message trimmer; clear checkpoints after intake completes | After 5+ instance creation conversations on same thread |
-| Container agent generates all files with one long Write call | Single `claude -p` run generating 6+ files often hits the 30-min timeout if the LLM is verbose | Instruct container agent to write each file independently and commit incrementally; use GSD plan-phase routing | Any scaffolding job with a verbose LLM model |
-| `createInstanceTool` dispatches job with full conversation history in description | Job description grows to 10k+ characters including conversation context | Pass only the confirmed config JSON block as job description; strip conversation prose | When Archie summarizes the intake verbosely in the tool call |
+**What goes wrong:**
+Two jobs targeting the same repo are dispatched simultaneously. Both try to mount the same named volume (`clawforge-repo-scalingengine-clawforge`). Docker allows multiple containers to mount the same volume simultaneously with read-write access. Both containers do `git fetch && git reset --hard origin/main`, then both create their own job branches. They modify the same files. When they push, one succeeds and the other gets "remote rejected" because the branch already exists, or both create PRs with conflicting changes from a shared working tree.
+
+Even without concurrent modification, the second container's `git clean -fdx` removes files the first container is actively reading. The first container gets `ENOENT` errors mid-operation.
+
+**Prevention:**
+1. Use per-job working directories within the volume: volume mounts at `/repos/{owner}/{slug}`, each job clones/copies to `/job/{uuid}` within the container. The volume is a cache, not the working directory.
+2. Alternatively, implement a simple lock: before mounting a repo volume, check if another container is using it (query Docker for running containers with the same volume mount). If locked, fall back to a fresh clone (cold start with no volume).
+3. The Event Handler should serialize jobs targeting the same repo on the same instance. Use a queue (or a simple in-memory lock per repo slug) to prevent concurrent dispatch to the same target.
+4. The simplest approach: `git clone` from the volume into a separate directory (fast local clone, ~2 seconds for a large repo) rather than working directly in the volume. The volume is read-only reference, the working directory is ephemeral per-container.
+
+**Detection:**
+- Two PRs for the same repo opened within seconds of each other, one with unexpected file changes
+- Git errors in job logs: "fatal: remote rejected" or "error: cannot lock ref"
+- Job container exits with git errors but failure stage detection categorizes it as "clone" failure
+
+**Phase to address:**
+Phase 2 (named volumes) -- decide on the concurrency model before implementing volumes. The architecture of "volume as cache vs volume as working directory" determines everything downstream.
 
 ---
 
-## Security Mistakes
+## Minor Pitfalls
 
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Generated `.env.example` contains actual secret values (copied from operator's message during intake) | Real API keys committed to repo history if operator pastes secrets during intake | AGENT.md must instruct Archie to never include actual secret values in `.env.example` — placeholders only (`YOUR_ANTHROPIC_API_KEY`); include warning in intake prompt |
-| Instance name accepted from intake without validation | Operator can name instance `../../etc` or `$(rm -rf)` — path traversal in Dockerfile COPY paths | Validate instance name to `^[a-z][a-z0-9-]{0,18}[a-z0-9]$` in `createInstanceTool` before dispatching |
-| Generated REPOS.json allows unrestricted repos | If intake collects repos loosely ("any repo I own"), REPOS.json could allow broad access | `createInstanceTool` must require explicit repo slugs (`owner/repo`) — no wildcards, no org-level access grants |
-| New instance Slack bot token injected into PR | Operator provides bot token during intake; Archie includes it in docker-compose env section | createInstanceTool must never include secret values in the PR; only placeholder names go in compose file; instruct operator to set secrets manually |
-| Auto-merge enabled for instance scaffolding PRs | A broken instance PR auto-merges and is immediately deployed by `docker compose up` | Exclude `instances/` path from `auto-merge.yml` ALLOWED_PATHS; all instance scaffolding PRs require human review |
+### Pitfall 11: Container Log Collection Races With Container Removal
+
+**What goes wrong:**
+After a job container finishes, the Event Handler needs to: (1) read the container logs, (2) extract the PR URL from the output, (3) update the job_outcomes DB, (4) send a notification, (5) remove the container. If step 5 happens before steps 1-4 complete (e.g., due to async race), the logs are lost. Dockerode's `container.logs()` returns a stream -- if the container is removed while the stream is being read, the stream truncates.
+
+**Prevention:**
+1. Make the lifecycle strictly sequential: `await container.wait()` -> `await collectLogs(container)` -> `await updateDB(...)` -> `await sendNotification(...)` -> `await container.remove()`. No parallelism in the cleanup path.
+2. Write logs to a volume (not just container stdout) so they survive container removal. The current pattern of writing to `${LOG_DIR}` inside the container filesystem is lost when the container is removed unless the log directory is on a volume.
+
+**Phase to address:**
+Phase 1 -- log collection is part of the container lifecycle management.
 
 ---
 
-## UX Pitfalls
+### Pitfall 12: Docker Image Pull Adds Cold-Start Latency That Negates the Speed Improvement
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Archie asks for all fields sequentially (one per message) | 8-turn intake feels tedious; operator abandons halfway | Ask for groups of related fields together: "What's the instance name and which channels (Slack/Telegram/Web)?" — 3-4 turns max |
-| PR description lacks operator action items | Operator merges PR, runs compose up, instance fails silently | PR description must include step-by-step checklist: create Slack app, set GitHub secrets, verify DNS, run `docker compose up --build` |
-| Archie confirms dispatch before collecting repos | Instance scaffolding job creates REPOS.json with empty array | REPOS.json with at least one repo is a required field — gate dispatch on this |
-| No confirmation before dispatching scaffolding job | Operator can't correct mistakes before the job runs | Always show summary and ask "Shall I create this instance?" before calling `createInstanceTool` |
-| Generated PR title is generic "clawforge: job {uuid}" | Operator can't identify instance creation PRs in PR list | Job prompt must instruct container agent to open PR with title "feat(instances): add {name} instance" |
+**What goes wrong:**
+The whole point of Docker Engine API dispatch is "containers start in seconds instead of minutes." But if the job container image (`clawforge-job:latest`) is not pre-pulled on the host, the first job triggers a Docker pull (~30-60 seconds for the 1.5GB image with node_modules, Chrome deps, Claude Code CLI, GSD). Even after the first pull, image updates (new Claude Code version, GSD update) require a re-pull.
+
+**Prevention:**
+1. Pre-pull the job image at Event Handler startup: `docker.pull('clawforge-job:latest')`. Log the pull duration.
+2. Build the job image locally on the host as part of deployment (`docker compose build`). Reference the local image, not a registry image.
+3. If using a registry, set up a cron job or deployment hook to pull the latest image before traffic arrives.
+4. Monitor container start time in the job_outcomes record. If start time exceeds 10 seconds, the image likely needed pulling.
+
+**Phase to address:**
+Phase 1 -- include image management in the Docker Engine API setup.
+
+---
+
+### Pitfall 13: Context Hydration Fetches STATE.md/ROADMAP.md From Wrong Repo for Cross-Repo Jobs
+
+**What goes wrong:**
+The entrypoint builds the FULL_PROMPT using files from the working directory (`/job` or `/workspace`). For same-repo jobs, STATE.md and ROADMAP.md are in the clawforge repo's `.planning/` directory. For cross-repo jobs, the working directory is the target repo -- which may or may not have `.planning/STATE.md`. The hydration logic must know which repo's state to inject.
+
+If the entrypoint always reads from the working directory, cross-repo jobs targeting repos without GSD planning files get no hydration (acceptable). But if it falls back to reading from the clawforge repo's clone (at `/job`), the agent gets clawforge's project state when working on a completely different repo -- misleading context.
+
+**Prevention:**
+1. Context hydration reads exclusively from the working directory (WORK_DIR). If the target repo has `.planning/STATE.md`, inject it. If not, skip it. Never fall back to a different repo's state.
+2. Alternatively, the Event Handler fetches the target repo's STATE.md via GitHub API (reusing `get_project_state` logic) at dispatch time and passes it as an environment variable or file to the container. This avoids the entrypoint needing to know which repo's state to read.
+
+**Phase to address:**
+Phase 2 (context hydration) -- define the data flow before implementation.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Docker Engine API client setup | Socket security (Pitfall 1), API version mismatch (Pitfall 5) | Use socket proxy from day 1; version check at startup |
+| Container lifecycle management | Zombie containers (Pitfall 3), log collection race (Pitfall 11) | DB-tracked container IDs; sequential cleanup; startup reconciliation |
+| Named volumes implementation | Stale git state (Pitfall 2), concurrent access (Pitfall 10), permissions (Pitfall 7) | Volume hygiene step; per-job working dirs; document root-user decision |
+| Context hydration in entrypoint | Prompt bloat (Pitfall 4), wrong repo context (Pitfall 13) | Conditional hydration gated on GSD hint; read from WORK_DIR only |
+| Entrypoint modification | Cross-repo regression (Pitfall 8) | Run VERIFICATION-RUNBOOK before and after; test 4 combinations |
+| Actions fallback | Divergent behavior (Pitfall 9) | Path-agnostic entrypoint; consistent context injection |
+| Image management | Cold-start latency (Pitfall 12) | Pre-pull at startup; local build in deployment |
+| Network assignment | Isolation bypass (Pitfall 6) | Dedicated jobs network; explicit NetworkingMode in create call |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Intake validation:** Ask Archie to create an instance with name "My Instance!" — confirm it rejects the name before dispatching (special characters and spaces are invalid).
+- [ ] **Socket proxy in place:** Run `docker inspect <event-handler>` -- confirm `/var/run/docker.sock` is NOT in Binds. Confirm a socket proxy container exists and the Event Handler connects to it.
 
-- [ ] **Structured config handoff:** Inspect the `logs/{uuid}/job.md` for an instance creation job. Confirm a JSON config block is present with all required fields, not just prose.
+- [ ] **Container cleanup on restart:** Kill the Event Handler process (`docker restart clawforge-noah`). Check `docker ps -a --filter label=com.clawforge.job-id` before and after. Confirm orphaned containers are adopted or cleaned up on startup.
 
-- [ ] **AGENT.md tool format:** Open the generated `instances/{name}/config/AGENT.md`. Confirm the allowedTools list is `Read,Write,Edit,Bash,Glob,Grep,Task,Skill` — exact casing, exact format.
+- [ ] **Volume hygiene works:** Run a job, kill it mid-execution (`docker kill <job-container>`). Run another job targeting the same repo. Confirm it succeeds (no lock file errors, correct branch).
 
-- [ ] **SOUL.md shell safety:** Check generated SOUL.md for unescaped `$` characters. Run `grep -n '\$' instances/{name}/config/SOUL.md` — any `$WORD` pattern will be shell-expanded by entrypoint.
+- [ ] **Cross-repo jobs still work:** After entrypoint changes, dispatch a cross-repo job. Confirm: target.json read correctly, PR created on target repo, notification fired.
 
-- [ ] **docker-compose.yml syntax:** After applying the PR, run `docker compose config` on the host. Zero errors required before `docker compose up`.
+- [ ] **Context hydration conditional:** Dispatch a `quick` hint job (simple task). Check the FULL_PROMPT length in job logs. Confirm STATE.md/ROADMAP.md are NOT included. Dispatch a `plan-phase` job. Confirm they ARE included.
 
-- [ ] **No actual secrets in PR:** Review the PR diff. Confirm no API keys, bot tokens, or passwords appear in any generated file — only placeholder names like `YOUR_ANTHROPIC_API_KEY`.
+- [ ] **Concurrent jobs don't corrupt:** Dispatch two jobs targeting the same repo within 5 seconds. Confirm both complete successfully with independent PRs and no cross-contamination.
 
-- [ ] **Instance name in all paths:** Verify the Dockerfile has `COPY instances/{name}/` (exact lowercase name) in every COPY line. Run `grep -n "instances/" instances/{name}/Dockerfile` and confirm all paths match the directory name.
+- [ ] **Fallback to Actions works:** Disable Docker Engine API (stop socket proxy). Dispatch a job. Confirm it falls back to GitHub Actions and completes normally.
 
-- [ ] **REPOS.json format:** Open generated REPOS.json. Confirm it matches the exact schema of `instances/noah/config/REPOS.json` — `repos` array, each entry has `owner`, `slug`, `name`, `aliases`. No extra fields, no missing fields.
-
-- [ ] **PR auto-merge disabled:** Confirm the instance scaffolding PR is NOT auto-merged. It should appear as "Open" in GitHub, requiring manual review and merge.
-
-- [ ] **Conversation context after dispatch:** After `createInstanceTool` is called, send Archie a new unrelated message on the same thread. Confirm Archie responds to the new message normally and does not resume the intake flow.
+- [ ] **API version logged:** Check Event Handler startup logs. Confirm Docker API version is logged (e.g., "Docker Engine API v1.45 connected").
 
 ---
 
@@ -326,67 +347,43 @@ Phase 2 (intake flow) for name validation, Phase 3 (job prompt) for collision de
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Intake dispatched with wrong instance name | MEDIUM | Close the PR; if instance directory was created, delete it with a new PR; restart intake on a new thread |
-| Generated AGENT.md has wrong tool format — Claude Code jobs fail silently | LOW | Edit AGENT.md directly in `instances/{name}/config/AGENT.md`, open a fix PR; no rebuild needed until next deploy |
-| docker-compose.yml merge conflict | LOW | Manually resolve conflict locally; run `docker compose config` to verify; push resolution to PR |
-| docker-compose.yml applied with broken config — container fails to start | MEDIUM | `docker compose down {name}-event-handler`; fix compose file via new PR; `docker compose up -d {name}-event-handler` |
-| Stale volumes from prior deleted instance | LOW | `docker volume rm {name}-data {name}-config`; `docker compose up -d {name}-event-handler` |
-| Actual secret in PR diff — committed to history | HIGH | Immediately rotate the exposed secret; use `git filter-repo` or GitHub's secret removal tool to purge from history; audit access logs for the exposed token |
-| Archie resume mid-intake on wrong thread | LOW | Tell Archie "cancel this instance creation" and start intake on a new thread |
-| Container agent generates files with placeholder values | LOW | Close the PR; fix the job prompt to include explicit values; re-dispatch with corrected config JSON block |
-
----
-
-## Pitfall-to-Phase Mapping
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Agent singleton corrupts on tool addition | Phase 1: Add `createInstanceTool` to tools array from first commit | Deploy and confirm existing conversations resume normally |
-| Multi-turn intake state in LangGraph only (no queryable store) | Phase 1: Define structured Zod schema for `createInstanceTool` | Inspect `job.md` for JSON config block before container runs |
-| Context window bloat from long intake | Phase 2: Implement conversation reset marker after dispatch | Monitor SQLite size; send long intake then unrelated message — confirm normal response |
-| Template generates valid but semantically wrong config | Phase 3: Include literal template content in job prompt | Run `docker compose config` after PR; inspect REPOS.json schema |
-| docker-compose.yml merge conflicts | Phase 3: Use append-at-end strategy; Phase 4: Include compose verify in PR checklist | Apply two concurrent instance PRs in test; confirm no conflict |
-| Incomplete intake abandonment leaves dangling state | Phase 2: Required field gate in `createInstanceTool`; cancellation in EVENT_HANDLER.md | Say "cancel" mid-intake; confirm no job dispatched |
-| Generated AGENT.md wrong tool name format | Phase 3: Provide exact AGENT.md template in job prompt | Run a Claude Code job from new instance; confirm GSD invocations > 0 |
-| Instance name collision in Docker resources | Phase 2: Name validation in `createInstanceTool`; Phase 3: Collision check in job prompt | Try creating instance with previously-used name; confirm warning in PR |
-| Secrets in PR from operator input | Phase 2: AGENT.md instruction to Archie; Phase 3: Container agent instruction | Review PR diff for any token/key patterns |
-| Auto-merge on instance scaffolding PR | Phase 4: Exclude `instances/` from `auto-merge.yml` ALLOWED_PATHS | Open instance PR; confirm it stays open for manual review |
+| Docker socket exposed without proxy | HIGH | Add socket proxy to docker-compose; redeploy; audit container inspect logs for leaked secrets |
+| Stale volume causes wrong code in PR | LOW | Close PR; run `docker volume rm <volume>` to force fresh clone on next job; re-dispatch |
+| Zombie containers accumulating | LOW | `docker rm $(docker ps -aq --filter label=com.clawforge.job-id)` to clean all; fix lifecycle code |
+| Prompt bloat causing slow/wrong jobs | LOW | Add conditional hydration gate; redeploy Event Handler |
+| API version mismatch | LOW | Update dockerode constructor with correct version; or upgrade Docker Engine on host |
+| Cross-repo regression from entrypoint change | MEDIUM | Revert entrypoint to last known-good; re-run VERIFICATION-RUNBOOK |
+| Concurrent volume corruption | MEDIUM | `docker volume rm <volume>` for affected repo; implement per-job working directory |
+| Wrong repo context hydrated | LOW | Fix entrypoint to read from WORK_DIR only; redeploy |
 
 ---
 
 ## Sources
 
-### PRIMARY (HIGH confidence — direct codebase inspection)
+### PRIMARY (HIGH confidence -- direct codebase inspection)
 
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/lib/ai/agent.js` — Singleton pattern `_agent`, `resetAgent()`, tools array at line 19; confirmed no message trimmer configured
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/lib/ai/tools.js` — `createJobTool` schema (job_description only, no structured instance fields); `detectPlatform()` at lines 16-21
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/lib/ai/index.js` — `chat()` append-only invocation at line 69; `addToThread()` state injection at line 288; no message trimming in place
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/templates/docker/job/entrypoint.sh` — `echo -e "$SYSTEM_PROMPT"` at line 156 (shell expansion risk); `ALLOWED_TOOLS` at line 215; `--append-system-prompt` at line 287
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/docker-compose.yml` — Monolithic file with all services; network/volume naming convention (`noah-net`, `noah-data`); no `include:` directive
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/instances/noah/Dockerfile` — `COPY instances/noah/config/` paths (case-sensitive, exact match required)
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/instances/noah/config/REPOS.json` — Exact schema required for generated REPOS.json
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/.planning/PROJECT.md` — v1.3 requirements; confirmed 2 existing instances; out-of-scope items (secrets auto-provisioning, Slack app auto-creation)
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/.planning/codebase/CONCERNS.md` — Database singleton vulnerability (line 13-17); LangGraph streaming format fragility (line 123-127); LangChain breaking changes risk (line 172-175)
-- `/Users/nwessel/Claude Code/Business/Products/clawforge/.planning/codebase/ARCHITECTURE.md` — State management section (conversation memory in SQLite checkpointer at line 103); error handling patterns (best-effort, no retry for tool errors)
+- `templates/docker/job/entrypoint.sh` -- Current clone flow (line 34-39), CLAUDE.md injection (line 111-120), prompt assembly (line 183-200), cross-repo WORK_DIR logic
+- `templates/docker/job/Dockerfile` -- Root user, node:22-bookworm-slim base, GSD install, SOUL.md/AGENT.md baked at /defaults/
+- `docker-compose.yml` -- Network isolation (noah-net, strategyES-net, proxy-net), volume definitions, Traefik socket mount pattern
+- `lib/tools/create-job.js` -- Job branch creation via GitHub API, target.json sidecar for cross-repo
+- `lib/ai/tools.js` -- create_job tool, get_project_state tool (GitHub API fetch of STATE.md/ROADMAP.md)
+- `.planning/PROJECT.md` -- v1.4 requirements, current state after v1.3, constraints
+- `.planning/VISION.md` -- Milestone map, thepopebot docker.js pattern to pull, architecture evolution
 
-### SECONDARY (MEDIUM confidence — official docs and verified community patterns)
+### SECONDARY (MEDIUM confidence -- official docs + community patterns)
 
-- [LangGraph JS Persistence Docs](https://langchain-ai.github.io/langgraphjs/concepts/persistence/) — Checkpoint-per-step behavior; full state snapshot (not delta) written at each node; confirmed no automatic pruning
-- [LangGraph Breaking Change: langgraph-prebuilt 1.0.2](https://github.com/langchain-ai/langgraph/issues/6363) — Breaking changes on minor versions without proper constraints; confirms pinning `@langchain/*` to exact versions is necessary
-- [LangGraph Breaking Change: checkpoint-postgres serialization](https://github.com/langchain-ai/langgraph/issues/5862) — Minor version upgrades can break checkpoint deserialization; confirms checkpoint format is not stable across minor versions
-- [LangGraph: Modify graph state from tools](https://changelog.langchain.com/announcements/modify-graph-state-from-tools-in-langgraph) — ToolNode cannot handle InjectedState without Command objects; confirms tool schema changes require graph rebuild
-- [Docker Compose Merge Behavior](https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/) — Lists replaced entirely (not merged); ports override behavior; `include:` directive for modular compose files
-- [Docker Compose `include:` directive](https://docs.docker.com/compose/how-tos/multiple-compose-files/include/) — Requires Compose v2.20+; import-time conflict detection; safe for per-instance files
-- [LangGraph State Bloat: checkpoint per step](https://focused.io/lab/customizing-memory-in-langgraph-agents-for-better-conversations) — Full state stored at every step; 50MB state * 10 steps = 500MB checkpoint bloat; recommendation to store only references
-- [NeurIPS 2025: Why Multi-Agent LLM Systems Fail](https://arxiv.org/pdf/2503.13657) — Conflicting state updates, timeout/retry ambiguity, message misinterpretation in multi-agent flows; 40% of pilots fail within 6 months of production
-- [Claude Code Security: Shell injection via `${VAR}`](https://flatt.tech/research/posts/pwning-claude-code-in-8-different-ways/) — Claude Code fails to filter Bash variable expansion syntax; fixed in v1.0.93; relevant to SOUL.md template content safety
-
-### TERTIARY (LOW confidence — single source, pattern inference)
-
-- [LangGraph Human-in-the-Loop: interrupt()](https://blog.langchain.com/making-it-easier-to-build-human-in-the-loop-agents-with-interrupt/) — Interrupt-based intake patterns; confirmation before irreversible actions; persistence across interrupt points
-- [Multi-Agent Failure Modes: Production Reliability](https://www.getmaxim.ai/articles/multi-agent-system-reliability-failure-patterns-root-causes-and-production-validation-strategies/) — State corruption from concurrent writes; retry ambiguity; downstream cascade failures from early misinterpretation
+- [Docker Engine API docs](https://docs.docker.com/reference/api/engine/) -- API versioning, container create/start/wait/remove lifecycle
+- [Docker Socket Security](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html) -- OWASP guidance on socket exposure risks
+- [Tecnativa docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) -- HAProxy-based socket proxy with endpoint allowlisting
+- [wollomatic/socket-proxy](https://github.com/wollomatic/socket-proxy) -- Go-based socket proxy with regex configuration
+- [dockerode](https://github.com/apocas/dockerode) -- Node.js Docker API client; stream handling, promise interface
+- [Docker v29 API version breaking change](https://www.portainer.io/blog/docker-v29-and-the-fall-out) -- Minimum API version raised to 1.44, broke Portainer and other clients
+- [Docker volume permissions](https://denibertovic.com/posts/handling-permissions-with-docker-volumes/) -- UID mismatch between container user and volume owner
+- [Docker resource constraints](https://docs.docker.com/engine/containers/resource_constraints/) -- mem_limit, cpus for container resource control
+- [Docker concurrent container creation](https://github.com/moby/moby/issues/11228) -- Docker chokes with many concurrent requests; serialization at daemon level
+- [Docker PID 1 zombie reaping](https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/) -- Containers without init system leave zombie processes
 
 ---
 
-*Pitfalls research for: ClawForge v1.3 — Instance Generator (multi-turn conversational intake, template-based file generation, docker-compose.yml modification via PR)*
-*Researched: 2026-02-27*
+*Pitfalls research for: ClawForge v1.4 -- Docker Engine Foundation (Docker Engine API dispatch, Layer 2 context hydration, named volumes)*
+*Researched: 2026-03-06*
