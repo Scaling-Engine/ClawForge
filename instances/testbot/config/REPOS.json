@@ -1,0 +1,12 @@
+{
+  "repos": [
+    {
+      "owner": "ScalingEngine",
+      "slug": "ScalingEngine/wealth-os",
+      "name": "ScalingEngine/wealth Os",
+      "aliases": [
+        "ScalingEngine/wealth-os"
+      ]
+    }
+  ]
+}

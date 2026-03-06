@@ -10,6 +10,8 @@ networks:
     driver: bridge
   strategyES-net:
     driver: bridge
+  testbot-net:
+    driver: bridge
   proxy-net:
     driver: bridge
 
@@ -21,6 +23,7 @@ services:
       - proxy-net
       - noah-net
       - strategyES-net
+      - testbot-net
     command:
       - --providers.docker=true
       - --providers.docker.exposedByDefault=false
@@ -130,6 +133,50 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # --- Testbot Event Handler ---
+  testbot-event-handler:
+    container_name: clawforge-testbot
+    build:
+      context: .
+      dockerfile: instances/testbot/Dockerfile
+    networks:
+      - testbot-net
+      - proxy-net
+    environment:
+      APP_URL: ${TESTBOT_APP_URL}
+      APP_HOSTNAME: ${TESTBOT_APP_HOSTNAME}
+      AUTH_SECRET: ${TESTBOT_AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      GH_TOKEN: ${TESTBOT_GH_TOKEN}
+      GH_OWNER: ${TESTBOT_GH_OWNER:-ScalingEngine}
+      GH_REPO: ${TESTBOT_GH_REPO:-ScalingEngine/wealth-os}
+      GH_WEBHOOK_SECRET: ${TESTBOT_GH_WEBHOOK_SECRET}
+      LLM_PROVIDER: ${TESTBOT_LLM_PROVIDER:-anthropic}
+      LLM_MODEL: ${TESTBOT_LLM_MODEL:-claude-sonnet-4-6}
+      ANTHROPIC_API_KEY: ${TESTBOT_ANTHROPIC_API_KEY}
+      SLACK_BOT_TOKEN: ${TESTBOT_SLACK_BOT_TOKEN}
+      SLACK_SIGNING_SECRET: ${TESTBOT_SLACK_SIGNING_SECRET}
+      SLACK_ALLOWED_USERS: ${TESTBOT_SLACK_ALLOWED_USERS}
+      SLACK_ALLOWED_CHANNELS: ${TESTBOT_SLACK_ALLOWED_CHANNELS}
+      SLACK_REQUIRE_MENTION: ${TESTBOT_SLACK_REQUIRE_MENTION:-true}
+      OPENAI_API_KEY: ${TESTBOT_OPENAI_API_KEY}
+    volumes:
+      - testbot-data:/app/data
+      - testbot-config:/app/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.testbot.rule=Host(`${TESTBOT_APP_HOSTNAME}`)
+      - traefik.http.routers.testbot.entrypoints=websecure
+      - traefik.http.routers.testbot.tls.certresolver=letsencrypt
+      - traefik.http.services.testbot.loadbalancer.server.port=80
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
 
 volumes:
   noah-data:
@@ -137,3 +184,5 @@ volumes:
   ses-data:
   ses-config:
   traefik_certs:
+  testbot-data:
+  testbot-config:
