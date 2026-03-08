@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Docker Engine Foundation
-status: in_progress
-stopped_at: Completed 20-01-PLAN.md
-last_updated: "2026-03-08T04:23:30.000Z"
-last_activity: 2026-03-08 -- Completed 20-01 Named Volume Support
+status: complete
+stopped_at: Completed 20-02-PLAN.md
+last_updated: "2026-03-08T04:23:37Z"
+last_activity: 2026-03-08 -- Completed 20-02 Entrypoint Warm/Cold Start
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
-  percent: 95
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 20 of 20 (Named Volumes)
-Plan: 01 of 2 complete
-Status: In Progress
-Last activity: 2026-03-08 -- Completed 20-01 Named Volume Support
+Plan: 02 of 2 complete
+Status: Complete
+Last activity: 2026-03-08 -- Completed 20-02 Entrypoint Warm/Cold Start
 
-Progress: [██████████] 95%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -53,6 +53,9 @@ Progress: [██████████] 95%
 - E2E verified: 9s dispatch, 53s total job time, proper cleanup and dedup (19-03)
 - Volume naming convention: clawforge-{instance}-{slug} for deterministic, instance-scoped volumes (20-01)
 - ensureVolume kept unexported as internal helper; volumeNameFor exported for tests and cleanup tooling (20-01)
+- flock wraps ALL git operations AND cp -a to prevent concurrent corruption in repo-cache (20-02)
+- git checkout -f FETCH_HEAD avoids refspec issues with shallow clones (20-02)
+- Lock file at /repo-cache/.clawforge-lock shared across containers via volume (20-02)
 
 ### Pending Todos
 
@@ -65,6 +68,6 @@ Progress: [██████████] 95%
 
 ## Session Continuity
 
-Last session: 2026-03-08T04:23:30.000Z
-Stopped at: Completed 20-01-PLAN.md
+Last session: 2026-03-08T04:23:37Z
+Stopped at: Completed 20-02-PLAN.md
 Resume file: None

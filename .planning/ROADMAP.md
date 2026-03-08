@@ -65,7 +65,7 @@
 
 - [x] **Phase 18: Layer 2 Context Hydration** - Inject STATE.md, ROADMAP.md, and git history into job prompts with GSD-gated scoping (completed 2026-03-06)
 - [x] **Phase 19: Docker Engine Dispatch** - Docker API client, container lifecycle, and dual-path dispatch routing (completed 2026-03-07)
-- [ ] **Phase 20: Named Volumes** - Persistent repo state across jobs for warm-start containers
+- [x] **Phase 20: Named Volumes** - Persistent repo state across jobs for warm-start containers (completed 2026-03-08)
 
 ## Phase Details
 
@@ -169,7 +169,7 @@ Phases execute in numeric order: 18 -> 19 -> 20
 | 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 18. Layer 2 Context Hydration | v1.4 | 2/2 | Complete | 2026-03-06 |
 | 19. Docker Engine Dispatch | v1.4 | 3/3 | Complete | 2026-03-07 |
-| 20. Named Volumes | 1/2 | In Progress|  | - |
+| 20. Named Volumes | 2/2 | Complete   | 2026-03-08 | - |
 
 ---
 *Last updated: 2026-03-07 -- Phase 20 planned (2 plans)*
