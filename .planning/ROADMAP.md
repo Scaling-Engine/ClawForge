@@ -97,9 +97,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 19-01-PLAN.md -- Docker client foundation, container lifecycle, DB schema, and orphan reconciliation
-- [ ] 19-02-PLAN.md -- Dispatch routing via REPOS.json, inline notification, and webhook dedup
-- [ ] 19-03-PLAN.md -- Docker Compose wiring and end-to-end verification
+- [x] 19-01-PLAN.md -- Docker client foundation, container lifecycle, DB schema, and orphan reconciliation
+- [x] 19-02-PLAN.md -- Dispatch routing via REPOS.json, inline notification, and webhook dedup
+- [x] 19-03-PLAN.md -- Docker Compose wiring and end-to-end verification
 
 ### Phase 20: Named Volumes
 **Goal**: Repeat jobs on the same repo start warm -- fetching in 2-3 seconds instead of cloning in 10-15 seconds
@@ -109,10 +109,11 @@ Plans:
   1. Second job on the same repo uses `git fetch` instead of `git clone`, completing repo setup in under 5 seconds
   2. A job that runs after a previously failed/interrupted job starts clean (no stale locks, dirty state, or leftover files)
   3. Two concurrent jobs on the same repo both complete successfully without corrupting each other
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01: TBD
+- [ ] 20-01-PLAN.md -- Volume creation via dockerode and mount in dispatchDockerJob
+- [ ] 20-02-PLAN.md -- Entrypoint warm/cold start detection with hygiene and flock mutex
 
 ---
 
@@ -167,8 +168,8 @@ Phases execute in numeric order: 18 -> 19 -> 20
 | 17. End-to-End Validation | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 18. Layer 2 Context Hydration | v1.4 | 2/2 | Complete | 2026-03-06 |
-| 19. Docker Engine Dispatch | 3/3 | Complete    | 2026-03-07 | - |
-| 20. Named Volumes | v1.4 | 0/TBD | Not started | - |
+| 19. Docker Engine Dispatch | v1.4 | 3/3 | Complete | 2026-03-07 |
+| 20. Named Volumes | v1.4 | 0/2 | Not started | - |
 
 ---
-*Last updated: 2026-03-06 -- Phase 19 planned (3 plans)*
+*Last updated: 2026-03-07 -- Phase 20 planned (2 plans)*
