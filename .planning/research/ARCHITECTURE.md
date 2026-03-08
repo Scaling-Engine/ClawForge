@@ -1,481 +1,495 @@
-# Architecture Patterns
+# Architecture Patterns: Persistent Workspaces Integration
 
-**Domain:** Docker Engine API dispatch, Layer 2 context hydration, named volumes for ClawForge v1.4
-**Researched:** 2026-03-06
+**Domain:** Interactive workspace containers for AI agent platform
+**Researched:** 2026-03-08
+**Confidence:** MEDIUM-HIGH (patterns verified against existing codebase + reference implementation + official docs)
 
-## Current Architecture (Baseline)
-
-```
-User -> Channel (Slack/Telegram/Web)
-  -> Layer 1: Event Handler (LangGraph ReAct agent, Next.js, PM2)
-    -> create-job.js: GitHub API creates job/{UUID} branch with logs/{UUID}/job.md
-    -> (optional) target.json sidecar for cross-repo jobs
-  -> GitHub Actions run-job.yml triggers on branch creation
-    -> Pulls Docker image, runs container with SECRETS/LLM_SECRETS env vars
-    -> entrypoint.sh: clone repo -> build 5-section FULL_PROMPT -> claude -p -> commit -> PR
-  -> notify-pr-complete.yml / auto-merge.yml -> webhook to Event Handler
-    -> summarizeJob() -> route notification back to originating thread
-```
-
-**Key bottleneck:** GitHub Actions cold start (~60s queue + pull + clone). Every job clones fresh.
-
-## Target Architecture (v1.4)
+## Current Architecture (v1.4)
 
 ```
-User -> Channel
-  -> Layer 1: Event Handler
-    -> NEW: lib/tools/docker.js -- Docker Engine API via Unix socket
-      -> createContainer() with named volume mount -> start() -> wait() -> collect results
-      -> Container uses SAME entrypoint.sh (modified for volume-aware clone)
-    -> RETAINED: GitHub Actions fallback for CI-integrated repos
-  -> NEW: entrypoint.sh hydrates STATE.md + ROADMAP.md + git history into prompt
-  -> NEW: Named volumes persist repo clones across jobs (warm start)
-  -> RETAINED: Same notification flow (webhook to Event Handler)
+User --> Channel (Slack/Telegram/Web) --> Event Handler (Next.js + LangGraph)
+                                              |
+                                              v
+                                    createJob() --> job/{UUID} branch
+                                              |
+                                              v
+                                    dispatchDockerJob() --> ephemeral container
+                                              |
+                                    waitAndNotify() (fire-and-forget)
+                                              |
+                                              v
+                                    Container exits --> collect logs --> notify channel
 ```
 
-## Component Boundaries
+**Key characteristics of current system:**
+- Containers are ephemeral: create, run, wait, collect, remove
+- Communication is unidirectional: job.md in, logs + PR out
+- No persistent container state (volumes cache repos, but containers die)
+- No WebSocket anywhere -- all channels are HTTP webhook-based
+- Docker socket mounted read-only in event handler container
+- dockerode already initialized at startup via `initDocker()` in instrumentation.js
 
-| Component | Responsibility | New/Modified | Communicates With |
-|-----------|---------------|--------------|-------------------|
-| `lib/tools/docker.js` | **NEW** -- Docker Engine API wrapper (create, start, wait, logs, cleanup) | New file | Docker socket, Event Handler |
-| `lib/ai/tools.js` (create_job) | Dispatch decision: Docker API vs GitHub Actions | Modified | docker.js OR create-job.js |
-| `lib/tools/create-job.js` | GitHub API branch+file creation (retained as fallback) | Unchanged | GitHub API |
-| `templates/docker/job/entrypoint.sh` | Context assembly + claude execution | Modified | Named volume, GitHub API, Claude CLI |
-| `docker-compose.yml` | Named volume definitions, socket mount | Modified | Docker Engine |
-| `api/index.js` (github webhook) | Receive job completion notifications | Possibly modified | LangGraph memory, channels |
-| `lib/tools/github.js` (getJobStatus) | Job status lookup | Modified | Docker API (new) + GitHub API (existing) |
+## Recommended Architecture (v1.5)
 
-## Recommended Architecture
+### Two Container Types, One Docker Manager
 
-### 1. Docker Engine API Dispatch (`lib/tools/docker.js`)
+The workspace feature adds a second container lifecycle alongside the existing job containers. Both use the same dockerode instance and Docker socket, but with fundamentally different lifecycles.
 
-Use **dockerode** (npm) to communicate with the Docker Engine via Unix socket at `/var/run/docker.sock`.
+```
+                        Event Handler (Next.js + LangGraph)
+                       /              |                    \
+                      /               |                     \
+              Channel Adapters    Docker Manager         WebSocket Proxy
+             (Slack/Telegram)    (lib/tools/docker.js)  (lib/ws-proxy.js)
+                      \               |        |              |
+                       \         Job Containers  Workspace    |
+                        \        (ephemeral)     Containers   |
+                         \           |          (persistent)  |
+                          \          |              |          |
+                           v         v              v          v
+                        LangGraph   create/wait   create/     Browser
+                        Agent       /remove       start/stop  (xterm.js)
+                                                  /restart
+                                                     |
+                                                   ttyd:7681 <-- WebSocket proxy target
+```
 
-The Event Handler container already has the socket mounted (Traefik uses it). Job containers do NOT need socket access.
+### Component Boundaries
+
+| Component | Responsibility | Communicates With | New/Modified |
+|-----------|---------------|-------------------|--------------|
+| `lib/tools/docker.js` | Container lifecycle for BOTH jobs and workspaces | dockerode, Docker socket | **MODIFIED** -- add workspace functions |
+| `lib/ws-proxy.js` | WebSocket proxy: browser <-> ttyd in container | Node http server, dockerode (for container IP lookup) | **NEW** |
+| `lib/db/schema.js` | SQLite schema including `code_workspaces` table | Drizzle ORM | **MODIFIED** -- add workspace table |
+| `lib/db/workspaces.js` | CRUD for workspace records | SQLite via Drizzle | **NEW** |
+| `lib/ai/tools.js` | LangGraph tools including `start_coding` | Workspace manager, existing tool set | **MODIFIED** -- add workspace tool |
+| `templates/docker/workspace/` | Workspace container Dockerfile + entrypoint | Built image, ttyd, tmux, Claude Code | **NEW** |
+| `config/instrumentation.js` | Server startup: init Docker, init WebSocket proxy, reconcile workspaces | docker.js, ws-proxy.js | **MODIFIED** |
+| `api/index.js` | HTTP API routes including workspace CRUD | Workspace manager | **MODIFIED** -- add workspace routes |
+| Browser UI (xterm.js) | Terminal rendering in browser | WebSocket to ws-proxy | **NEW** (if web channel used) |
+
+### Data Flow: Workspace Lifecycle
+
+#### 1. Create Workspace (via chat or API)
+
+```
+User: "Start coding on neurostory"
+  --> LangGraph agent --> start_coding tool
+  --> resolveTargetRepo("neurostory")
+  --> ensureWorkspaceContainer(instanceName, repoSlug, options)
+       |
+       |--> Check DB: existing workspace for this instance+repo?
+       |     YES + running --> return existing container info
+       |     YES + exited  --> restart container, update DB
+       |     YES + dead    --> remove, recreate
+       |     NO            --> create new container
+       |
+       |--> docker.createContainer({
+       |      Image: workspace-image,
+       |      Cmd: ["ttyd", "-W", "-p", "7681", "tmux", "new", "-A", "-s", "main"],
+       |      ExposedPorts: { "7681/tcp": {} },
+       |      HostConfig: {
+       |        NetworkMode: instance-net,
+       |        Mounts: [named-volume at /workspace],
+       |        RestartPolicy: { Name: "unless-stopped" }
+       |      },
+       |      Labels: { clawforge: "workspace", ... }
+       |    })
+       |
+       |--> Save to code_workspaces table
+       |--> Return { workspaceId, containerIp, port, connectUrl }
+```
+
+#### 2. Connect Browser to Workspace
+
+```
+Browser (xterm.js)
+  --> wss://archie.clawforge.dev/ws/workspace/{workspaceId}?token=JWT
+  --> Traefik passes WebSocket upgrade through to event handler
+  --> ws-proxy.js intercepts upgrade on /ws/workspace/:id path
+       |
+       |--> Verify JWT token (same auth as web chat)
+       |--> Look up workspace in DB --> get containerId
+       |--> Inspect container --> get IP on instance network
+       |--> Proxy WebSocket to ws://container-ip:7681/ws
+```
+
+#### 3. Chat Context Bridge (chat --> workspace)
+
+```
+User in Slack: "Focus on the auth module, the tests are failing"
+  --> LangGraph agent processes message
+  --> Agent decides to push context to active workspace
+  --> docker.exec(containerId, ["tmux", "send-keys", "...", "Enter"])
+       or
+  --> Write to /workspace/.chat-context file inside container via docker.exec
+```
+
+#### 4. Workspace Result Bridge (workspace --> chat)
+
+```
+Workspace container: user runs Claude Code, makes commits
+  --> Git hooks or polling detect new commits
+  --> Event handler queries container for recent commits
+  --> Injects summary into LangGraph thread
+  --> Agent can relay to Slack/Telegram
+```
+
+## New Components: Detailed Design
+
+### 1. WebSocket Proxy (`lib/ws-proxy.js`)
+
+**Why a proxy instead of direct ttyd access:**
+- Workspace containers are on isolated Docker networks (noah-net, strategyES-net)
+- Traefik routes to the event handler, not directly to workspace containers
+- Auth must be verified before proxy connection is established
+- Container IP is dynamic; proxy resolves it from DB + Docker inspect
+
+**Implementation approach: Hook into Node HTTP server upgrade event.**
+
+Next.js does NOT natively support WebSocket upgrade in route handlers (confirmed via GitHub Discussion #58698). The standard pattern is:
+
+1. In `instrumentation.js`, after Next.js server starts, get a reference to the underlying HTTP server
+2. Listen for the `upgrade` event on that server
+3. Route `/ws/workspace/:id` paths to the workspace proxy
+4. Pass all other upgrade requests through (Next.js HMR needs `/_next/webpack-hmr`)
+
+```
+// Conceptual -- not final code
+server.on('upgrade', (req, socket, head) => {
+  const url = new URL(req.url, 'http://localhost');
+  if (url.pathname.startsWith('/ws/workspace/')) {
+    wsProxy.handleUpgrade(req, socket, head);
+  }
+  // else: Next.js HMR or other handlers
+});
+```
+
+**Critical detail:** The event handler container runs inside Docker (e.g., noah-net). It can reach workspace containers on the same Docker network by container name or IP. Traefik handles the external TLS termination and WebSocket upgrade passthrough -- Traefik v3 does this automatically for HTTP/1.1 Upgrade headers with no special configuration needed.
+
+**Getting the HTTP server reference:** The thepopebot reference implementation hooks into Next.js by using a custom server entry point. For ClawForge, the cleanest approach is to use `instrumentation.js` to access `process` and listen for a "server-ready" signal, or use the `http` module to intercept. The most reliable pattern (used by multiple production Next.js + WebSocket deployments) is a lightweight custom server wrapper:
 
 ```javascript
-// lib/tools/docker.js -- Core dispatch function
-import Docker from 'dockerode';
+// server.js (custom entry point, wraps Next.js)
+import { createServer } from 'http';
+import next from 'next';
 
-const docker = new Docker({ socketPath: '/var/run/docker.sock' });
+const app = next({ dev: process.env.NODE_ENV !== 'production' });
+const handle = app.getRequestHandler();
 
-async function runJobContainer(jobId, { jobDescription, targetRepo, secrets, llmSecrets, image }) {
-  const containerName = `clawforge-job-${jobId.slice(0, 8)}`;
+await app.prepare();
+const server = createServer((req, res) => handle(req, res));
 
-  // Determine volume name based on target repo
-  const repoSlug = targetRepo ? targetRepo.slug : process.env.GH_REPO;
-  const volumeName = `clawforge-repo-${repoSlug}`;
+// WebSocket upgrade hook -- this is where ws-proxy.js attaches
+server.on('upgrade', (req, socket, head) => {
+  // Route to workspace proxy or let Next.js HMR handle it
+});
 
-  const container = await docker.createContainer({
-    Image: image || process.env.JOB_IMAGE || 'scalingengine/clawforge:job-latest',
-    name: containerName,
-    Env: [
-      `REPO_URL=https://github.com/${targetRepo?.owner || process.env.GH_OWNER}/${repoSlug}.git`,
-      `BRANCH=job/${jobId}`,
-      `SECRETS=${JSON.stringify(secrets)}`,
-      `LLM_SECRETS=${JSON.stringify(llmSecrets)}`,
-      `DISPATCH_MODE=docker`,  // Signal to entrypoint that this is Docker-dispatched
-    ],
-    HostConfig: {
-      Binds: [`${volumeName}:/repo-cache`],  // Named volume for repo persistence
-      AutoRemove: false,  // We need to inspect exit code before removal
-      NetworkMode: 'bridge',
-    },
-  });
-
-  await container.start();
-  const { StatusCode } = await container.wait();
-
-  // Collect logs for debugging
-  const logs = await container.logs({ stdout: true, stderr: true });
-
-  await container.remove();
-
-  return { statusCode: StatusCode, logs };
-}
+server.listen(process.env.PORT || 80);
 ```
 
-**Why dockerode:** De facto standard Node.js Docker library. 14M+ weekly downloads. Promise-based API. Direct socket communication. No HTTP overhead. The upstream thepopebot uses it in production (referenced in VISION.md).
+**Confidence:** MEDIUM -- the custom server pattern is well-established but means changing how the event handler starts (PM2/docker runs `node server.js` instead of `next start`). The instrumentation.js approach would be cleaner but getting the HTTP server handle from inside instrumentation is not well-documented.
 
-**Why NOT raw HTTP to Docker socket:** dockerode handles stream multiplexing, auth, and API versioning. Raw fetch to Unix socket requires manual handling of Docker's chunked transfer encoding and multiplexed streams.
+### 2. Workspace Container Image (`templates/docker/workspace/`)
 
-### 2. Dispatch Decision Logic
+**Distinct from job container image because:**
+- Job containers: entrypoint.sh runs a single Claude Code invocation and exits
+- Workspace containers: ttyd as PID 1, long-running, interactive
 
-The `create_job` tool in `tools.js` needs a routing decision: Docker API or GitHub Actions.
+**Base contents:**
+- Same base as job image (Node 22, Claude Code CLI, GSD, gh CLI)
+- Plus: ttyd, tmux
+- Entrypoint: `ttyd -W -p 7681 tmux new -A -s main`
+- `-W` flag: writable (client can send input)
+- Named volume at `/workspace` for repo persistence
 
-```
-Decision tree:
-1. Is Docker socket available? (check at startup)
-   NO  -> GitHub Actions (current path)
-   YES -> Continue
-2. Is the target repo configured for CI-integrated dispatch?
-   YES -> GitHub Actions (needs workflow triggers)
-   NO  -> Docker Engine API (fast path)
-```
+**Why ttyd over dockerode exec + raw WebSocket:**
+- ttyd handles terminal emulation properly (resize, UTF-8, color codes)
+- Built-in xterm.js compatibility (ttyd serves its own xterm.js client, but we proxy the WebSocket to our own UI)
+- Battle-tested in production (tsl0922/ttyd has 8k+ GitHub stars)
+- tmux integration gives session persistence even if WebSocket disconnects
+- Multiple terminal sessions: additional `docker exec` instances can launch more ttyd on ports 7682+
 
-**Implementation approach:** Add a `dispatch` field to `REPOS.json` entries:
+**Confidence:** HIGH -- ttyd + tmux is the standard pattern for browser-accessible Docker terminals.
 
-```json
-{
-  "repos": [
-    { "slug": "clawforge", "dispatch": "docker" },
-    { "slug": "strategyes-lab", "dispatch": "docker" },
-    { "slug": "ci-heavy-repo", "dispatch": "actions" }
-  ]
-}
-```
+### 3. Database Schema (`code_workspaces` table)
 
-Default to `"docker"` when socket is available. The `create_job` tool still creates the job branch via GitHub API (audit trail), then dispatches the container directly instead of waiting for Actions to trigger.
-
-### 3. Layer 2 Context Hydration (entrypoint.sh changes)
-
-**Current prompt structure (5 sections):**
-1. Target (repo slug)
-2. Repository Documentation (CLAUDE.md, truncated to 8K chars)
-3. Stack (package.json dependencies)
-4. Task (job description + prior context)
-5. GSD Hint (quick vs plan-phase)
-
-**New prompt structure (7 sections):**
-1. Target (repo slug)
-2. Repository Documentation (CLAUDE.md)
-3. Stack (package.json dependencies)
-4. **Project State (STATE.md)** -- NEW
-5. **Roadmap Context (ROADMAP.md excerpt)** -- NEW
-6. Task (job description + prior context + **recent git history**)
-7. GSD Hint
-
-**Implementation in entrypoint.sh:**
-
-```bash
-# NEW: Read project state (STATE.md) -- capped at 4K chars
-REPO_STATE=""
-if [ -f "${WORK_DIR}/.planning/STATE.md" ]; then
-    RAW_STATE=$(cat "${WORK_DIR}/.planning/STATE.md")
-    if [ "${#RAW_STATE}" -gt 4000 ]; then
-        REPO_STATE=$(printf '%s' "$RAW_STATE" | head -c 4000)
-        REPO_STATE="${REPO_STATE}\n\n[TRUNCATED]"
-    else
-        REPO_STATE="$RAW_STATE"
-    fi
-fi
-
-# NEW: Read roadmap (ROADMAP.md) -- capped at 6K chars
-REPO_ROADMAP=""
-if [ -f "${WORK_DIR}/.planning/ROADMAP.md" ]; then
-    RAW_ROADMAP=$(cat "${WORK_DIR}/.planning/ROADMAP.md")
-    if [ "${#RAW_ROADMAP}" -gt 6000 ]; then
-        REPO_ROADMAP=$(printf '%s' "$RAW_ROADMAP" | head -c 6000)
-        REPO_ROADMAP="${REPO_ROADMAP}\n\n[TRUNCATED]"
-    else
-        REPO_ROADMAP="$RAW_ROADMAP"
-    fi
-fi
-
-# NEW: Recent git history (last 10 commits, one-line format)
-RECENT_HISTORY=""
-if git log --oneline -10 2>/dev/null; then
-    RECENT_HISTORY=$(git log --oneline -10 2>/dev/null)
-fi
+```sql
+CREATE TABLE code_workspaces (
+  id TEXT PRIMARY KEY,           -- UUID
+  instance_name TEXT NOT NULL,   -- 'noah', 'strategyES'
+  repo_slug TEXT NOT NULL,       -- 'neurostory', 'clawforge'
+  container_id TEXT,             -- Docker container ID
+  container_name TEXT,           -- Human-readable container name
+  volume_name TEXT NOT NULL,     -- Named volume (reuse existing convention)
+  status TEXT NOT NULL DEFAULT 'creating',  -- creating/running/stopped/error
+  port INTEGER DEFAULT 7681,     -- ttyd port inside container
+  thread_id TEXT,                -- Originating chat thread
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  last_connected_at INTEGER,     -- Last WebSocket connection
+  UNIQUE(instance_name, repo_slug)  -- One workspace per repo per instance
+);
 ```
 
-**Token budget:** STATE.md (4K chars ~1K tokens) + ROADMAP.md (6K chars ~1.5K tokens) + git history (~200 tokens) = ~2.7K tokens added. Current prompt is ~3-4K tokens. Total ~7K tokens. Well within budget.
+**Key design decision: One workspace per repo per instance.** This mirrors the existing named volume convention (`clawforge-{instance}-{slug}`) and prevents resource sprawl. The UNIQUE constraint enforces it at the DB level.
 
-### 4. Named Volumes for Warm Start
+**Confidence:** HIGH -- follows existing schema patterns exactly (SQLite, Drizzle, integer timestamps).
 
-**Problem:** Every job clones the repo fresh. For a repo like clawforge (~12K LOC), this takes 5-10 seconds. For larger repos, much longer.
+### 4. LangGraph Tool (`start_coding`)
 
-**Solution:** Named Docker volumes persist the repo clone between jobs. Subsequent jobs do `git fetch + reset` instead of full clone.
-
-**Volume naming convention:**
-```
-clawforge-repo-{repo-slug}    # e.g., clawforge-repo-clawforge, clawforge-repo-strategyes-lab
-```
-
-**entrypoint.sh changes for volume-aware clone:**
-
-```bash
-# Volume-aware clone: reuse cached repo if available
-REPO_CACHE="/repo-cache"
-
-if [ -d "${REPO_CACHE}/.git" ]; then
-    echo "=== WARM START: Reusing cached repo ==="
-    cd "${REPO_CACHE}"
-    git fetch origin "${BRANCH}" --depth 1
-    git checkout "${BRANCH}"
-    git reset --hard "origin/${BRANCH}"
-    # Update WORK_DIR to use cache
-    ln -sfn "${REPO_CACHE}" /job
-else
-    echo "=== COLD START: Fresh clone ==="
-    git clone --single-branch --branch "$BRANCH" --depth 1 "$REPO_URL" "${REPO_CACHE}"
-    ln -sfn "${REPO_CACHE}" /job
-fi
-```
-
-**Critical: Branch isolation.** Job branches are unique (`job/{UUID}`), so there is no branch collision risk. The volume caches the repo state from `main` (the branch base), and the job branch is fetched on top.
-
-**Critical: Cross-repo volumes.** Each target repo gets its own named volume. The volume name is derived from the repo slug, ensuring isolation.
-
-**docker-compose.yml additions:**
-
-```yaml
-services:
-  noah-event-handler:
-    volumes:
-      - noah-data:/app/data
-      - noah-config:/app/config
-      - /var/run/docker.sock:/var/run/docker.sock  # NEW: Docker socket access
-    # Event handler needs socket to dispatch job containers
-
-volumes:
-  noah-data:
-  noah-config:
-  # Job repo cache volumes are created dynamically by dockerode
-  # No need to pre-declare them in compose
-```
-
-### 5. Notification Flow Changes
-
-**Current flow (GitHub Actions):**
-```
-run-job.yml completes -> auto-merge.yml -> notify-pr-complete.yml -> curl webhook -> Event Handler
-```
-
-**New flow (Docker Engine dispatch):**
-```
-docker.js: container.wait() returns -> inspect exit code -> read logs/artifacts
-  -> If PR created: parse pr-result.json or check GitHub API for PR
-  -> Build notification payload (same shape as webhook payload)
-  -> Call handleJobCompletion() directly (no HTTP webhook needed)
-```
-
-**Key insight:** When dispatching via Docker API, the Event Handler is the process that started the container. It can collect results directly after `container.wait()` resolves. No need for the GH Actions notification workflow.
-
-**Same-repo jobs:** After container exits, check if PR was created via GitHub API. Build the same payload structure used by `handleGithubWebhook()` and call the summarize+notify logic directly.
-
-**Cross-repo jobs:** The entrypoint still creates PRs on target repos and writes `pr-result.json`. The Event Handler reads this from the container's filesystem (via `docker cp` or volume mount) after completion.
-
-### 6. Job Status for Docker-Dispatched Jobs
-
-`getJobStatus()` currently queries GitHub Actions workflow runs. For Docker-dispatched jobs, it needs a parallel lookup.
-
-**Approach:** Track running Docker containers in memory (Map) or query Docker API:
+The tool follows the exact pattern of `createJobTool` -- resolve target repo, call workspace manager, return result.
 
 ```javascript
-// In docker.js
-async function getRunningJobs() {
-  const containers = await docker.listContainers({
-    filters: { name: ['clawforge-job-'] },
-  });
-  return containers.map(c => ({
-    job_id: c.Names[0].replace('/clawforge-job-', ''),
-    status: c.State,
-    started_at: c.Created,
-  }));
-}
+// Conceptual
+const startCodingTool = tool(
+  async ({ repo }, config) => {
+    const threadId = config?.configurable?.thread_id;
+    const repos = loadAllowedRepos();
+    const resolved = resolveTargetRepo(repo, repos);
+    if (!resolved) return JSON.stringify({ success: false, error: '...' });
+
+    const workspace = await ensureWorkspaceContainer({
+      instanceName: process.env.INSTANCE_NAME,
+      repoSlug: resolved.slug,
+      repoUrl: `https://github.com/${resolved.owner}/${resolved.slug}.git`,
+      networkMode: process.env.DOCKER_NETWORK,
+      threadId,
+    });
+
+    return JSON.stringify({
+      success: true,
+      workspace_id: workspace.id,
+      status: workspace.status,
+      connect_url: `/workspace/${workspace.id}`,
+    });
+  },
+  {
+    name: 'start_coding',
+    description: 'Start or reconnect to a persistent coding workspace...',
+    schema: z.object({ repo: z.string() }),
+  }
+);
 ```
 
-`getJobStatus()` in `github.js` merges results from both sources.
+**Confidence:** HIGH -- follows exact pattern of existing tools.
 
-## Data Flow
+## Integration Points with Existing Code
 
-### Docker-Dispatched Job (Happy Path)
+### docker.js: Add Workspace Functions
 
+The existing `docker.js` already has `initDocker()`, `dispatchDockerJob()`, `waitForContainer()`, etc. Add parallel workspace functions:
+
+| Existing (jobs) | New (workspaces) | Notes |
+|-----------------|------------------|-------|
+| `dispatchDockerJob()` | `ensureWorkspaceContainer()` | Create or recover workspace |
+| `waitForContainer()` | (not needed) | Workspaces don't "complete" |
+| `removeContainer()` | `stopWorkspace()` / `destroyWorkspace()` | Stop vs permanent delete |
+| `reconcileOrphans()` | `reconcileWorkspaces()` | Restart stopped workspaces on event handler restart |
+| `inspectJob()` | `inspectWorkspace()` | Get container IP for proxy |
+| `volumeNameFor()` | (reuse as-is) | Same naming convention works |
+
+**The existing `volumeNameFor()` function works unchanged** -- workspace containers use the same `clawforge-{instance}-{slug}` volume convention as job containers. The volume is shared: jobs populate it during ephemeral runs, workspaces use it for persistent access.
+
+**Mutex concern:** The existing flock-based mutex in `entrypoint.sh` protects the repo-cache volume during job runs. Workspace containers need a different approach since they hold the volume continuously. **Solution:** Workspace containers mount the volume at `/workspace` (not `/repo-cache`), and job containers continue using their existing `/repo-cache` -> `/job` copy pattern. The volume can safely serve both uses because job containers copy to `/job` before doing work -- they never modify `/repo-cache` directly after the copy step.
+
+### instrumentation.js: Add WebSocket Proxy Init + Workspace Reconciliation
+
+```javascript
+// After existing initDocker() call
+const { initWsProxy } = await import('../lib/ws-proxy.js');
+initWsProxy();  // Hooks into HTTP server upgrade event
+
+// Reconcile workspace containers (restart stopped ones, sync DB with Docker state)
+const { reconcileWorkspaces } = await import('../lib/tools/docker.js');
+await reconcileWorkspaces();
 ```
-1. User sends message in Slack
-2. Layer 1 (LangGraph) decides to create job
-3. create_job tool:
-   a. Creates job/{UUID} branch via GitHub API (audit trail)
-   b. Writes job.md to branch
-   c. Checks dispatch mode -> "docker"
-   d. Calls docker.js runJobContainer()
-4. docker.js:
-   a. Creates container with named volume mount
-   b. Passes env vars (REPO_URL, BRANCH, SECRETS, LLM_SECRETS, DISPATCH_MODE)
-   c. Starts container, begins wait()
-5. entrypoint.sh (inside container):
-   a. Detects /repo-cache/.git -> warm start (fetch+checkout)
-   b. Reads STATE.md, ROADMAP.md, git history (NEW context hydration)
-   c. Builds 7-section FULL_PROMPT
-   d. Runs claude -p
-   e. Commits, pushes, creates PR
-6. docker.js:
-   a. container.wait() resolves with StatusCode
-   b. Reads pr-result.json from volume or queries GitHub API
-   c. Builds notification payload
-   d. Calls summarizeJob() + routes to originating thread
-7. Container removed. Volume persists for next job.
-```
 
-### Fallback to GitHub Actions
+### api/index.js: Add Workspace Routes
 
-```
-1-3. Same as above
-3c. Checks dispatch mode -> "actions"
-3d. Returns { job_id, branch } (current behavior)
-4. GitHub Actions run-job.yml triggers on branch creation
-5-7. Existing flow (unchanged)
-```
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/api/workspaces` | GET | API key | List workspaces for instance |
+| `/api/workspaces` | POST | API key | Create workspace |
+| `/api/workspaces/:id/stop` | POST | API key | Stop workspace container |
+| `/api/workspaces/:id/start` | POST | API key | Start stopped workspace |
+| `/api/workspaces/:id` | DELETE | API key | Destroy workspace + optionally volume |
+
+These follow the existing routing pattern in the `POST`/`GET` switch statements.
+
+### docker-compose.yml: No Changes Required
+
+Workspace containers are created dynamically via the Docker Engine API (same as job containers). They are NOT defined in docker-compose.yml. The event handler container already has:
+- Docker socket access (`:ro`)
+- Network membership (noah-net, proxy-net)
+- Traefik routing configured
+
+**The only potential change:** If workspace containers need to be reachable from the browser, Traefik needs to route WebSocket connections. Since the proxy runs inside the event handler (which Traefik already routes to), no Traefik config changes are needed. Traefik automatically upgrades HTTP/1.1 connections with Upgrade headers.
 
 ## Patterns to Follow
 
-### Pattern 1: Socket Availability Check at Startup
+### Pattern 1: Container State Machine
 
-**What:** Probe Docker socket at Event Handler startup. Set a module-level flag.
-**When:** Always. Determines default dispatch mode.
-**Example:**
-```javascript
-// lib/tools/docker.js
-let socketAvailable = false;
+Workspace containers have a clear state machine that maps to recovery actions:
 
-export async function checkDockerSocket() {
-  try {
-    const docker = new Docker({ socketPath: '/var/run/docker.sock' });
-    await docker.ping();
-    socketAvailable = true;
-    console.log('Docker socket available -- Docker dispatch enabled');
-  } catch {
-    socketAvailable = false;
-    console.log('Docker socket not available -- falling back to GitHub Actions');
-  }
-}
-
-export function isDockerAvailable() { return socketAvailable; }
+```
+creating --> running --> stopped --> (start) --> running
+                |                         |
+                v                         v
+              error                   destroyed
 ```
 
-### Pattern 2: Entrypoint Backward Compatibility
+**Recovery on event handler restart:**
+- `running` containers: verify they're actually running via Docker inspect, update DB if not
+- `stopped` containers: restart them (RestartPolicy: unless-stopped should handle this, but verify)
+- `creating` containers: treat as failed, clean up and allow recreation
+- `error` containers: remove and allow recreation
 
-**What:** All entrypoint.sh changes must be additive. The same entrypoint must work for both Docker-dispatched and Actions-dispatched jobs.
-**When:** Always.
-**Example:** Use `DISPATCH_MODE` env var to conditionally enable volume-aware clone. If unset, fall through to current `git clone` behavior. Context hydration (STATE.md, ROADMAP.md, git history) is unconditional -- it benefits both dispatch modes.
+**Why this matters:** Job containers are fire-and-forget. Workspace containers must survive event handler restarts, Docker daemon restarts, and host reboots. The reconciliation function runs at startup (mirrors existing `reconcileOrphans()`).
 
-### Pattern 3: Same Notification Payload Shape
+### Pattern 2: Proxy with Lazy Resolution
 
-**What:** Docker-dispatched job completions must produce the same JSON payload shape as `notify-pr-complete.yml`.
-**When:** Building the completion notification in docker.js.
-**Why:** The `handleGithubWebhook()` handler, `summarizeJob()`, `saveJobOutcome()`, and channel notification routing all expect a specific payload shape. Reusing it avoids duplication.
+The WebSocket proxy should NOT cache container IPs. Containers can restart and get new IPs. Instead:
 
-```javascript
-// The payload shape both paths must produce:
-{
-  job_id, branch, status, job, run_url, pr_url,
-  changed_files, commit_message, log, merge_result,
-  target_repo  // optional
-}
+1. On WebSocket upgrade: look up workspaceId in DB -> get containerId
+2. Inspect container via Docker API -> get current IP on instance network
+3. Proxy to that IP:port
+4. On proxy error: attempt container restart, then retry once
+
+### Pattern 3: Shared Volume, Separate Mount Points
+
+```
+Named Volume: clawforge-noah-neurostory
+  |
+  +--> Job container mounts at /repo-cache (ephemeral, copy to /job)
+  +--> Workspace container mounts at /workspace (persistent, work in place)
 ```
 
-### Pattern 4: Volume-per-Repo Isolation
+This means a job and a workspace can target the same repo without conflict. The job container's flock + copy pattern isolates it from the workspace's working tree.
 
-**What:** Each target repo gets its own named volume. Never share volumes between repos.
-**When:** Creating containers via Docker API.
-**Why:** Prevents cross-contamination of repo state. Different repos have different CLAUDE.md, package.json, and .planning/ files.
+### Pattern 4: Workspace Image Extends Job Image
+
+The workspace Dockerfile should use a multi-stage or layered approach that shares the same base as the job image to minimize image pull size and maintenance burden:
+
+```dockerfile
+FROM scalingengine/clawforge:job-latest AS base
+# Add workspace-specific tools
+RUN apt-get update && apt-get install -y tmux
+# Install ttyd (binary download or apt)
+COPY workspace-entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+```
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Bind-Mounting Host Paths
+### Anti-Pattern 1: Running ttyd Outside the Container
 
-**What:** Using `-v /host/path:/container/path` instead of named volumes.
-**Why bad:** Ties container to specific host filesystem layout. Named volumes are portable, Docker-managed, and work consistently across environments.
-**Instead:** Use named volumes exclusively. Docker creates and manages them.
+**What:** Exposing ttyd on the host and connecting it to `docker exec`
+**Why bad:** Breaks instance isolation. ttyd would need host-level access to all containers.
+**Instead:** ttyd runs INSIDE each workspace container. The proxy routes to the correct container.
 
-### Anti-Pattern 2: Polling for Container Completion
+### Anti-Pattern 2: Exposing Container Ports to Host
 
-**What:** Using `setInterval` to check if the container is still running.
-**Why bad:** Wastes CPU, introduces latency, and races with container cleanup.
-**Instead:** Use `container.wait()` which blocks (non-blocking promise) until the container exits.
+**What:** Publishing ttyd ports (7681, 7682+) on the host via `-p 7681:7681`
+**Why bad:** Port conflicts with multiple workspaces. Bypasses Traefik TLS. No auth layer.
+**Instead:** Containers are on Docker networks only. The proxy in the event handler is the sole entry point.
 
-### Anti-Pattern 3: Passing Secrets as Container Labels or Build Args
+### Anti-Pattern 3: Using dockerode exec for Terminal Access
 
-**What:** Putting secrets in container metadata visible to `docker inspect`.
-**Why bad:** Any process with Docker socket access can read labels. Build args are cached in image layers.
-**Instead:** Pass secrets as environment variables to `createContainer()`. They are only visible inside the running container and via `docker inspect` (which requires socket access the Event Handler already has).
+**What:** Using `container.exec()` + raw stream piping for the primary terminal interface
+**Why bad:** No proper terminal emulation (resize, SIGWINCH, escape codes). Fragile with WebSocket framing. Every reconnect starts a new shell. No session persistence.
+**Instead:** ttyd + tmux handles all terminal concerns. WebSocket proxy is a clean byte pipe.
 
-### Anti-Pattern 4: Removing Volumes on Every Job
+### Anti-Pattern 4: Storing Container IP in Database
 
-**What:** Deleting the named volume after each job completes.
-**Why bad:** Defeats the purpose of warm start. The volume IS the cache.
-**Instead:** Only remove volumes during explicit cleanup (e.g., admin action, stale volume pruning).
+**What:** Saving the container's IP address at creation time for later proxy use
+**Why bad:** IPs change on container restart. Stale IPs cause silent proxy failures.
+**Instead:** Always resolve IP via `docker.getContainer(id).inspect()` at connection time. Cache for the duration of one WebSocket session only.
 
-### Anti-Pattern 5: Dual Notification Paths
+### Anti-Pattern 5: Custom Server Replacing Next.js
 
-**What:** Having Docker-dispatched jobs ALSO trigger the GitHub Actions notification workflow.
-**Why bad:** Creates duplicate notifications. The push to the job branch after container commits would trigger `notify-pr-complete.yml`.
-**Instead:** For Docker-dispatched jobs, handle notifications directly in `docker.js` after `container.wait()`. The Actions workflows should detect `DISPATCH_MODE=docker` and skip, OR the Event Handler should suppress the webhook for Docker-dispatched jobs.
-
-## Files Changed vs New
-
-| File | Status | Changes |
-|------|--------|---------|
-| `lib/tools/docker.js` | **NEW** | Docker Engine API wrapper (create, start, wait, logs, cleanup, status) |
-| `lib/ai/tools.js` | Modified | Dispatch routing in `create_job` tool: Docker vs Actions |
-| `lib/tools/create-job.js` | Unchanged | Still creates job branches (audit trail for both paths) |
-| `templates/docker/job/entrypoint.sh` | Modified | Volume-aware clone, STATE.md/ROADMAP.md/git-history hydration |
-| `docker-compose.yml` | Modified | Docker socket mount for Event Handler containers |
-| `lib/tools/github.js` | Modified | `getJobStatus()` merges Docker + Actions sources |
-| `api/index.js` | Possibly modified | Dedup notifications for Docker-dispatched jobs |
-| `instances/*/REPOS.json` | Modified | Add `dispatch` field per repo entry |
-| `lib/tools/repos.js` | Modified | Parse `dispatch` field from REPOS.json |
-| `.env.example` | Modified | Add `JOB_IMAGE` env var |
-
-## Suggested Build Order
-
-Build order respects dependencies. Each phase is independently testable.
-
-### Phase 1: Layer 2 Context Hydration (no Docker API needed)
-
-**Modify:** `templates/docker/job/entrypoint.sh`
-**What:** Add STATE.md + ROADMAP.md + git history to FULL_PROMPT
-**Test:** Run existing GitHub Actions job pipeline, verify expanded prompt
-**Why first:** Zero risk to dispatch mechanism. Benefits both dispatch modes. Immediate value.
-
-### Phase 2: Docker Engine API Dispatch (core)
-
-**New:** `lib/tools/docker.js`
-**Modify:** `lib/ai/tools.js`, `docker-compose.yml`
-**What:** dockerode wrapper, socket mount, dispatch routing in create_job
-**Test:** Dispatch a job via Docker API on the host, verify container runs and PR is created
-**Dependency:** Needs entrypoint.sh to work with volume-aware clone (Phase 3), BUT can be tested without volumes first (cold clone into /repo-cache, symlink to /job)
-
-### Phase 3: Named Volumes for Warm Start
-
-**Modify:** `templates/docker/job/entrypoint.sh`, `lib/tools/docker.js`
-**What:** Volume-aware clone logic, volume naming convention, volume creation in dockerode
-**Test:** Run two jobs against the same repo. Second job should skip clone.
-**Dependency:** Phase 2 (needs Docker dispatch to mount volumes)
-
-### Phase 4: Notification + Status Integration
-
-**Modify:** `lib/tools/docker.js`, `lib/tools/github.js`, `api/index.js`
-**What:** Direct notification after container.wait(), merged status reporting, dedup guard
-**Test:** Full end-to-end: Slack message -> Docker dispatch -> PR -> notification in Slack thread
-**Dependency:** Phase 2
-
-### Phase 5: GitHub Actions Fallback + Cleanup
-
-**Modify:** `instances/*/REPOS.json`, `lib/tools/repos.js`
-**What:** `dispatch` field, volume pruning, documentation
-**Test:** Verify Actions-dispatched jobs still work, verify dispatch routing by repo config
-**Dependency:** Phases 2-4
+**What:** Writing a standalone Express/Fastify server that embeds Next.js as middleware
+**Why bad:** Loses Next.js optimizations, complicates deployment, diverges from existing architecture
+**Instead:** Use a minimal custom server wrapper (`server.js`) that creates the HTTP server, attaches the upgrade handler, then delegates everything else to Next.js. The wrapper is thin (< 30 lines) and additive.
 
 ## Scalability Considerations
 
-| Concern | At 2 instances | At 10 instances | At 50+ instances |
-|---------|---------------|-----------------|------------------|
-| Docker socket | Single socket, sufficient | Single socket, sufficient | Consider Docker API over TCP with TLS |
-| Named volumes | ~5-10 volumes | ~50 volumes | Volume pruning policy needed |
-| Concurrent containers | 2-3 concurrent jobs fine | Resource limits per container | Container resource quotas, queue |
-| Event Handler memory | Negligible | Track running containers in-memory map | Move to Redis/DB for container state |
-| Job image pulls | Pull once, cached | Pull once per version | Private registry with pull-through cache |
+| Concern | At 2 instances (current) | At 10 instances | At 50 instances |
+|---------|--------------------------|-----------------|-----------------|
+| WebSocket connections | 2-4 concurrent, trivial | 10-20, still fine | Need connection pooling |
+| Container count | 2-4 workspace containers | 10-20 | Docker Compose limits; consider Swarm |
+| Volume storage | ~500MB per repo | ~5GB total | Prune old volumes, add monitoring |
+| Memory per workspace | ~200-400MB (Node + Claude Code idle) | 2-4GB | Resource limits mandatory |
+| Port allocation | Not applicable (no host ports) | Not applicable | Not applicable |
+
+**For the current 2-instance scope, no scalability concerns.** Resource limits on workspace containers (memory: 2GB, CPU: 1.0) are a good practice to add in the container creation config regardless.
+
+## Suggested Build Order (Dependency-Driven)
+
+### Phase 1: Database + Container Foundation (no external dependencies)
+1. `code_workspaces` Drizzle schema + migration
+2. `lib/db/workspaces.js` CRUD functions
+3. Workspace container functions in `docker.js` (ensureWorkspaceContainer, stopWorkspace, destroyWorkspace, inspectWorkspace, reconcileWorkspaces)
+4. Workspace Dockerfile + entrypoint (`templates/docker/workspace/`)
+5. Build and test workspace image locally
+
+**Why first:** Everything else depends on being able to create and manage workspace containers.
+
+### Phase 2: WebSocket Proxy (depends on Phase 1)
+6. `lib/ws-proxy.js` with upgrade handler
+7. Custom server wrapper (`server.js`) or instrumentation hook for HTTP upgrade
+8. Auth verification in proxy (JWT token validation)
+9. Integration in startup flow
+10. Traefik passthrough verification (should work without changes)
+
+**Why second:** The proxy is the critical new infrastructure piece. It must work before building tools/UI on top.
+
+### Phase 3: API + LangGraph Tool (depends on Phases 1-2)
+11. Workspace API routes in `api/index.js` (CRUD)
+12. `start_coding` LangGraph tool in `lib/ai/tools.js`
+13. Workspace reconciliation in instrumentation startup
+14. Instance isolation enforcement (workspace labels scoped to instance)
+
+**Why third:** These are the consumer interfaces. They need the underlying container management and proxy to be solid.
+
+### Phase 4: Context Bridging + UI (depends on Phases 1-3)
+15. Chat-to-workspace context injection (CHAT_CONTEXT env var or file write via docker.exec)
+16. Workspace-to-chat result bridge (commit detection, thread injection)
+17. Browser terminal UI component (xterm.js + WebSocket connection)
+
+**Why last:** These are enhancement features that make workspaces more useful but aren't required for basic functionality. The core value (persistent container you can connect to) ships in Phases 1-2.
+
+## Key Architectural Decision: Custom Server vs Instrumentation Hook
+
+The biggest architectural decision for this milestone is how to attach the WebSocket upgrade handler.
+
+**Option A: Custom server wrapper (recommended)**
+- Create `server.js` that wraps Next.js
+- Full control over HTTP server lifecycle
+- Proven pattern (Fly.io guide, multiple production deployments)
+- Requires changing how Dockerfile starts the app (`node server.js` vs `next start`)
+- PM2 process file change in instance Dockerfiles
+
+**Option B: Instrumentation hook hack**
+- Access underlying HTTP server from `instrumentation.js`
+- No entry point changes
+- Fragile -- depends on Next.js internals that could change
+- Not well-documented or officially supported
+
+**Recommendation: Option A.** The custom server wrapper is a thin shim (< 30 lines) that provides clean, maintainable access to the HTTP server upgrade event. The Dockerfile change is minimal (one line in CMD/ENTRYPOINT).
 
 ## Sources
 
-- [Dockerode GitHub](https://github.com/apocas/dockerode) -- Node.js Docker API library, 14M+ weekly downloads
-- [Dockerode npm](https://www.npmjs.com/package/dockerode) -- Package details and API reference
-- [Docker Engine API SDK Docs](https://docs.docker.com/reference/api/engine/sdk/) -- Official Docker SDK documentation
-- [Docker Volumes Documentation](https://docs.docker.com/engine/storage/volumes/) -- Named volume lifecycle and best practices
-- [Persisting Container Data](https://docs.docker.com/get-started/docker-concepts/running-containers/persisting-container-data/) -- Docker official guide
-- ClawForge `.planning/VISION.md` -- Stripe gap analysis, thepopebot upstream feature inventory
-- ClawForge `templates/docker/job/entrypoint.sh` -- Current prompt assembly and execution flow
-- ClawForge `lib/ai/tools.js` -- Current dispatch and enrichment logic
-- ClawForge `lib/tools/create-job.js` -- Current GitHub API branch creation
+- [tsl0922/ttyd GitHub](https://github.com/tsl0922/ttyd) -- terminal sharing over web (8k+ stars)
+- [Next.js WebSocket upgrade discussion #58698](https://github.com/vercel/next.js/discussions/58698) -- confirms no native support
+- [Next.js WebSocket discussion #53780](https://github.com/vercel/next.js/discussions/53780) -- custom server patterns
+- [Fly.io: WebSockets with Next.js](https://fly.io/javascript-journal/websockets-with-nextjs/) -- custom server pattern guide
+- [dockerode GitHub](https://github.com/apocas/dockerode) -- Docker API for Node.js
+- [docker-exec-websocket-server](https://www.npmjs.com/package/docker-exec-websocket-server) -- reference for exec+WebSocket pattern
+- [ttyd + tmux persistent setup](https://mrkaran.dev/posts/web-terminal-homelab/) -- ttyd with tmux in Docker
+- [http-proxy-middleware WebSocket recipe](https://github.com/chimurai/http-proxy-middleware/blob/master/recipes/websocket.md) -- proxy pattern reference
+- [xterm.js](https://xtermjs.org/) -- terminal frontend library
+- [Traefik WebSocket forum thread](https://community.traefik.io/t/v3-w-websockets/22796) -- automatic upgrade handling
+- ClawForge `lib/tools/docker.js` -- existing dockerode integration
+- ClawForge `config/instrumentation.js` -- existing startup flow
+- ClawForge `templates/docker/job/entrypoint.sh` -- existing container entry point
