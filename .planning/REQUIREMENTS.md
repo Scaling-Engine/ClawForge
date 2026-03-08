@@ -85,7 +85,7 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 | HYDR-02 | Phase 18 | Complete |
 | HYDR-03 | Phase 18 | Complete |
 | HYDR-04 | Phase 18 | Complete |
-| HYDR-05 | Phase 18 | Complete |
+| HYDR-05 | Phase 18, Phase 21 (integration gap) | Complete |
 | DOCK-01 | Phase 19 | Complete |
 | DOCK-02 | Phase 19 | Complete |
 | DOCK-03 | Phase 19 | Complete |
@@ -95,10 +95,10 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 | DOCK-07 | Phase 19 | Complete |
 | DOCK-08 | Phase 19 | Complete |
 | DOCK-09 | Phase 19 | Complete |
-| DOCK-10 | Phase 19 | Complete |
+| DOCK-10 | Phase 19, Phase 21 (integration gap) | Complete |
 | DISP-01 | Phase 19 | Complete |
 | DISP-02 | Phase 19 | Complete |
-| DISP-03 | Phase 19 | Complete |
+| DISP-03 | Phase 19, Phase 21 (integration gap) | Complete |
 | DISP-04 | Phase 19 | Complete |
 | DISP-05 | Phase 19 | Complete |
 | VOL-01 | Phase 20 | Complete |

@@ -6,7 +6,7 @@
 - v1.1 Agent Intelligence & Pipeline Hardening -- Phases 5-8 (shipped 2026-02-25)
 - v1.2 Cross-Repo Job Targeting -- Phases 9-12 (shipped 2026-02-27)
 - v1.3 Instance Generator -- Phases 13-17 + 16.1, 17.1 (shipped 2026-03-06)
-- **v1.4 Docker Engine Foundation** -- Phases 18-20 (in progress)
+- **v1.4 Docker Engine Foundation** -- Phases 18-21 (in progress)
 - v1.5 Persistent Workspaces -- planned
 - v1.6 MCP Tool Layer -- planned
 - v1.7 Smart Execution -- planned
@@ -66,6 +66,7 @@
 - [x] **Phase 18: Layer 2 Context Hydration** - Inject STATE.md, ROADMAP.md, and git history into job prompts with GSD-gated scoping (completed 2026-03-06)
 - [x] **Phase 19: Docker Engine Dispatch** - Docker API client, container lifecycle, and dual-path dispatch routing (completed 2026-03-07)
 - [x] **Phase 20: Named Volumes** - Persistent repo state across jobs for warm-start containers (completed 2026-03-08)
+- [ ] **Phase 21: Integration Wiring** - Close non-critical integration gaps from milestone audit (gap closure)
 
 ## Phase Details
 
@@ -115,6 +116,16 @@ Plans:
 - [ ] 20-01-PLAN.md -- Volume creation via dockerode and mount in dispatchDockerJob
 - [ ] 20-02-PLAN.md -- Entrypoint warm/cold start detection with hygiene and flock mutex
 
+### Phase 21: Integration Wiring
+**Goal**: Close non-critical integration gaps identified by v1.4 milestone audit — wire orphaned exports, fix memory injection, and complete Docker image defaults
+**Depends on**: Phase 20
+**Requirements**: DISP-03 (integration), HYDR-05 (integration), DOCK-10 (integration)
+**Gap Closure:** Closes 3 integration gaps + 1 flow gap from v1.4-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. Docker `waitAndNotify` calls `addToThread()` so the agent remembers completed Docker job outcomes in subsequent turns
+  2. `AGENT_QUICK.md` is COPY'd into `/defaults/` in the Docker image so foreign repos fall back to the quick agent file
+  3. `inspectJob()` is wired into the job status tool so operators can check if a running container is stuck
+
 ---
 
 ### v1.5 Persistent Workspaces (Planned)
@@ -144,7 +155,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 18 -> 19 -> 20
+Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -170,6 +181,7 @@ Phases execute in numeric order: 18 -> 19 -> 20
 | 18. Layer 2 Context Hydration | v1.4 | 2/2 | Complete | 2026-03-06 |
 | 19. Docker Engine Dispatch | v1.4 | 3/3 | Complete | 2026-03-07 |
 | 20. Named Volumes | 2/2 | Complete    | 2026-03-08 | - |
+| 21. Integration Wiring | v1.4 | 0/0 | Planned | - |
 
 ---
-*Last updated: 2026-03-07 -- Phase 20 planned (2 plans)*
+*Last updated: 2026-03-08 -- Phase 21 added (gap closure from milestone audit)*
