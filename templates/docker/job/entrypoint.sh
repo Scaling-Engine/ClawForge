@@ -30,13 +30,55 @@ GH_USER_EMAIL=$(echo "$GH_USER_JSON" | jq -r '.email // "\(.id)+\(.login)@users.
 git config --global user.name "$GH_USER_NAME"
 git config --global user.email "$GH_USER_EMAIL"
 
-# 5. Clone the job branch
-if [ -n "$REPO_URL" ]; then
-    git clone --single-branch --branch "$BRANCH" --depth 1 "$REPO_URL" /job
-else
+# 5. Clone or fetch the job branch (with volume cache)
+if [ -z "$REPO_URL" ]; then
     echo "No REPO_URL provided"
     exit 1
 fi
+
+REPO_CACHE="/repo-cache"
+LOCK_FILE="${REPO_CACHE}/.clawforge-lock"
+
+# Ensure repo-cache dir exists (volume may be fresh/empty)
+mkdir -p "${REPO_CACHE}"
+
+REPO_SETUP_START=$(date +%s%N)
+
+(
+    # VOL-04: Acquire exclusive lock with 30s timeout for concurrent safety
+    flock -w 30 200 || { echo "ERROR: Could not acquire repo lock after 30s"; exit 1; }
+
+    if [ -d "${REPO_CACHE}/.git" ]; then
+        echo "=== WARM START ==="
+        cd "${REPO_CACHE}"
+
+        # VOL-03: Hygiene -- clean stale locks from crashed prior jobs
+        find .git -name "*.lock" -type f -delete 2>/dev/null || true
+
+        # VOL-03: Fix stale remote URL if repo was renamed/forked
+        git remote set-url origin "${REPO_URL}" 2>/dev/null || true
+
+        # VOL-03: Reset dirty working tree from prior jobs
+        git reset --hard HEAD 2>/dev/null || true
+        git clean -fdx -e .clawforge-lock 2>/dev/null || true
+
+        # VOL-02: Fetch job branch (shallow, no tags)
+        git fetch origin "${BRANCH}" --depth 1 --no-tags
+        git checkout -f FETCH_HEAD
+    else
+        echo "=== COLD START ==="
+        cd "${REPO_CACHE}"
+        git clone --single-branch --branch "${BRANCH}" --depth 1 "${REPO_URL}" .
+    fi
+
+    # Copy to isolated /job while still holding lock (VOL-04 pitfall 5)
+    cp -a "${REPO_CACHE}/." /job/
+
+) 200>"${LOCK_FILE}"
+
+REPO_SETUP_END=$(date +%s%N)
+REPO_SETUP_MS=$(( (REPO_SETUP_END - REPO_SETUP_START) / 1000000 ))
+echo "Repo setup completed in ${REPO_SETUP_MS}ms ($([ -d "${REPO_CACHE}/.git" ] && echo 'warm' || echo 'cold') start)"
 
 cd /job
 
@@ -56,6 +98,7 @@ echo "GSD directory: ${HOME}/.claude/commands/gsd/"
 ls "${HOME}/.claude/commands/gsd/" 2>/dev/null || echo "WARNING: GSD directory not found"
 echo "Working directory: $(pwd)"
 echo "Job ID: ${JOB_ID}"
+echo "Dispatch mode: ${DISPATCH_MODE:-actions}"
 
 # Verify GSD is present (fail-fast)
 if [ ! -d "${HOME}/.claude/commands/gsd/" ]; then
@@ -74,6 +117,7 @@ cat > "${LOG_DIR}/preflight.md" << EOF
 | GSD directory | ${HOME}/.claude/commands/gsd/ |
 | Working directory | $(pwd) |
 | Timestamp | $(date -u +"%Y-%m-%dT%H:%M:%SZ") |
+| Dispatch mode | ${DISPATCH_MODE:-actions} |
 
 ## GSD Commands Present
 
