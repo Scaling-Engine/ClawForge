@@ -1,67 +1,45 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Docker Engine Foundation
-status: completed
-stopped_at: Completed 21-01-PLAN.md
-last_updated: "2026-03-08T06:02:26.150Z"
-last_activity: 2026-03-08 -- Completed 21-01 Integration Wiring
+milestone: v1.5
+milestone_name: Persistent Workspaces
+status: not_started
+stopped_at: null
+last_updated: "2026-03-08T07:00:00Z"
+last_activity: 2026-03-08 -- v1.4 milestone archived
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-06)
+See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Phase 21 -- Integration Wiring (v1.4 complete)
+**Current focus:** v1.5 Persistent Workspaces — not yet started
 
 ## Current Position
 
-Phase: 21 of 21 (Integration Wiring)
-Plan: 01 of 1 complete
-Status: Complete
-Last activity: 2026-03-08 -- Completed 21-01 Integration Wiring
+Milestone: v1.5 Persistent Workspaces
+Status: Not started — define requirements with `/gsd:new-milestone`
+Last activity: 2026-03-08 -- v1.4 milestone archived
 
-Progress: [██████████] 100%
+Progress: [..........] 0%
 
 ## Accumulated Context
 
 ### Decisions
 
-- Quick-mode AGENT_QUICK.md omits full GSD lifecycle commands, keeps only /gsd:quick (18-01)
-- Fallback chain for quick jobs: instance AGENT_QUICK.md -> defaults AGENT_QUICK.md -> instance AGENT.md (18-01)
-- Reordered entrypoint steps 8/8c before step 7 to resolve GSD_HINT dependency (18-01)
-- [Phase 18]: STATE.md capped at 4K chars, ROADMAP.md at 6K chars for prompt budget (18-02)
-- [Phase 18]: git fetch origin main --depth=11 for history from shallow clone (18-02)
-- [Phase 18]: All hydration sections gated on GSD_HINT != quick per HYDR-04 (18-02)
-- Container labels (clawforge=job + metadata) for orphan detection instead of DB-only tracking (19-01)
-- AutoRemove: false to allow log collection before cleanup (19-01)
-- Schema columns use .default() for zero-migration backwards compatibility (19-01)
-- getDispatchMethod defaults to 'docker' when no explicit field, promoting Docker-first dispatch (19-02)
-- waitAndNotify fires as detached async to avoid blocking tool response (19-02)
-- Notification dedup via isJobNotified early-return in handleGithubWebhook (19-02)
-- Docker socket mounted read-only (:ro) on event handler containers for security (19-03)
-- Env vars use NOAH_/SES_ prefix mapping with defaults for zero-config local dev (19-03)
-- E2E verified: 9s dispatch, 53s total job time, proper cleanup and dedup (19-03)
-- Volume naming convention: clawforge-{instance}-{slug} for deterministic, instance-scoped volumes (20-01)
-- ensureVolume kept unexported as internal helper; volumeNameFor exported for tests and cleanup tooling (20-01)
-- flock wraps ALL git operations AND cp -a to prevent concurrent corruption in repo-cache (20-02)
-- git checkout -f FETCH_HEAD avoids refspec issues with shallow clones (20-02)
-- Lock file at /repo-cache/.clawforge-lock shared across containers via volume (20-02)
-- addToThread uses fire-and-forget .catch(() => {}) matching Actions webhook pattern (21-01)
-- inspectJob augments result with container key only when job_id provided and Docker container exists (21-01)
+(None yet — v1.5 not started)
 
 ### Pending Todos
 
-1. **Set up OpenAI key for Epic audio transcription** (infra)
+1. **Set up OpenAI key for Epic audio transcription** (infra, carried from v1.4)
 
 ### Blockers/Concerns
 
@@ -70,6 +48,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-08T05:57:43Z
-Stopped at: Completed 21-01-PLAN.md
+Last session: 2026-03-08T07:00:00Z
+Stopped at: v1.4 milestone archived
 Resume file: None

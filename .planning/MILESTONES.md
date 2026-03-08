@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.4 Docker Engine Foundation (Shipped: 2026-03-08)
+
+**Phases:** 18-21 (4 phases, 8 plans)
+**Timeline:** 3 days (2026-03-06 → 2026-03-08)
+**Files changed:** 59 (+5,836 / -135)
+**Requirements:** 24/24 satisfied
+**Archive:** milestones/v1.4-ROADMAP.md, milestones/v1.4-REQUIREMENTS.md
+
+**Key accomplishments:**
+- Layer 2 context hydration: entrypoint injects STATE.md (4K cap), ROADMAP.md (6K cap), and last 10 git commits into job prompts, gated on GSD_HINT for quick vs full hydration
+- AGENT_QUICK.md variant for simple jobs with fallback chain: instance → defaults → full AGENT.md
+- Docker Engine API dispatch via dockerode: containers start in ~9 seconds vs ~60s via GitHub Actions, with full lifecycle management (create, wait, logs, cleanup)
+- Dual-path dispatch routing: REPOS.json `dispatch` field controls Docker vs Actions per repo, with seamless fallback
+- Orphan container reconciliation on Event Handler restart — labels-based detection, log collection, force removal
+- Named volumes (`clawforge-{instance}-{slug}`) with warm/cold start detection, hygiene step, and flock mutex for concurrent safety
+- Integration wiring: `addToThread` for Docker job thread memory, `inspectJob` in status tool, AGENT_QUICK.md baked into Docker image
+
+---
+
 ## v1.3 Instance Generator (Shipped: 2026-03-06)
 
 **Phases:** 13-17 + 16.1, 17.1 (7 phases, 9 plans)
@@ -69,4 +88,4 @@
 ---
 
 ---
-*Last updated: 2026-03-06 — v1.3 shipped*
+*Last updated: 2026-03-08 — v1.4 shipped*

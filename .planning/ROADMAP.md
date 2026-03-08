@@ -6,8 +6,8 @@
 - v1.1 Agent Intelligence & Pipeline Hardening -- Phases 5-8 (shipped 2026-02-25)
 - v1.2 Cross-Repo Job Targeting -- Phases 9-12 (shipped 2026-02-27)
 - v1.3 Instance Generator -- Phases 13-17 + 16.1, 17.1 (shipped 2026-03-06)
-- **v1.4 Docker Engine Foundation** -- Phases 18-21 (shipped 2026-03-08)
-- v1.5 Persistent Workspaces -- planned
+- v1.4 Docker Engine Foundation -- Phases 18-21 (shipped 2026-03-08)
+- **v1.5 Persistent Workspaces** -- planned
 - v1.6 MCP Tool Layer -- planned
 - v1.7 Smart Execution -- planned
 - v1.8 Multi-Agent Clusters -- future
@@ -57,78 +57,15 @@
 
 </details>
 
----
+<details>
+<summary>v1.4 Docker Engine Foundation (Phases 18-21) -- SHIPPED 2026-03-08</summary>
 
-### v1.4 Docker Engine Foundation (In Progress)
+- [x] Phase 18: Layer 2 Context Hydration (2/2 plans) -- completed 2026-03-06
+- [x] Phase 19: Docker Engine Dispatch (3/3 plans) -- completed 2026-03-07
+- [x] Phase 20: Named Volumes (2/2 plans) -- completed 2026-03-08
+- [x] Phase 21: Integration Wiring (1/1 plan) -- completed 2026-03-08
 
-**Goal:** Replace GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls. Containers start in seconds instead of minutes. GH Actions retained as fallback for CI-integrated repos.
-
-- [x] **Phase 18: Layer 2 Context Hydration** - Inject STATE.md, ROADMAP.md, and git history into job prompts with GSD-gated scoping (completed 2026-03-06)
-- [x] **Phase 19: Docker Engine Dispatch** - Docker API client, container lifecycle, and dual-path dispatch routing (completed 2026-03-07)
-- [x] **Phase 20: Named Volumes** - Persistent repo state across jobs for warm-start containers (completed 2026-03-08)
-- [x] **Phase 21: Integration Wiring** - Close non-critical integration gaps from milestone audit (gap closure) (completed 2026-03-08)
-
-## Phase Details
-
-### Phase 18: Layer 2 Context Hydration
-**Goal**: Job containers start with full project awareness -- state, roadmap, and recent history -- so agents produce context-informed results without operator briefing
-**Depends on**: Nothing (pure entrypoint.sh changes, works with both dispatch paths)
-**Requirements**: HYDR-01, HYDR-02, HYDR-03, HYDR-04, HYDR-05
-**Success Criteria** (what must be TRUE):
-  1. A job on a GSD-managed repo includes STATE.md and ROADMAP.md content in the prompt visible to Claude
-  2. A simple job (GSD hint "quick") receives a minimal prompt without state/roadmap sections
-  3. Recent git history (last 10 commits) appears in the job prompt so the agent knows what changed recently
-  4. Simple jobs use AGENT_QUICK.md (shorter instructions), complex jobs use full AGENT.md
-**Plans**: 2 plans
-
-Plans:
-- [x] 18-01-PLAN.md -- AGENT_QUICK.md creation and entrypoint reordering for hint-aware agent selection
-- [x] 18-02-PLAN.md -- Context hydration: STATE.md, ROADMAP.md, git history with GSD-gated injection
-
-### Phase 19: Docker Engine Dispatch
-**Goal**: Jobs dispatched via Docker Engine API start in seconds instead of minutes, with full container lifecycle management and seamless fallback to GitHub Actions
-**Depends on**: Phase 18
-**Requirements**: DOCK-01, DOCK-02, DOCK-03, DOCK-04, DOCK-05, DOCK-06, DOCK-07, DOCK-08, DOCK-09, DOCK-10, DISP-01, DISP-02, DISP-03, DISP-04, DISP-05
-**Success Criteria** (what must be TRUE):
-  1. Operator sends a job via Slack/Telegram and the container starts executing within 15 seconds (vs ~60s via Actions)
-  2. Docker-dispatched jobs produce identical outputs to Actions-dispatched jobs -- same commits, PRs, and notifications
-  3. REPOS.json `dispatch` field controls whether a repo uses Docker or Actions, and both paths work simultaneously
-  4. Orphaned containers from crashed Event Handler are detected and cleaned up on restart
-  5. Operator can check if a running container is stuck via job status inspection
-**Plans**: 3 plans
-
-Plans:
-- [x] 19-01-PLAN.md -- Docker client foundation, container lifecycle, DB schema, and orphan reconciliation
-- [x] 19-02-PLAN.md -- Dispatch routing via REPOS.json, inline notification, and webhook dedup
-- [x] 19-03-PLAN.md -- Docker Compose wiring and end-to-end verification
-
-### Phase 20: Named Volumes
-**Goal**: Repeat jobs on the same repo start warm -- fetching in 2-3 seconds instead of cloning in 10-15 seconds
-**Depends on**: Phase 19
-**Requirements**: VOL-01, VOL-02, VOL-03, VOL-04
-**Success Criteria** (what must be TRUE):
-  1. Second job on the same repo uses `git fetch` instead of `git clone`, completing repo setup in under 5 seconds
-  2. A job that runs after a previously failed/interrupted job starts clean (no stale locks, dirty state, or leftover files)
-  3. Two concurrent jobs on the same repo both complete successfully without corrupting each other
-**Plans**: 2 plans
-
-Plans:
-- [x] 20-01-PLAN.md -- Volume creation via dockerode and mount in dispatchDockerJob
-- [x] 20-02-PLAN.md -- Entrypoint warm/cold start detection with hygiene and flock mutex
-
-### Phase 21: Integration Wiring
-**Goal**: Close non-critical integration gaps identified by v1.4 milestone audit — wire orphaned exports, fix memory injection, and complete Docker image defaults
-**Depends on**: Phase 20
-**Requirements**: DISP-03 (integration), HYDR-05 (integration), DOCK-10 (integration)
-**Gap Closure:** Closes 3 integration gaps + 1 flow gap from v1.4-MILESTONE-AUDIT.md
-**Success Criteria** (what must be TRUE):
-  1. Docker `waitAndNotify` calls `addToThread()` so the agent remembers completed Docker job outcomes in subsequent turns
-  2. `AGENT_QUICK.md` is COPY'd into `/defaults/` in the Docker image so foreign repos fall back to the quick agent file
-  3. `inspectJob()` is wired into the job status tool so operators can check if a running container is stuck
-**Plans**: 1 plan
-
-Plans:
-- [x] 21-01-PLAN.md -- Wire addToThread, inspectJob, and AGENT_QUICK.md defaults into existing code
+</details>
 
 ---
 
@@ -156,36 +93,4 @@ Plans:
 
 ---
 
-## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 18 -> 19 -> 20 -> 21
-
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 1. Foundation Fix | v1.0 | 2/2 | Complete | 2026-02-24 |
-| 2. Output Observability | v1.0 | 2/2 | Complete | 2026-02-24 |
-| 3. Test Harness | v1.0 | 1/1 | Complete | 2026-02-24 |
-| 4. Instruction Hardening | v1.0 | 1/1 | Complete | 2026-02-24 |
-| 5. Pipeline Hardening | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 6. Smart Job Prompts | v1.1 | 1/1 | Complete | 2026-02-25 |
-| 7. Previous Job Context | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 8. Polish & Test Sync | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 9. Config + Tool Schema + Entrypoint Foundation | v1.2 | 3/3 | Complete | 2026-02-26 |
-| 10. Actions Workflow + Container Execution + Cross-Repo PR | v1.2 | 3/3 | Complete | 2026-02-27 |
-| 11. Notification Pipeline + DB Schema | v1.2 | 3/3 | Complete | 2026-02-27 |
-| 12. Regression Verification | v1.2 | 1/1 | Complete | 2026-02-27 |
-| 13. Tool Infrastructure | v1.3 | 1/1 | Complete | 2026-02-27 |
-| 14. Intake Flow | v1.3 | 2/2 | Complete | 2026-03-04 |
-| 15. Job Prompt Completeness | v1.3 | 1/1 | Complete | 2026-03-04 |
-| 16. PR Pipeline and Auto-Merge Exclusion | v1.3 | 1/1 | Complete | 2026-03-05 |
-| 16.1. Entrypoint Sync | v1.3 | 1/1 | Complete | 2026-03-05 |
-| 17. End-to-End Validation | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 18. Layer 2 Context Hydration | v1.4 | 2/2 | Complete | 2026-03-06 |
-| 19. Docker Engine Dispatch | v1.4 | 3/3 | Complete | 2026-03-07 |
-| 20. Named Volumes | v1.4 | 2/2 | Complete | 2026-03-08 |
-| 21. Integration Wiring | v1.4 | Complete    | 2026-03-08 | 2026-03-08 |
-
----
-*Last updated: 2026-03-08 -- Phase 21 complete (v1.4 milestone shipped)*
+*Last updated: 2026-03-08 -- v1.4 archived, v1.5 next*

@@ -8,25 +8,22 @@ A multi-channel AI agent platform that connects Claude Code CLI to messaging cha
 
 Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results without operator intervention.
 
-## Current Milestone: v1.4 Docker Engine Foundation
+## Current Milestone: v1.5 Persistent Workspaces
 
-**Goal:** Replace GitHub Actions as the primary job dispatch mechanism with direct Docker Engine API calls. Containers start in seconds instead of minutes. GH Actions retained as fallback for CI-integrated repos.
+**Goal:** Interactive code workspaces where operators can open a browser terminal connected to a persistent Docker container with their repo.
 
-**Target features:**
-- Direct Docker Engine API job dispatch (seconds vs minutes)
-- Layer 2 context hydration (STATE.md + ROADMAP.md + git history in job prompt)
-- Named volumes for persistent repo state across jobs (warm start)
+## Current State (after v1.4)
 
-## Current State (after v1.3)
-
-**Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo + v1.3 Instance Generator
-**Codebase:** ~12,694 LOC JavaScript (Next.js + LangGraph + Drizzle ORM)
+**Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo + v1.3 Instance Generator + v1.4 Docker Engine Foundation
+**Codebase:** ~18,500 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode)
 **Instances:** 2 (Noah/Archie — full access, StrategyES/Epic — scoped to strategyes-lab)
 
 **What works:**
-- Full job pipeline for **same-repo and cross-repo jobs**: message → Event Handler → job branch → GitHub Actions → Docker container → Claude Code CLI → PR → notification
+- Full job pipeline via **Docker Engine API dispatch** (~9s) or GitHub Actions fallback (~60s)
+- **Layer 2 context hydration**: job containers receive STATE.md, ROADMAP.md, and recent git history in prompt
+- **Named volumes**: warm start via `git fetch` (2-3s) instead of full clone (10-15s), with flock mutex for concurrency
 - Cross-repo targeting: agent resolves repo from natural language, container performs two-phase clone, PR created on target repo with correct attribution
-- Per-instance REPOS.json with `loadAllowedRepos()` + `resolveTargetRepo()` (slug/name/alias matching)
+- Per-instance REPOS.json with `loadAllowedRepos()` + `resolveTargetRepo()` + `getDispatchMethod()` (slug/name/alias matching, docker/actions routing)
 - SOUL.md and AGENT.md baked into Docker image at `/defaults/` — cross-repo jobs have system prompt without clawforge config in working tree
 - `target.json` sidecar on job branch carries target metadata; entrypoint reads it at runtime
 - Structured 5-section FULL_PROMPT (Target, Docs, Stack, Task, GSD Hint) with CLAUDE.md injection from target repo
@@ -75,11 +72,16 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - ✓ Instance PRs excluded from auto-merge, require manual review — v1.3
 - ✓ Layer 1 agent can fetch project state (STATE.md, ROADMAP.md) from target repos — v1.3
 
+- ✓ Job containers start via Docker Engine API in ~9 seconds (vs ~60s via GH Actions) — v1.4
+- ✓ Layer 2 context hydration: entrypoint injects STATE.md + ROADMAP.md + recent git history into job prompt — v1.4
+- ✓ Named volumes for persistent repo state across jobs (warm start with flock mutex) — v1.4
+- ✓ Dual-path dispatch routing via REPOS.json `dispatch` field (Docker or Actions) — v1.4
+- ✓ Orphan container reconciliation on Event Handler restart — v1.4
+- ✓ AGENT_QUICK.md variant for simple jobs with fallback chain — v1.4
+
 ### Active
 
-- [ ] Job containers start via Docker Engine API in seconds, not minutes via GH Actions
-- [ ] Layer 2 context hydration: entrypoint injects STATE.md + ROADMAP.md + recent git history into job prompt
-- [ ] Named volumes for persistent repo state across jobs (warm start)
+(None yet — define requirements for v1.5 with `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -155,10 +157,19 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 | LLM behavior via EVENT_HANDLER.md injection | No code change needed for intake flow adjustments | ✓ Flexible intake |
 | get_project_state via GitHub Contents API | Layer 1 gets project awareness without filesystem access | ✓ Informed dispatching |
 
+| dockerode@^4.0.9 for Docker Engine API | Battle-tested, stream demuxing, socket-based | ✓ Reliable container lifecycle |
+| Docker-first dispatch default | getDispatchMethod defaults to 'docker' when no explicit field | ✓ Faster job starts |
+| waitAndNotify as detached async | Avoids blocking tool response; fire-and-forget pattern | ✓ Non-blocking dispatch |
+| Notification dedup via isJobNotified | Docker inline + Actions webhook can both fire; early-return prevents double notification | ✓ Single notification |
+| Docker socket read-only mount | Event handler gets :ro socket access for security | ✓ Minimal privilege |
+| Named volume per repo per instance | `clawforge-{instance}-{slug}` convention; flock mutex for concurrent safety | ✓ Warm starts working |
+| STATE.md 4K / ROADMAP.md 6K char caps | Prevents context bloat in job prompts | ✓ Balanced context budget |
+| Context hydration gated on GSD_HINT | Quick jobs get lean prompts; complex jobs get full context | ✓ Appropriate scoping |
+
 - Instance updates/deletion — define creation first, update flows are additive complexity
 - Automated deployment — security-sensitive; human review via PR is the right gate
 - GitHub secrets auto-provisioning — requires broader infrastructure permissions than appropriate
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
 ---
-*Last updated: 2026-03-06 after v1.3 milestone*
+*Last updated: 2026-03-08 after v1.4 milestone*
