@@ -113,8 +113,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md -- Volume creation via dockerode and mount in dispatchDockerJob
-- [ ] 20-02-PLAN.md -- Entrypoint warm/cold start detection with hygiene and flock mutex
+- [x] 20-01-PLAN.md -- Volume creation via dockerode and mount in dispatchDockerJob
+- [x] 20-02-PLAN.md -- Entrypoint warm/cold start detection with hygiene and flock mutex
 
 ### Phase 21: Integration Wiring
 **Goal**: Close non-critical integration gaps identified by v1.4 milestone audit — wire orphaned exports, fix memory injection, and complete Docker image defaults
@@ -125,6 +125,10 @@ Plans:
   1. Docker `waitAndNotify` calls `addToThread()` so the agent remembers completed Docker job outcomes in subsequent turns
   2. `AGENT_QUICK.md` is COPY'd into `/defaults/` in the Docker image so foreign repos fall back to the quick agent file
   3. `inspectJob()` is wired into the job status tool so operators can check if a running container is stuck
+**Plans**: 1 plan
+
+Plans:
+- [ ] 21-01-PLAN.md -- Wire addToThread, inspectJob, and AGENT_QUICK.md defaults into existing code
 
 ---
 
@@ -180,8 +184,8 @@ Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 | 17.1. Context Hydration (Layer 1) | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 18. Layer 2 Context Hydration | v1.4 | 2/2 | Complete | 2026-03-06 |
 | 19. Docker Engine Dispatch | v1.4 | 3/3 | Complete | 2026-03-07 |
-| 20. Named Volumes | 2/2 | Complete    | 2026-03-08 | - |
-| 21. Integration Wiring | v1.4 | 0/0 | Planned | - |
+| 20. Named Volumes | v1.4 | 2/2 | Complete | 2026-03-08 |
+| 21. Integration Wiring | v1.4 | 0/1 | Planned | - |
 
 ---
-*Last updated: 2026-03-08 -- Phase 21 added (gap closure from milestone audit)*
+*Last updated: 2026-03-08 -- Phase 21 planned (1 plan, gap closure)*
