@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Persistent Workspaces
-status: not_started
+status: defining_requirements
 stopped_at: null
-last_updated: "2026-03-08T07:00:00Z"
-last_activity: 2026-03-08 -- v1.4 milestone archived
+last_updated: "2026-03-08T12:00:00Z"
+last_activity: 2026-03-08 -- Milestone v1.5 started
 progress:
   total_phases: 0
   completed_phases: 0
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** v1.5 Persistent Workspaces — not yet started
+**Current focus:** v1.5 Persistent Workspaces — defining requirements
 
 ## Current Position
 
 Milestone: v1.5 Persistent Workspaces
-Status: Not started — define requirements with `/gsd:new-milestone`
-Last activity: 2026-03-08 -- v1.4 milestone archived
+Status: Defining requirements
+Last activity: 2026-03-08 -- Milestone v1.5 started
 
 Progress: [..........] 0%
 

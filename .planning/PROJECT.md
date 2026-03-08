@@ -10,7 +10,19 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 
 ## Current Milestone: v1.5 Persistent Workspaces
 
-**Goal:** Interactive code workspaces where operators can open a browser terminal connected to a persistent Docker container with their repo.
+**Goal:** Interactive code workspaces where operators can open a browser terminal connected to a persistent Docker container with their repo, with bidirectional chat-workspace context bridging.
+
+**Target features:**
+- Persistent workspace containers (long-running, ttyd + tmux + Claude Code)
+- Browser terminal UI (xterm.js) with WebSocket proxy through event handler
+- Workspace CRUD (create, start, stop, reconnect, destroy)
+- Named volume persistence across container restarts
+- Chat-to-workspace context bridge (conversation flows into container)
+- Workspace-to-chat result bridge (commits flow back into thread)
+- `start_coding` LangGraph tool for conversational workspace launch
+- Per-instance workspace isolation
+
+**Reference implementation:** thepopebot `lib/code/`, `templates/docker/claude-code-workspace/`, `lib/tools/docker.js`
 
 ## Current State (after v1.4)
 
@@ -81,7 +93,7 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 
 ### Active
 
-(None yet — define requirements for v1.5 with `/gsd:new-milestone`)
+(Defining requirements for v1.5 Persistent Workspaces)
 
 ### Out of Scope
 
@@ -172,4 +184,4 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
 ---
-*Last updated: 2026-03-08 after v1.4 milestone*
+*Last updated: 2026-03-08 after v1.5 milestone start*
