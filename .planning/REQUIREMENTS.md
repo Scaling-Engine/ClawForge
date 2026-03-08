@@ -38,7 +38,7 @@ Requirements for Docker Engine Foundation milestone. Each maps to roadmap phases
 
 ### Named Volumes
 
-- [ ] **VOL-01**: Named volumes created per repo per instance with convention `clawforge-{instance}-{repo-slug}`
+- [x] **VOL-01**: Named volumes created per repo per instance with convention `clawforge-{instance}-{repo-slug}`
 - [ ] **VOL-02**: Entrypoint detects warm start (existing `.git` in volume) and uses `git fetch` instead of `git clone`
 - [ ] **VOL-03**: Volume hygiene step runs before each job (clean locks, reset to origin, clean working tree)
 - [ ] **VOL-04**: Concurrent jobs on same repo don't corrupt shared volume state
@@ -101,7 +101,7 @@ Deferred to v1.5+. Tracked but not in current roadmap.
 | DISP-03 | Phase 19 | Complete |
 | DISP-04 | Phase 19 | Complete |
 | DISP-05 | Phase 19 | Complete |
-| VOL-01 | Phase 20 | Pending |
+| VOL-01 | Phase 20 | Complete |
 | VOL-02 | Phase 20 | Pending |
 | VOL-03 | Phase 20 | Pending |
 | VOL-04 | Phase 20 | Pending |

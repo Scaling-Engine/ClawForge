@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Docker Engine Foundation
-status: completed
-stopped_at: Completed 19-03-PLAN.md (Phase 19 complete)
-last_updated: "2026-03-07T20:04:36.507Z"
-last_activity: 2026-03-07 -- Completed 19-03 Docker Compose Wiring
+status: in_progress
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-03-08T04:23:30.000Z"
+last_activity: 2026-03-08 -- Completed 20-01 Named Volume Support
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 7
+  completed_plans: 6
+  percent: 95
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Phase 19 -- Docker Engine Dispatch
+**Current focus:** Phase 20 -- Named Volumes
 
 ## Current Position
 
-Phase: 19 of 20 (Docker Engine Dispatch)
-Plan: 03 of 3 complete
-Status: Phase 19 Complete
-Last activity: 2026-03-07 -- Completed 19-03 Docker Compose Wiring
+Phase: 20 of 20 (Named Volumes)
+Plan: 01 of 2 complete
+Status: In Progress
+Last activity: 2026-03-08 -- Completed 20-01 Named Volume Support
 
-Progress: [██████████] 100%
+Progress: [██████████] 95%
 
 ## Accumulated Context
 
@@ -51,6 +51,8 @@ Progress: [██████████] 100%
 - Docker socket mounted read-only (:ro) on event handler containers for security (19-03)
 - Env vars use NOAH_/SES_ prefix mapping with defaults for zero-config local dev (19-03)
 - E2E verified: 9s dispatch, 53s total job time, proper cleanup and dedup (19-03)
+- Volume naming convention: clawforge-{instance}-{slug} for deterministic, instance-scoped volumes (20-01)
+- ensureVolume kept unexported as internal helper; volumeNameFor exported for tests and cleanup tooling (20-01)
 
 ### Pending Todos
 
@@ -63,6 +65,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-07T19:05:00.000Z
-Stopped at: Completed 19-03-PLAN.md (Phase 19 complete)
+Last session: 2026-03-08T04:23:30.000Z
+Stopped at: Completed 20-01-PLAN.md
 Resume file: None
