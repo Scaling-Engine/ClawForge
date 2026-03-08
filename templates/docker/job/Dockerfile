@@ -66,6 +66,7 @@ RUN node -e "\
 RUN mkdir -p /defaults
 COPY defaults/SOUL.md /defaults/SOUL.md
 COPY defaults/AGENT.md /defaults/AGENT.md
+COPY defaults/AGENT_QUICK.md /defaults/AGENT_QUICK.md
 
 # Create workspace and config directories
 RUN mkdir -p /workspace /workspace/.claude
