@@ -6,7 +6,7 @@
 - v1.1 Agent Intelligence & Pipeline Hardening -- Phases 5-8 (shipped 2026-02-25)
 - v1.2 Cross-Repo Job Targeting -- Phases 9-12 (shipped 2026-02-27)
 - v1.3 Instance Generator -- Phases 13-17 + 16.1, 17.1 (shipped 2026-03-06)
-- **v1.4 Docker Engine Foundation** -- Phases 18-21 (in progress)
+- **v1.4 Docker Engine Foundation** -- Phases 18-21 (shipped 2026-03-08)
 - v1.5 Persistent Workspaces -- planned
 - v1.6 MCP Tool Layer -- planned
 - v1.7 Smart Execution -- planned
@@ -128,7 +128,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 21-01-PLAN.md -- Wire addToThread, inspectJob, and AGENT_QUICK.md defaults into existing code
+- [x] 21-01-PLAN.md -- Wire addToThread, inspectJob, and AGENT_QUICK.md defaults into existing code
 
 ---
 
@@ -185,7 +185,7 @@ Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 | 18. Layer 2 Context Hydration | v1.4 | 2/2 | Complete | 2026-03-06 |
 | 19. Docker Engine Dispatch | v1.4 | 3/3 | Complete | 2026-03-07 |
 | 20. Named Volumes | v1.4 | 2/2 | Complete | 2026-03-08 |
-| 21. Integration Wiring | v1.4 | 0/1 | Planned | - |
+| 21. Integration Wiring | v1.4 | 1/1 | Complete | 2026-03-08 |
 
 ---
-*Last updated: 2026-03-08 -- Phase 21 planned (1 plan, gap closure)*
+*Last updated: 2026-03-08 -- Phase 21 complete (v1.4 milestone shipped)*

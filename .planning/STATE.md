@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Docker Engine Foundation
 status: completed
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-03-08T04:27:08.870Z"
-last_activity: 2026-03-08 -- Completed 20-02 Entrypoint Warm/Cold Start
+stopped_at: Completed 21-01-PLAN.md
+last_updated: "2026-03-08T05:58:42.000Z"
+last_activity: 2026-03-08 -- Completed 21-01 Integration Wiring
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 8
+  completed_plans: 8
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Phase 20 -- Named Volumes
+**Current focus:** Phase 21 -- Integration Wiring (v1.4 complete)
 
 ## Current Position
 
-Phase: 20 of 20 (Named Volumes)
-Plan: 02 of 2 complete
+Phase: 21 of 21 (Integration Wiring)
+Plan: 01 of 1 complete
 Status: Complete
-Last activity: 2026-03-08 -- Completed 20-02 Entrypoint Warm/Cold Start
+Last activity: 2026-03-08 -- Completed 21-01 Integration Wiring
 
 Progress: [██████████] 100%
 
@@ -56,6 +56,8 @@ Progress: [██████████] 100%
 - flock wraps ALL git operations AND cp -a to prevent concurrent corruption in repo-cache (20-02)
 - git checkout -f FETCH_HEAD avoids refspec issues with shallow clones (20-02)
 - Lock file at /repo-cache/.clawforge-lock shared across containers via volume (20-02)
+- addToThread uses fire-and-forget .catch(() => {}) matching Actions webhook pattern (21-01)
+- inspectJob augments result with container key only when job_id provided and Docker container exists (21-01)
 
 ### Pending Todos
 
@@ -68,6 +70,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-08T04:23:37Z
-Stopped at: Completed 20-02-PLAN.md
+Last session: 2026-03-08T05:57:43Z
+Stopped at: Completed 21-01-PLAN.md
 Resume file: None
