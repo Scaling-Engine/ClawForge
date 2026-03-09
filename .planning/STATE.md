@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Persistent Workspaces
 status: executing
-stopped_at: Completed 22-02-PLAN.md
-last_updated: "2026-03-09T03:23:44.443Z"
-last_activity: 2026-03-09 -- Completed Plan 02 (workspace container lifecycle)
+stopped_at: Completed 22-03-PLAN.md
+last_updated: "2026-03-09T03:29:32.182Z"
+last_activity: 2026-03-09 -- Completed Plan 03 (workspace API & startup wiring)
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** v1.5 Persistent Workspaces — Phase 22 Plan 02 complete, Plan 03 next
+**Current focus:** v1.5 Persistent Workspaces — Phase 22 complete (all 3 plans), ready for Phase 23
 
 ## Current Position
 
 Milestone: v1.5 Persistent Workspaces
 Phase: 22 of 24 (Workspace Infrastructure)
-Plan: 2 of 3 in current phase
+Plan: 3 of 3 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-09 -- Completed Plan 02 (workspace container lifecycle)
+Last activity: 2026-03-09 -- Completed Plan 03 (workspace API & startup wiring)
 
-Progress: [██████░░░░] 67%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -43,6 +43,9 @@ Progress: [██████░░░░] 67%
 - Destroy keeps DB record (status=destroyed) for audit trail rather than hard-deleting
 - Feature branch verification is best-effort: warns on mismatch but workspace remains usable
 - Reconciliation uses dynamic import for listWorkspaces to keep import graph clean
+- [Phase 22]: Workspace sub-routes use regex matching in POST default case
+- [Phase 22]: DELETE export added as third HTTP method handler alongside GET/POST
+- [Phase 22]: Startup reconciliation wrapped in try/catch to be non-fatal
 
 ### Pending Todos
 
@@ -55,6 +58,6 @@ Progress: [██████░░░░] 67%
 
 ## Session Continuity
 
-Last session: 2026-03-09T03:23:07Z
-Stopped at: Completed 22-02-PLAN.md
+Last session: 2026-03-09T03:29:32.180Z
+Stopped at: Completed 22-03-PLAN.md
 Resume file: None
