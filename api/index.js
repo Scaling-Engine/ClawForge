@@ -10,6 +10,8 @@ import { saveJobOutcome } from '../lib/db/job-outcomes.js';
 import { loadTriggers } from '../lib/triggers.js';
 import { verifyApiKey } from '../lib/db/api-keys.js';
 import { isJobNotified } from '../lib/db/docker-jobs.js';
+import { ensureWorkspaceContainer, stopWorkspace, destroyWorkspace } from '../lib/tools/docker.js';
+import { listWorkspaces, getWorkspace, updateWorkspace } from '../lib/db/workspaces.js';
 
 // Bot token from env, can be overridden by /telegram/register
 let telegramBotToken = null;
@@ -353,6 +355,79 @@ async function handleJobStatus(request) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Workspace route handlers
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handleCreateWorkspace(request) {
+  const body = await request.json();
+  const { instanceName, repoUrl, repoSlug } = body;
+
+  if (!instanceName || !repoUrl || !repoSlug) {
+    return Response.json({ error: 'Missing required fields: instanceName, repoUrl, repoSlug' }, { status: 400 });
+  }
+
+  try {
+    const result = await ensureWorkspaceContainer(body);
+    return Response.json(result, { status: 201 });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 409 });
+  }
+}
+
+async function handleListWorkspaces(request) {
+  const url = new URL(request.url);
+  const instanceName = url.searchParams.get('instance');
+
+  if (!instanceName) {
+    return Response.json({ error: 'Missing instance query param' }, { status: 400 });
+  }
+
+  const workspaces = listWorkspaces(instanceName);
+  return Response.json({ workspaces });
+}
+
+async function handleStopWorkspace(request, workspaceId) {
+  const result = await stopWorkspace(workspaceId);
+
+  if (!result.ok) {
+    return Response.json({ error: result.reason }, { status: 404 });
+  }
+
+  updateWorkspace(workspaceId, { lastActivityAt: Date.now() });
+  return Response.json(result);
+}
+
+async function handleStartWorkspace(request, workspaceId) {
+  const ws = getWorkspace(workspaceId);
+
+  if (!ws) {
+    return Response.json({ error: 'Workspace not found' }, { status: 404 });
+  }
+
+  try {
+    const result = await ensureWorkspaceContainer({
+      instanceName: ws.instanceName,
+      repoUrl: ws.repoUrl,
+      repoSlug: ws.repoSlug,
+    });
+    updateWorkspace(workspaceId, { lastActivityAt: Date.now() });
+    return Response.json(result);
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 409 });
+  }
+}
+
+async function handleDestroyWorkspace(request, workspaceId) {
+  const result = await destroyWorkspace(workspaceId);
+
+  if (!result.ok) {
+    return Response.json({ error: result.reason }, { status: 404 });
+  }
+
+  return Response.json(result);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Next.js Route Handlers (catch-all)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -396,7 +471,17 @@ async function POST(request) {
     case '/telegram/register':  return handleTelegramRegister(request);
     case '/slack/events':       return handleSlackEvents(request);
     case '/github/webhook':     return handleGithubWebhook(request);
-    default:                    return Response.json({ error: 'Not found' }, { status: 404 });
+    case '/workspaces':         return handleCreateWorkspace(request);
+    default: {
+      // Workspace sub-routes: /workspaces/:id/stop, /workspaces/:id/start
+      const wsStopMatch = routePath.match(/^\/workspaces\/([^/]+)\/stop$/);
+      if (wsStopMatch) return handleStopWorkspace(request, wsStopMatch[1]);
+
+      const wsStartMatch = routePath.match(/^\/workspaces\/([^/]+)\/start$/);
+      if (wsStartMatch) return handleStartWorkspace(request, wsStartMatch[1]);
+
+      return Response.json({ error: 'Not found' }, { status: 404 });
+    }
   }
 }
 
@@ -411,8 +496,22 @@ async function GET(request) {
   switch (routePath) {
     case '/ping':           return Response.json({ message: 'Pong!' });
     case '/jobs/status':    return handleJobStatus(request);
+    case '/workspaces':     return handleListWorkspaces(request);
     default:                return Response.json({ error: 'Not found' }, { status: 404 });
   }
 }
 
-export { GET, POST };
+async function DELETE(request) {
+  const url = new URL(request.url);
+  const routePath = url.pathname.replace(/^\/api/, '');
+
+  const authError = checkAuth(routePath, request);
+  if (authError) return authError;
+
+  const wsMatch = routePath.match(/^\/workspaces\/([^/]+)$/);
+  if (wsMatch) return handleDestroyWorkspace(request, wsMatch[1]);
+
+  return Response.json({ error: 'Not found' }, { status: 404 });
+}
+
+export { GET, POST, DELETE };
