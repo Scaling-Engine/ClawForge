@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Persistent Workspaces
 status: executing
-stopped_at: Completed 22-03-PLAN.md
-last_updated: "2026-03-09T03:32:05.358Z"
-last_activity: 2026-03-09 -- Completed Plan 03 (workspace API & startup wiring)
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-03-09T04:03:17Z"
+last_activity: 2026-03-09 -- Completed Plan 01 (WebSocket server infrastructure)
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 26
+  completed_plans: 25
+  percent: 96
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** v1.5 Persistent Workspaces — Phase 22 complete (all 3 plans), ready for Phase 23
+**Current focus:** v1.5 Persistent Workspaces — Phase 23 in progress (WebSocket browser terminal)
 
 ## Current Position
 
 Milestone: v1.5 Persistent Workspaces
-Phase: 22 of 24 (Workspace Infrastructure)
-Plan: 3 of 3 in current phase (complete)
+Phase: 23 of 24 (WebSocket Browser Terminal)
+Plan: 1 of 2 in current phase (complete)
 Status: Executing
-Last activity: 2026-03-09 -- Completed Plan 03 (workspace API & startup wiring)
+Last activity: 2026-03-09 -- Completed Plan 01 (WebSocket server infrastructure)
 
-Progress: [██████████] 100%
+Progress: [██████████] 96%
 
 ## Accumulated Context
 
@@ -46,6 +46,10 @@ Progress: [██████████] 100%
 - [Phase 22]: Workspace sub-routes use regex matching in POST default case
 - [Phase 22]: DELETE export added as third HTTP method handler alongside GET/POST
 - [Phase 22]: Startup reconciliation wrapped in try/catch to be non-fatal
+- [Phase 23]: Custom HTTP server wraps Next.js to intercept WebSocket upgrades before handler
+- [Phase 23]: Tickets are in-memory Map (not DB) -- ephemeral by design with 30s TTL
+- [Phase 23]: Origin check against APP_URL as secondary CSWSH defense
+- [Phase 23]: Binary frame relay preserves ttyd protocol without re-encoding
 
 ### Pending Todos
 
@@ -58,6 +62,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-09T03:29:32.180Z
-Stopped at: Completed 22-03-PLAN.md
+Last session: 2026-03-09T04:03:17Z
+Stopped at: Completed 23-01-PLAN.md
 Resume file: None
