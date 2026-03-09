@@ -10,7 +10,7 @@ import { saveJobOutcome } from '../lib/db/job-outcomes.js';
 import { loadTriggers } from '../lib/triggers.js';
 import { verifyApiKey } from '../lib/db/api-keys.js';
 import { isJobNotified } from '../lib/db/docker-jobs.js';
-import { ensureWorkspaceContainer, stopWorkspace, destroyWorkspace } from '../lib/tools/docker.js';
+import { ensureWorkspaceContainer, stopWorkspace, destroyWorkspace, spawnExtraShell, checkWorkspaceGitStatus } from '../lib/tools/docker.js';
 import { listWorkspaces, getWorkspace, updateWorkspace } from '../lib/db/workspaces.js';
 
 // Bot token from env, can be overridden by /telegram/register
@@ -427,6 +427,36 @@ async function handleDestroyWorkspace(request, workspaceId) {
   return Response.json(result);
 }
 
+async function handleSpawnShell(request, workspaceId) {
+  let port = 7682;
+  try {
+    const body = await request.json();
+    if (body.port) port = body.port;
+  } catch { /* use default port */ }
+
+  if (port < 7682 || port > 7685) {
+    return Response.json({ error: 'Port must be between 7682 and 7685' }, { status: 400 });
+  }
+
+  try {
+    const result = await spawnExtraShell(workspaceId, port);
+    return Response.json(result);
+  } catch (err) {
+    const status = err.message.includes('not found') ? 404 : 409;
+    return Response.json({ error: err.message }, { status });
+  }
+}
+
+async function handleGitStatus(request, workspaceId) {
+  try {
+    const result = await checkWorkspaceGitStatus(workspaceId);
+    return Response.json(result);
+  } catch (err) {
+    const status = err.message.includes('not found') ? 404 : 500;
+    return Response.json({ error: err.message }, { status });
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Next.js Route Handlers (catch-all)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,6 +509,12 @@ async function POST(request) {
 
       const wsStartMatch = routePath.match(/^\/workspaces\/([^/]+)\/start$/);
       if (wsStartMatch) return handleStartWorkspace(request, wsStartMatch[1]);
+
+      const wsShellMatch = routePath.match(/^\/workspaces\/([^/]+)\/shell$/);
+      if (wsShellMatch) return handleSpawnShell(request, wsShellMatch[1]);
+
+      const wsGitStatusMatch = routePath.match(/^\/workspaces\/([^/]+)\/git-status$/);
+      if (wsGitStatusMatch) return handleGitStatus(request, wsGitStatusMatch[1]);
 
       return Response.json({ error: 'Not found' }, { status: 404 });
     }
