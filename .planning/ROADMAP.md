@@ -105,12 +105,11 @@ Plans:
   2. WebSocket auth uses short-lived, single-use tickets -- unauthenticated or replayed tickets are rejected
   3. Browser terminal renders with xterm.js, supports resize/reconnect/theme, and operator can spawn additional shell tabs
   4. Closing the terminal warns the operator if there are uncommitted or unpushed changes in the workspace
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 23-01: TBD
-- [ ] 23-02: TBD
-- [ ] 23-03: TBD
+- [ ] 23-01-PLAN.md -- WebSocket server wrapper, ticket auth, and bidirectional proxy to ttyd
+- [ ] 23-02-PLAN.md -- xterm.js terminal UI, multi-tab shell support, and git safety warnings
 
 ### Phase 24: Conversational Integration
 **Goal**: Operators can launch and interact with workspaces through natural conversation, with context flowing bidirectionally between chat and workspace
@@ -136,7 +135,7 @@ Phases execute in numeric order: 22 → 23 → 24
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 22. Workspace Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
-| 23. WebSocket & Browser Terminal | v1.5 | 0/3 | Not started | - |
+| 23. WebSocket & Browser Terminal | v1.5 | 0/2 | Not started | - |
 | 24. Conversational Integration | v1.5 | 0/2 | Not started | - |
 
 ---
@@ -159,4 +158,4 @@ Phases execute in numeric order: 22 → 23 → 24
 
 ---
 
-*Last updated: 2026-03-08 -- Phase 22 plans created*
+*Last updated: 2026-03-09 -- Phase 23 plans created*
