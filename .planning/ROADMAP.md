@@ -74,7 +74,7 @@
 **Milestone Goal:** Interactive code workspaces where operators open a browser terminal connected to a persistent Docker container with their repo, with bidirectional chat-workspace context bridging.
 
 - [x] **Phase 22: Workspace Infrastructure** - Docker image, container lifecycle, database persistence, and resource controls (completed 2026-03-09)
-- [ ] **Phase 23: WebSocket & Browser Terminal** - WebSocket proxy, ticket-based auth, xterm.js terminal UI, shell tabs, and git safety
+- [x] **Phase 23: WebSocket & Browser Terminal** - WebSocket proxy, ticket-based auth, xterm.js terminal UI, shell tabs, and git safety (completed 2026-03-09)
 - [ ] **Phase 24: Conversational Integration** - start_coding tool, bidirectional context bridges, workspace list API, and event notifications
 
 ## Phase Details
@@ -135,7 +135,7 @@ Phases execute in numeric order: 22 → 23 → 24
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 22. Workspace Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
-| 23. WebSocket & Browser Terminal | 1/2 | In Progress|  | - |
+| 23. WebSocket & Browser Terminal | 2/2 | Complete   | 2026-03-09 | - |
 | 24. Conversational Integration | v1.5 | 0/2 | Not started | - |
 
 ---

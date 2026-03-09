@@ -20,9 +20,9 @@ Requirements for Persistent Workspaces milestone. Each maps to roadmap phases.
 
 - [x] **TERM-01**: Custom server wrapper intercepts HTTP upgrade events and proxies WebSocket to ttyd inside container
 - [x] **TERM-02**: WebSocket auth uses ticket-based tokens (short-lived, single-use) to prevent CSWSH
-- [ ] **TERM-03**: Browser terminal renders via xterm.js with resize, reconnect, and theme support
-- [ ] **TERM-04**: Operator can spawn additional shell tabs (separate ttyd instances on ports 7682+)
-- [ ] **TERM-05**: Git safety check warns operator of uncommitted/unpushed changes before workspace close
+- [x] **TERM-03**: Browser terminal renders via xterm.js with resize, reconnect, and theme support
+- [x] **TERM-04**: Operator can spawn additional shell tabs (separate ttyd instances on ports 7682+)
+- [x] **TERM-05**: Git safety check warns operator of uncommitted/unpushed changes before workspace close
 
 ### Integration
 
@@ -82,9 +82,9 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | CNTR-06 | Phase 22 | Complete |
 | TERM-01 | Phase 23 | Complete |
 | TERM-02 | Phase 23 | Complete |
-| TERM-03 | Phase 23 | Pending |
-| TERM-04 | Phase 23 | Pending |
-| TERM-05 | Phase 23 | Pending |
+| TERM-03 | Phase 23 | Complete |
+| TERM-04 | Phase 23 | Complete |
+| TERM-05 | Phase 23 | Complete |
 | INTG-01 | Phase 24 | Pending |
 | INTG-02 | Phase 24 | Pending |
 | INTG-03 | Phase 24 | Pending |
