@@ -41,5 +41,26 @@ export async function register() {
   const { initDocker } = await import('../lib/tools/docker.js');
   await initDocker();
 
+  // Reconcile workspace containers (sync DB with Docker state after restart)
+  const { reconcileWorkspaces, checkIdleWorkspaces } = await import('../lib/tools/docker.js');
+  try {
+    await reconcileWorkspaces();
+  } catch (err) {
+    console.warn(`[workspace-reconcile] Startup reconciliation failed: ${err.message}`);
+  }
+
+  // Start idle workspace timeout checker (every 5 minutes)
+  const IDLE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+  setInterval(async () => {
+    try {
+      const stopped = await checkIdleWorkspaces();
+      if (stopped > 0) {
+        console.log(`[workspace-idle] Stopped ${stopped} idle workspace(s)`);
+      }
+    } catch (err) {
+      console.warn(`[workspace-idle] Check failed: ${err.message}`);
+    }
+  }, IDLE_CHECK_INTERVAL_MS);
+
   console.log('ClawForge initialized');
 }
