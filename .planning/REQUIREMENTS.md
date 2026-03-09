@@ -10,11 +10,11 @@ Requirements for Persistent Workspaces milestone. Each maps to roadmap phases.
 ### Container Infrastructure
 
 - [x] **CNTR-01**: Workspace Docker image builds with Ubuntu + ttyd + tmux + Claude Code CLI, separate from job container image
-- [ ] **CNTR-02**: Workspace container lifecycle supports create, start, stop, destroy, and auto-recover (exited/dead containers)
-- [ ] **CNTR-03**: Workspace containers auto-stop after configurable idle timeout (default 30 min)
-- [ ] **CNTR-04**: Max concurrent workspace limit enforced per instance
+- [x] **CNTR-02**: Workspace container lifecycle supports create, start, stop, destroy, and auto-recover (exited/dead containers)
+- [x] **CNTR-03**: Workspace containers auto-stop after configurable idle timeout (default 30 min)
+- [x] **CNTR-04**: Max concurrent workspace limit enforced per instance
 - [x] **CNTR-05**: Workspace volumes use separate naming convention (`clawforge-ws-{instance}-{id}`) from job volumes
-- [ ] **CNTR-06**: Workspace containers join instance Docker network for isolation (noah-net, strategyES-net)
+- [x] **CNTR-06**: Workspace containers join instance Docker network for isolation (noah-net, strategyES-net)
 
 ### WebSocket & Terminal
 
@@ -36,7 +36,7 @@ Requirements for Persistent Workspaces milestone. Each maps to roadmap phases.
 
 - [x] **DATA-01**: `code_workspaces` SQLite table tracks workspace state (container, repo, branch, feature branch, last commit)
 - [x] **DATA-02**: Workspace records survive event handler restarts
-- [ ] **DATA-03**: Feature branch auto-created on workspace start (e.g., `clawforge/workspace-{shortId}`)
+- [x] **DATA-03**: Feature branch auto-created on workspace start (e.g., `clawforge/workspace-{shortId}`)
 
 ## v2 Requirements
 
@@ -75,11 +75,11 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CNTR-01 | Phase 22 | Complete |
-| CNTR-02 | Phase 22 | Pending |
-| CNTR-03 | Phase 22 | Pending |
-| CNTR-04 | Phase 22 | Pending |
+| CNTR-02 | Phase 22 | Complete |
+| CNTR-03 | Phase 22 | Complete |
+| CNTR-04 | Phase 22 | Complete |
 | CNTR-05 | Phase 22 | Complete |
-| CNTR-06 | Phase 22 | Pending |
+| CNTR-06 | Phase 22 | Complete |
 | TERM-01 | Phase 23 | Pending |
 | TERM-02 | Phase 23 | Pending |
 | TERM-03 | Phase 23 | Pending |
@@ -92,7 +92,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | INTG-05 | Phase 24 | Pending |
 | DATA-01 | Phase 22 | Complete |
 | DATA-02 | Phase 22 | Complete |
-| DATA-03 | Phase 22 | Pending |
+| DATA-03 | Phase 22 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 19 total
