@@ -89,12 +89,12 @@
   3. Workspace containers auto-stop after 30 minutes idle and max concurrent limit is enforced per instance
   4. Workspace state persists in SQLite across event handler restarts, volumes use `clawforge-ws-{instance}-{id}` naming separate from job volumes, and feature branch is auto-created on workspace start
   5. Workspace containers join their instance's Docker network (noah-net, strategyES-net) for isolation
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 22-01: TBD
-- [ ] 22-02: TBD
-- [ ] 22-03: TBD
+- [ ] 22-01-PLAN.md -- Workspace Docker image, Drizzle schema, and CRUD data layer
+- [ ] 22-02-PLAN.md -- Container lifecycle functions (create, stop, destroy, reconcile, idle timeout)
+- [ ] 22-03-PLAN.md -- API routes and startup wiring (reconciliation + idle interval)
 
 ### Phase 23: WebSocket & Browser Terminal
 **Goal**: Operators can open a secure browser terminal connected to their workspace container with full terminal capabilities
@@ -135,7 +135,7 @@ Phases execute in numeric order: 22 → 23 → 24
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 22. Workspace Infrastructure | v1.5 | 0/3 | Not started | - |
+| 22. Workspace Infrastructure | v1.5 | 0/3 | Planned | - |
 | 23. WebSocket & Browser Terminal | v1.5 | 0/3 | Not started | - |
 | 24. Conversational Integration | v1.5 | 0/2 | Not started | - |
 
@@ -159,4 +159,4 @@ Phases execute in numeric order: 22 → 23 → 24
 
 ---
 
-*Last updated: 2026-03-08 -- v1.5 roadmap created*
+*Last updated: 2026-03-08 -- Phase 22 plans created*
