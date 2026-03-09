@@ -30,7 +30,6 @@ export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnec
       // Dynamic imports to avoid SSR
       const { Terminal } = await import('@xterm/xterm');
       const { FitAddon } = await import('@xterm/addon-fit');
-      const { AttachAddon } = await import('@xterm/addon-attach');
 
       // Import xterm CSS
       await import('@xterm/xterm/css/xterm.css');
@@ -58,12 +57,60 @@ export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnec
       ws = new WebSocket(fullUrl);
       ws.binaryType = 'arraybuffer';
 
+      // ttyd binary protocol constants (ASCII char codes)
+      const TTYD_OUTPUT = 0x30;       // '0' — terminal output
+      const TTYD_SET_TITLE = 0x31;    // '1' — set window title
+      const TTYD_SET_PREFS = 0x32;    // '2' — set preferences (JSON)
+      const TTYD_INPUT = 0x30;        // '0' — terminal input
+      const TTYD_RESIZE = 0x31;       // '1' — resize: cols,rows
+
       ws.onopen = () => {
-        const attachAddon = new AttachAddon(ws);
-        term.loadAddon(attachAddon);
-        // Fit again after attach to send correct dimensions
-        setTimeout(() => fitAddon.fit(), 100);
+        // Send initial resize to ttyd
+        const { cols, rows } = term;
+        const resizeMsg = new TextEncoder().encode(`1${JSON.stringify({ columns: cols, rows })}`);
+        ws.send(resizeMsg.buffer);
       };
+
+      // Handle messages FROM ttyd (type-prefixed binary)
+      ws.onmessage = (event) => {
+        const data = new Uint8Array(event.data);
+        if (data.length === 0) return;
+        const type = data[0];
+        const payload = data.slice(1);
+
+        switch (type) {
+          case TTYD_OUTPUT:
+            term.write(payload);
+            break;
+          case TTYD_SET_TITLE:
+            // Optional: document.title = new TextDecoder().decode(payload);
+            break;
+          case TTYD_SET_PREFS:
+            // Server preferences JSON — ignore for now
+            break;
+        }
+      };
+
+      // Handle input TO ttyd (prepend '0' type byte)
+      term.onData((data) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        const encoder = new TextEncoder();
+        const payload = encoder.encode(data);
+        const msg = new Uint8Array(1 + payload.length);
+        msg[0] = TTYD_INPUT;
+        msg.set(payload, 1);
+        ws.send(msg.buffer);
+      });
+
+      // Handle resize → ttyd
+      term.onResize(({ cols, rows }) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        const resizeMsg = new TextEncoder().encode(`1${JSON.stringify({ columns: cols, rows })}`);
+        ws.send(resizeMsg.buffer);
+      });
+
+      // Fit again after setup
+      setTimeout(() => fitAddon.fit(), 100);
 
       ws.onclose = () => {
         if (!disposed && onDisconnect) onDisconnect();
