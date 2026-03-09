@@ -74,31 +74,31 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CNTR-01 | TBD | Pending |
-| CNTR-02 | TBD | Pending |
-| CNTR-03 | TBD | Pending |
-| CNTR-04 | TBD | Pending |
-| CNTR-05 | TBD | Pending |
-| CNTR-06 | TBD | Pending |
-| TERM-01 | TBD | Pending |
-| TERM-02 | TBD | Pending |
-| TERM-03 | TBD | Pending |
-| TERM-04 | TBD | Pending |
-| TERM-05 | TBD | Pending |
-| INTG-01 | TBD | Pending |
-| INTG-02 | TBD | Pending |
-| INTG-03 | TBD | Pending |
-| INTG-04 | TBD | Pending |
-| INTG-05 | TBD | Pending |
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
+| CNTR-01 | Phase 22 | Pending |
+| CNTR-02 | Phase 22 | Pending |
+| CNTR-03 | Phase 22 | Pending |
+| CNTR-04 | Phase 22 | Pending |
+| CNTR-05 | Phase 22 | Pending |
+| CNTR-06 | Phase 22 | Pending |
+| TERM-01 | Phase 23 | Pending |
+| TERM-02 | Phase 23 | Pending |
+| TERM-03 | Phase 23 | Pending |
+| TERM-04 | Phase 23 | Pending |
+| TERM-05 | Phase 23 | Pending |
+| INTG-01 | Phase 24 | Pending |
+| INTG-02 | Phase 24 | Pending |
+| INTG-03 | Phase 24 | Pending |
+| INTG-04 | Phase 24 | Pending |
+| INTG-05 | Phase 24 | Pending |
+| DATA-01 | Phase 22 | Pending |
+| DATA-02 | Phase 22 | Pending |
+| DATA-03 | Phase 22 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 (pending roadmap creation)
+- Mapped to phases: 19/19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 after initial definition*
+*Last updated: 2026-03-08 after roadmap creation*
