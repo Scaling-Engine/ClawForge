@@ -70,7 +70,7 @@ services:
       TELEGRAM_WEBHOOK_SECRET: ${NOAH_TELEGRAM_WEBHOOK_SECRET}
       TELEGRAM_CHAT_ID: ${NOAH_TELEGRAM_CHAT_ID}
       INSTANCE_NAME: noah
-      DOCKER_NETWORK: ${NOAH_DOCKER_NETWORK:-noah-net}
+      DOCKER_NETWORK: ${NOAH_DOCKER_NETWORK:-clawforge_noah-net}
       JOB_IMAGE: ${NOAH_JOB_IMAGE:-scalingengine/clawforge:job-latest}
       AGENT_SECRETS: ${NOAH_AGENT_SECRETS:-{}}
       AGENT_LLM_SECRETS: ${NOAH_AGENT_LLM_SECRETS:-{}}
@@ -120,7 +120,7 @@ services:
       SLACK_REQUIRE_MENTION: ${SES_SLACK_REQUIRE_MENTION:-false}
       OPENAI_API_KEY: ${SES_OPENAI_API_KEY}
       INSTANCE_NAME: strategyES
-      DOCKER_NETWORK: ${SES_DOCKER_NETWORK:-strategyES-net}
+      DOCKER_NETWORK: ${SES_DOCKER_NETWORK:-clawforge_strategyES-net}
       JOB_IMAGE: ${SES_JOB_IMAGE:-scalingengine/clawforge:job-latest}
       AGENT_SECRETS: ${SES_AGENT_SECRETS:-{}}
       AGENT_LLM_SECRETS: ${SES_AGENT_LLM_SECRETS:-{}}
