@@ -2,32 +2,16 @@
 
 ## What This Is
 
-A multi-channel AI agent platform that connects Claude Code CLI to messaging channels (Slack, Telegram, Web Chat) with strict Docker isolation between instances. Two-layer architecture: Event Handler (LangGraph ReAct agent) dispatches jobs to ephemeral Docker containers running Claude Code CLI with GSD workflows. Agents receive structured prompts with full repo context and prior job history, then operate on any allowed target repo — creating PRs, committing changes, and surfacing results back to the operator via Slack or Telegram.
+A multi-channel AI agent platform that connects Claude Code CLI to messaging channels (Slack, Telegram, Web Chat) with strict Docker isolation between instances. Two-layer architecture: Event Handler (LangGraph ReAct agent) dispatches headless jobs to ephemeral Docker containers and persistent interactive workspaces with browser terminals. Agents receive structured prompts with full repo context and prior job history, then operate on any allowed target repo — creating PRs, committing changes, and surfacing results back to the operator. Operators can also launch persistent workspace containers with ttyd/tmux browser terminals for interactive coding sessions, with bidirectional context bridging between chat and workspace.
 
 ## Core Value
 
 Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results without operator intervention.
 
-## Current Milestone: v1.5 Persistent Workspaces
+## Current State (after v1.5)
 
-**Goal:** Interactive code workspaces where operators can open a browser terminal connected to a persistent Docker container with their repo, with bidirectional chat-workspace context bridging.
-
-**Target features:**
-- Persistent workspace containers (long-running, ttyd + tmux + Claude Code)
-- Browser terminal UI (xterm.js) with WebSocket proxy through event handler
-- Workspace CRUD (create, start, stop, reconnect, destroy)
-- Named volume persistence across container restarts
-- Chat-to-workspace context bridge (conversation flows into container)
-- Workspace-to-chat result bridge (commits flow back into thread)
-- `start_coding` LangGraph tool for conversational workspace launch
-- Per-instance workspace isolation
-
-**Reference implementation:** thepopebot `lib/code/`, `templates/docker/claude-code-workspace/`, `lib/tools/docker.js`
-
-## Current State (after v1.4)
-
-**Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo + v1.3 Instance Generator + v1.4 Docker Engine Foundation
-**Codebase:** ~18,500 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode)
+**Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo + v1.3 Instance Generator + v1.4 Docker Engine Foundation + v1.5 Persistent Workspaces
+**Codebase:** ~23,600 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode + ws + xterm.js)
 **Instances:** 2 (Noah/Archie — full access, StrategyES/Epic — scoped to strategyes-lab)
 
 **What works:**
@@ -48,6 +32,11 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - **Instance creation via conversation**: multi-turn intake → approval → job dispatch → PR with 7 artifacts + operator setup checklist
 - **Auto-merge exclusion**: instance PRs blocked from auto-merge regardless of ALLOWED_PATHS
 - **Layer 1 context hydration**: `get_project_state` tool fetches STATE.md + ROADMAP.md from target repos via GitHub API
+- **Persistent workspaces**: workspace Docker image (ttyd 1.7.7 + tmux + Claude Code CLI), full container lifecycle (create/stop/start/destroy/auto-recover), idle timeout, max concurrent limits
+- **Browser terminal**: custom HTTP server wraps Next.js for WebSocket upgrade interception, ticket-based auth (single-use, 30s TTL), xterm.js with multi-tab tmux sessions (ports 7681-7685)
+- **Conversational workspace launch**: `start_coding` and `list_workspaces` LangGraph tools, chat context injected as CHAT_CONTEXT env var (20KB cap)
+- **Bidirectional context bridging**: conversation history flows into workspace on start, commits surfaced back into chat thread on close
+- **Workspace event notifications**: crash, recovery, idle-stop events routed to operator's channel via Slack/Telegram with LangGraph memory injection
 
 ## Requirements
 
@@ -91,9 +80,29 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - ✓ Orphan container reconciliation on Event Handler restart — v1.4
 - ✓ AGENT_QUICK.md variant for simple jobs with fallback chain — v1.4
 
+- ✓ Workspace Docker image builds with ttyd + tmux + Claude Code CLI, separate from job container image — v1.5
+- ✓ Workspace container lifecycle supports create, start, stop, destroy, and auto-recover — v1.5
+- ✓ Workspace containers auto-stop after configurable idle timeout (default 30 min) — v1.5
+- ✓ Max concurrent workspace limit enforced per instance — v1.5
+- ✓ Workspace volumes use separate naming convention (`clawforge-ws-{instance}-{id}`) — v1.5
+- ✓ Workspace containers join instance Docker network for isolation — v1.5
+- ✓ Custom server wrapper intercepts HTTP upgrade and proxies WebSocket to ttyd — v1.5
+- ✓ WebSocket auth uses ticket-based tokens (short-lived, single-use) — v1.5
+- ✓ Browser terminal renders via xterm.js with resize, reconnect, and theme support — v1.5
+- ✓ Operator can spawn additional shell tabs (separate ttyd instances on ports 7682+) — v1.5
+- ✓ Git safety check warns operator of uncommitted/unpushed changes before workspace close — v1.5
+- ✓ `start_coding` LangGraph tool creates workspace from conversation — v1.5
+- ✓ Chat context injected into workspace container on start via CHAT_CONTEXT env var — v1.5
+- ✓ Commits made during workspace session injected back into chat thread on close — v1.5
+- ✓ Workspace list API returns active workspaces with status for reconnection — v1.5
+- ✓ Workspace events (crash, recovery, close) trigger notifications to operator's channel — v1.5
+- ✓ `code_workspaces` SQLite table tracks workspace state — v1.5
+- ✓ Workspace records survive event handler restarts — v1.5
+- ✓ Feature branch auto-created on workspace start — v1.5
+
 ### Active
 
-(Defining requirements for v1.5 Persistent Workspaces)
+(Requirements defined with next milestone via `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -115,9 +124,9 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 
 **Full plan:** `.planning/VISION.md` — gap analysis (Stripe vs ClawForge vs thepopebot), architecture evolution, decision rationale
 
-**Milestone map (v1.4-v1.8):**
-- **v1.4 Docker Engine Foundation** — Replace GH Actions dispatch with direct Docker API (pull from thepopebot `lib/tools/docker.js`)
-- **v1.5 Persistent Workspaces** — Interactive "devbox" containers with browser terminal (pull from thepopebot `lib/code/`)
+**Milestone map:**
+- **v1.4 Docker Engine Foundation** — shipped 2026-03-08
+- **v1.5 Persistent Workspaces** — shipped 2026-03-11
 - **v1.6 MCP Tool Layer** — Per-instance MCP server configs, curated tool subsets (Stripe "Toolshed" equivalent)
 - **v1.7 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
 - **v1.8 Multi-Agent Clusters** — Coordinated agent groups (pull cluster schema from thepopebot, build runtime)
@@ -178,10 +187,24 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 | STATE.md 4K / ROADMAP.md 6K char caps | Prevents context bloat in job prompts | ✓ Balanced context budget |
 | Context hydration gated on GSD_HINT | Quick jobs get lean prompts; complex jobs get full context | ✓ Appropriate scoping |
 
+| Workspace volumes use `clawforge-ws-` prefix | Avoids collision with job volumes (`clawforge-`); separate lifecycle | ✓ Clean separation |
+| No Chrome deps or /defaults/ in workspace image | Terminal-only interactive use; keeps image lean | ✓ Fast image builds |
+| Git auth duplicated from job entrypoint | Independent layers; workspace and job entrypoints evolve separately | ✓ No coupling |
+| Destroy keeps DB record (status=destroyed) | Audit trail preserved; destroyed workspaces visible in history | ✓ Traceable lifecycle |
+| Custom HTTP server wraps Next.js for WS upgrade | Intercepts upgrade events before Next.js handler; PM2 runs server.js | ✓ WebSocket routing works |
+| Tickets in-memory Map (not DB) | Ephemeral by design with 30s TTL; no persistence needed | ✓ Fast validation |
+| Binary frame relay to ttyd | Preserves ttyd wire protocol without re-encoding overhead | ✓ Terminal responsive |
+| Server Actions for browser-to-Docker operations | Follows project convention: browser uses Server Actions, API routes for external callers | ✓ Consistent pattern |
+| Inactive terminal tabs use display:none | Preserves xterm state instead of unmounting/remounting | ✓ Tab switching instant |
+| Dynamic import inside async tool body | Avoids circular dependency (agent.js ↔ tools.js) | ✓ Clean module graph |
+| Chat context JSON-encoded, 20KB cap | Handles newlines/special chars in Docker env vars; prevents oversized env | ✓ Reliable injection |
+| closeWorkspace delegates to stopWorkspace | Non-running workspaces handled gracefully without duplicate status checks | ✓ Robust close path |
+| notifyWorkspaceEvent is module-local | Only closeWorkspace and reconcile/idle paths call it; not exposed to external callers | ✓ Controlled notification |
+
 - Instance updates/deletion — define creation first, update flows are additive complexity
 - Automated deployment — security-sensitive; human review via PR is the right gate
 - GitHub secrets auto-provisioning — requires broader infrastructure permissions than appropriate
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
 ---
-*Last updated: 2026-03-08 after v1.5 milestone start*
+*Last updated: 2026-03-11 after v1.5 milestone*

@@ -86,6 +86,51 @@
 
 ---
 
+## Milestone: v1.5 — Persistent Workspaces
+
+**Shipped:** 2026-03-11
+**Phases:** 3 | **Plans:** 7
+
+### What Was Built
+- Workspace Docker image with ttyd 1.7.7 + tmux + Claude Code CLI, full container lifecycle (create/stop/start/destroy/auto-recover), idle timeout, and max concurrent limits
+- Custom HTTP server wrapping Next.js with ticket-based WebSocket auth (single-use, 30s TTL) and bidirectional binary proxy to ttyd inside containers
+- xterm.js browser terminal with multi-tab tmux sessions (ports 7681-7685), resize/reconnect, and git safety warnings on workspace close
+- `start_coding` and `list_workspaces` LangGraph tools for conversational workspace launch from Slack/Telegram
+- Bidirectional context bridging: chat history injected as CHAT_CONTEXT env var (20KB cap) on start, commits surfaced back into thread on close
+- Workspace event notifications (crash, recovery, idle-stop) routed to operator's channel via Slack/Telegram with LangGraph memory injection
+
+### What Worked
+- **Server Actions for browser-to-Docker**: Followed project convention cleanly — browser UI uses Server Actions, API routes reserved for external callers. Made the terminal page clean to implement
+- **Binary frame relay**: Preserving ttyd's wire protocol without re-encoding kept terminal performance snappy and avoided charset bugs
+- **In-memory ticket auth**: Map with 30s TTL is the right abstraction for ephemeral WebSocket tokens — no DB overhead, no stale ticket cleanup needed
+- **Separate workspace image**: No Chrome deps, no PostToolUse hooks, no /defaults/ folder — clean separation from job containers kept image lean and purpose-built
+
+### What Was Inefficient
+- **WebSocket debugging took multiple commits**: ttyd binary protocol (auth token handshake, data framing) required iterative fixes — 5 debug commits before the proxy worked correctly
+- **No integration test for WebSocket path**: The ticket-auth unit test passed, but the full upgrade→proxy→ttyd chain was only tested manually on the VPS
+- **Phase 23 had the most post-plan bug fixes**: WebSocket close code sanitization, auth token handshake — all discovered in production testing
+
+### Patterns Established
+- Custom server.js wrapping Next.js for protocol-level interception (WebSocket upgrades routed before Next.js handler)
+- Ticket auth flow: Server Action issues ticket → client adds to WS URL → server validates on upgrade → single-use enforcement
+- `display:none` for inactive terminal tabs (preserves xterm state without unmount/remount cycle)
+- Dynamic import inside async tool body to break circular module dependencies (agent.js ↔ tools.js)
+- Module-level `execCollect` helper for Docker exec stream collection (strip mux headers, return clean output)
+- Fire-and-forget notification with `.catch(() => {})` extended to workspace events (consistent with job notification pattern from v1.4)
+
+### Key Lessons
+1. **Wire protocol compatibility is non-negotiable**: ttyd speaks a specific binary protocol (auth token byte, data prefix byte). Treating WebSocket frames as plain text caused silent failures — always study upstream protocol before proxying
+2. **Manual VPS testing catches what unit tests miss**: The ticket auth unit test passed, but the full WebSocket upgrade chain only worked after 3 iterations on the real server. Consider lightweight integration tests for protocol-level features
+3. **Workspace containers are fundamentally different from job containers**: Long-running (PID 1 is ttyd), interactive (no automated prompt), persistent state (volumes survive restarts). The separate Docker image decision was correct — sharing a base with job containers would have created unnecessary coupling
+4. **Context bridging is the killer feature**: Chat context injection + commit surfacing makes workspaces feel like a natural extension of conversation, not a separate tool
+
+### Cost Observations
+- Model mix: ~90% sonnet (executors/verifiers), ~10% opus (orchestration)
+- Fastest per-phase execution: 2-4 min per plan — mature GSD patterns + established codebase conventions eliminated planning overhead
+- 3 days for 3 phases, 7 plans — consistent with v1.4 pace
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -97,6 +142,7 @@
 | v1.2 | 4 | 10 | Cross-repo — largest plan count, most complex wiring |
 | v1.3 | 7 | 9 | Instance generator — first milestone with gap closure phases |
 | v1.4 | 4 | 8 | Docker Engine Foundation — fastest milestone (3 days), mid-milestone audit |
+| v1.5 | 3 | 7 | Persistent Workspaces — first interactive feature, WebSocket protocol layer |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -104,3 +150,4 @@
 2. **Imperative instructions > advisory** — v1.0 lesson, reinforced in v1.3 intake flow (MUST/NEVER language in EVENT_HANDLER.md)
 3. **Audit early, fix early** — v1.3 lesson, v1.4 proved it: mid-milestone audit caught 3 integration gaps, Phase 21 closed them cleanly
 4. **Direct API > CI wrappers for speed** — v1.4 lesson; Docker Engine API eliminated 50s of CI queue overhead per job
+5. **Study upstream protocols before proxying** — v1.5 lesson; ttyd binary protocol required 5 debug commits to get right. Unit tests pass but protocol-level integration needs real testing

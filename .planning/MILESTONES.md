@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.5 Persistent Workspaces (Shipped: 2026-03-11)
+
+**Phases:** 22-24 (3 phases, 7 plans)
+**Timeline:** 3 days (2026-03-08 → 2026-03-11)
+**Files changed:** 43 (+5,109 / -84)
+**Requirements:** 19/19 satisfied
+**Archive:** milestones/v1.5-ROADMAP.md, milestones/v1.5-REQUIREMENTS.md
+
+**Key accomplishments:**
+- Workspace Docker image with ttyd 1.7.7 + tmux + Claude Code CLI, full container lifecycle (create/stop/start/destroy/auto-recover), idle timeout, and max concurrent limits
+- Custom HTTP server wrapping Next.js with ticket-based WebSocket auth (single-use, 30s TTL) and bidirectional binary proxy to ttyd inside containers
+- xterm.js browser terminal with multi-tab tmux sessions (ports 7681-7685), resize/reconnect, and git safety warnings on workspace close
+- `start_coding` and `list_workspaces` LangGraph tools for conversational workspace launch from Slack/Telegram
+- Bidirectional context bridging: chat history injected as CHAT_CONTEXT env var (20KB cap) on start, commits surfaced back into thread on close
+- Workspace event notifications (crash, recovery, idle-stop) routed to operator's channel via Slack/Telegram with LangGraph memory injection
+
+---
+
 ## v1.4 Docker Engine Foundation (Shipped: 2026-03-08)
 
 **Phases:** 18-21 (4 phases, 8 plans)
