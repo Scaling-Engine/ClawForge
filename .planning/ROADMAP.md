@@ -121,11 +121,11 @@ Plans:
   3. Commits made during a workspace session are surfaced back into the originating chat thread on close
   4. Operator can list active workspaces with running/stopped status and reconnect to any running workspace
   5. Workspace events (crash, recovery, close) trigger notifications to the operator's channel
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 24-01: TBD
-- [ ] 24-02: TBD
+- [ ] 24-01-PLAN.md -- start_coding + list_workspaces LangGraph tools, chat context injection
+- [ ] 24-02-PLAN.md -- Close workspace with commit surfacing, crash/recovery/idle event notifications
 
 ## Progress
 
@@ -158,4 +158,4 @@ Phases execute in numeric order: 22 → 23 → 24
 
 ---
 
-*Last updated: 2026-03-09 -- Phase 23 plans created*
+*Last updated: 2026-03-11 -- Phase 24 plans created*
