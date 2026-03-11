@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Terminal from './terminal.jsx';
-import { requestTerminalTicket, requestSpawnShell, requestGitStatus } from 'clawforge/ws/actions';
+import { requestTerminalTicket, requestSpawnShell, requestGitStatus, closeWorkspaceAction } from 'clawforge/ws/actions';
 
 const BASE_PORT = 7681;
 const MAX_EXTRA_PORT = 7685;
@@ -134,7 +134,9 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
       setGitStatus(status);
 
       if (status.safe) {
-        // Safe to close -- navigate away
+        // Fire-and-forget: stop container and notify thread with commits
+        closeWorkspaceAction(workspaceId).catch(() => {});
+        // Navigate immediately -- don't wait for close to complete
         window.location.href = '/workspaces';
       } else {
         setShowCloseWarning(true);
@@ -374,7 +376,12 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
                 Cancel
               </button>
               <button
-                onClick={() => { window.location.href = '/workspaces'; }}
+                onClick={() => {
+                  // Fire-and-forget: stop container and notify thread with commits
+                  closeWorkspaceAction(workspaceId).catch(() => {});
+                  // Navigate immediately -- don't wait for close to complete
+                  window.location.href = '/workspaces';
+                }}
                 style={{
                   padding: '8px 20px',
                   fontSize: '13px',
