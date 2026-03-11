@@ -136,7 +136,7 @@ Phases execute in numeric order: 22 → 23 → 24
 |-------|-----------|----------------|--------|-----------|
 | 22. Workspace Infrastructure | 3/3 | Complete    | 2026-03-09 | - |
 | 23. WebSocket & Browser Terminal | 2/2 | Complete   | 2026-03-09 | - |
-| 24. Conversational Integration | v1.5 | 0/2 | Not started | - |
+| 24. Conversational Integration | 1/2 | In Progress|  | - |
 
 ---
 

@@ -26,10 +26,10 @@ Requirements for Persistent Workspaces milestone. Each maps to roadmap phases.
 
 ### Integration
 
-- [ ] **INTG-01**: `start_coding` LangGraph tool creates workspace from conversation (resolves repo, launches container, returns URL)
-- [ ] **INTG-02**: Chat context (conversation history) injected into workspace container on start via CHAT_CONTEXT env var
+- [x] **INTG-01**: `start_coding` LangGraph tool creates workspace from conversation (resolves repo, launches container, returns URL)
+- [x] **INTG-02**: Chat context (conversation history) injected into workspace container on start via CHAT_CONTEXT env var
 - [ ] **INTG-03**: Commits made during workspace session injected back into chat thread on close
-- [ ] **INTG-04**: Workspace list API returns active workspaces with status (running/stopped) for reconnection
+- [x] **INTG-04**: Workspace list API returns active workspaces with status (running/stopped) for reconnection
 - [ ] **INTG-05**: Workspace events (crash, recovery, close) trigger notifications to operator's channel
 
 ### Data Persistence
@@ -85,10 +85,10 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | TERM-03 | Phase 23 | Complete |
 | TERM-04 | Phase 23 | Complete |
 | TERM-05 | Phase 23 | Complete |
-| INTG-01 | Phase 24 | Pending |
-| INTG-02 | Phase 24 | Pending |
+| INTG-01 | Phase 24 | Complete |
+| INTG-02 | Phase 24 | Complete |
 | INTG-03 | Phase 24 | Pending |
-| INTG-04 | Phase 24 | Pending |
+| INTG-04 | Phase 24 | Complete |
 | INTG-05 | Phase 24 | Pending |
 | DATA-01 | Phase 22 | Complete |
 | DATA-02 | Phase 22 | Complete |
