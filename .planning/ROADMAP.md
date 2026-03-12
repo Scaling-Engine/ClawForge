@@ -114,10 +114,12 @@ Plans:
   3. Live job streaming output from Phase 25 renders inline in chat messages via the stream-viewer component
   4. Every Server Action returns a 401 if called without a valid NextAuth session — no client-only session checks remain
   5. Existing API-key-protected routes (`/api/slack/events`, `/api/telegram/webhook`, etc.) continue to respond correctly after the auth boundary change
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 26-01: TBD
+- [ ] 26-01-PLAN.md — Server Action auth hardening (requireAuth() -> unauthorized(), unauthorized.js boundary)
+- [ ] 26-02-PLAN.md — Context foundation (FeaturesContext, RepoChatContext, getFeatureFlags/getRepos/getBranches actions)
+- [ ] 26-03-PLAN.md — Chat UI enhancements (repo/branch dropdowns, code mode toggle, transport wiring, human verify)
 
 ### Phase 27: MCP Tool Layer
 **Goal**: Each instance has curated MCP server configs that get injected into job and workspace containers at runtime, with credentials never stored in git
@@ -189,4 +191,4 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 
 ---
 
-*Last updated: 2026-03-12 -- Phase 25 planned (3 plans, 3 waves)*
+*Last updated: 2026-03-12 -- Phase 26 planned (3 plans, 2 waves)*
