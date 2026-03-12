@@ -96,47 +96,47 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STRM-01 | Pending | Pending |
-| STRM-02 | Pending | Pending |
-| STRM-03 | Pending | Pending |
-| STRM-04 | Pending | Pending |
-| STRM-05 | Pending | Pending |
-| STRM-06 | Pending | Pending |
-| STRM-07 | Pending | Pending |
-| STRM-08 | Pending | Pending |
-| WEBUI-01 | Pending | Pending |
-| WEBUI-02 | Pending | Pending |
-| WEBUI-03 | Pending | Pending |
-| WEBUI-04 | Pending | Pending |
-| WEBUI-05 | Pending | Pending |
-| WEBUI-06 | Pending | Pending |
-| MCP-01 | Pending | Pending |
-| MCP-02 | Pending | Pending |
-| MCP-03 | Pending | Pending |
-| MCP-04 | Pending | Pending |
-| MCP-05 | Pending | Pending |
-| MCP-06 | Pending | Pending |
-| MCP-07 | Pending | Pending |
-| MCP-08 | Pending | Pending |
-| MCP-09 | Pending | Pending |
-| CLST-01 | Pending | Pending |
-| CLST-02 | Pending | Pending |
-| CLST-03 | Pending | Pending |
-| CLST-04 | Pending | Pending |
-| CLST-05 | Pending | Pending |
-| CLST-06 | Pending | Pending |
-| CLST-07 | Pending | Pending |
-| CLST-08 | Pending | Pending |
-| CLST-09 | Pending | Pending |
-| CLST-10 | Pending | Pending |
-| CLST-11 | Pending | Pending |
-| CLST-12 | Pending | Pending |
+| STRM-01 | Phase 25 | Pending |
+| STRM-02 | Phase 25 | Pending |
+| STRM-03 | Phase 25 | Pending |
+| STRM-04 | Phase 25 | Pending |
+| STRM-05 | Phase 25 | Pending |
+| STRM-06 | Phase 25 | Pending |
+| STRM-07 | Phase 25 | Pending |
+| STRM-08 | Phase 25 | Pending |
+| WEBUI-01 | Phase 26 | Pending |
+| WEBUI-02 | Phase 26 | Pending |
+| WEBUI-03 | Phase 26 | Pending |
+| WEBUI-04 | Phase 26 | Pending |
+| WEBUI-05 | Phase 26 | Pending |
+| WEBUI-06 | Phase 26 | Pending |
+| MCP-01 | Phase 27 | Pending |
+| MCP-02 | Phase 27 | Pending |
+| MCP-03 | Phase 27 | Pending |
+| MCP-04 | Phase 27 | Pending |
+| MCP-05 | Phase 27 | Pending |
+| MCP-06 | Phase 27 | Pending |
+| MCP-07 | Phase 27 | Pending |
+| MCP-08 | Phase 27 | Pending |
+| MCP-09 | Phase 27 | Pending |
+| CLST-01 | Phase 28 | Pending |
+| CLST-02 | Phase 28 | Pending |
+| CLST-03 | Phase 28 | Pending |
+| CLST-04 | Phase 28 | Pending |
+| CLST-05 | Phase 28 | Pending |
+| CLST-06 | Phase 28 | Pending |
+| CLST-07 | Phase 28 | Pending |
+| CLST-08 | Phase 28 | Pending |
+| CLST-09 | Phase 28 | Pending |
+| CLST-10 | Phase 28 | Pending |
+| CLST-11 | Phase 28 | Pending |
+| CLST-12 | Phase 28 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 35 total
-- Mapped to phases: 0
-- Unmapped: 35 (pending roadmap creation)
+- Mapped to phases: 35
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-12*
-*Last updated: 2026-03-12 after initial definition*
+*Last updated: 2026-03-12 -- traceability complete after roadmap creation*
