@@ -1,1 +1,1 @@
-export { GET } from '../../../../../../lib/jobs/stream-api.js';
+export { GET } from '../../../../../lib/jobs/stream-api.js';
