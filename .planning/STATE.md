@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
 status: executing
-stopped_at: Completed 25-02-PLAN.md
-last_updated: "2026-03-12T14:47:33.141Z"
+stopped_at: "25-03: Tasks 1-2 complete, paused at Task 3 checkpoint:human-verify"
+last_updated: "2026-03-12T14:53:26.218Z"
 last_activity: 2026-03-12 — completed 25-01 stream infrastructure (stream-manager + log-parser)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -49,6 +49,8 @@ Recent decisions affecting current work:
 - [25-01]: Secret scrubbing is double-pass: rawLine before parse + all string fields in emitted events
 - [Phase 25-02]: streamAbort.abort() called in waitAndNotify after container exits as backup cleanup for log stream
 - [Phase 25-02]: cancelJobTool injects confirmation via addToThread() per CONTEXT.md decision for LangGraph memory
+- [Phase 25-03]: JOB_STREAM marker appended to tool response text so agent reply naturally triggers JobStreamViewer in message.jsx
+- [Phase 25-03]: Slack interval stores _unsub as a property to ensure subscriber cleanup in all exit paths
 
 ### Pending Todos
 
@@ -63,6 +65,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T14:47:33.140Z
-Stopped at: Completed 25-02-PLAN.md
+Last session: 2026-03-12T14:53:17.767Z
+Stopped at: 25-03: Tasks 1-2 complete, paused at Task 3 checkpoint:human-verify
 Resume file: None
