@@ -97,10 +97,12 @@
   3. A progress indicator with elapsed time is visible in chat for the duration of a running job
   4. Operator can say "cancel the job" and the running container stops cleanly; the branch is preserved for inspection
   5. Closing the browser tab during a job releases the Docker log stream with no orphaned listener; no memory leak observed after multiple job runs
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 25-01: TBD
+- [ ] 25-01-PLAN.md — Stream manager singleton + log parser with secret scrubbing
+- [ ] 25-02-PLAN.md — Docker log wiring + SSE endpoint + cancel_job tool
+- [ ] 25-03-PLAN.md — Chat UI stream viewer + Slack edit-in-place updates
 
 ### Phase 26: Web UI Auth + Repo Selector
 **Goal**: All browser-facing Server Actions enforce server-side auth, and operators can anchor a chat session to a specific repo and branch without typing it in every message
@@ -180,11 +182,11 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 22. Workspace Infrastructure | v1.5 | 3/3 | Complete | 2026-03-09 |
 | 23. WebSocket & Browser Terminal | v1.5 | 2/2 | Complete | 2026-03-09 |
 | 24. Conversational Integration | v1.5 | 2/2 | Complete | 2026-03-11 |
-| 25. Headless Log Streaming | v2.0 | 0/? | Not started | - |
+| 25. Headless Log Streaming | v2.0 | 0/3 | Planning complete | - |
 | 26. Web UI Auth + Repo Selector | v2.0 | 0/? | Not started | - |
 | 27. MCP Tool Layer | v2.0 | 0/? | Not started | - |
 | 28. Multi-Agent Clusters | v2.0 | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-03-12 -- v2.0 roadmap created*
+*Last updated: 2026-03-12 -- Phase 25 planned (3 plans, 3 waves)*
