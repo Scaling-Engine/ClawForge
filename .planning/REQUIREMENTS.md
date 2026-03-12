@@ -11,10 +11,10 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 
 - [x] **STRM-01**: Operator sees live log output from a running job container in the web chat thread as it executes
 - [x] **STRM-02**: Log output is filtered to semantic events (file modifications, bash outputs, key decisions) — raw JSONL is suppressed
-- [ ] **STRM-03**: Operator sees a progress indicator with elapsed time while a job is running
+- [x] **STRM-03**: Operator sees a progress indicator with elapsed time while a job is running
 - [x] **STRM-04**: Operator can cancel a running job via conversational command; container stops cleanly and branch is preserved for inspection
 - [x] **STRM-05**: Log stream shows only changed files since last update (diff highlighting) instead of raw log lines
-- [ ] **STRM-06**: Slack channel receives a single auto-updating message with latest job status every 10s (not per-chunk message spam)
+- [x] **STRM-06**: Slack channel receives a single auto-updating message with latest job status every 10s (not per-chunk message spam)
 - [x] **STRM-07**: Stream consumer disconnection (browser tab close) releases resources; no memory leak from orphaned Docker log streams
 - [x] **STRM-08**: Sensitive values (tokens, keys, secrets) are never forwarded in log stream output
 
@@ -98,10 +98,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | STRM-01 | Phase 25 | Complete |
 | STRM-02 | Phase 25 | Complete |
-| STRM-03 | Phase 25 | Pending |
+| STRM-03 | Phase 25 | Complete |
 | STRM-04 | Phase 25 | Complete |
 | STRM-05 | Phase 25 | Complete |
-| STRM-06 | Phase 25 | Pending |
+| STRM-06 | Phase 25 | Complete |
 | STRM-07 | Phase 25 | Complete |
 | STRM-08 | Phase 25 | Complete |
 | WEBUI-01 | Phase 26 | Pending |
