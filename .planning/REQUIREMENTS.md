@@ -42,17 +42,17 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 ### Multi-Agent Clusters
 
 - [x] **CLST-01**: Operator can define a cluster as a named group of agents with roles, system prompts, trigger conditions, and MCP server assignments via `CLUSTER.json`
-- [ ] **CLST-02**: Cluster coordinator dispatches agents sequentially based on role definitions; each agent runs in its own Docker container with role-specific system prompt and tool access
+- [x] **CLST-02**: Cluster coordinator dispatches agents sequentially based on role definitions; each agent runs in its own Docker container with role-specific system prompt and tool access
 - [x] **CLST-03**: Agents in a cluster communicate via shared named volume (inbox/outbox/reports directories); coordinator copies outbox to next agent's inbox between dispatches
-- [ ] **CLST-04**: Label-based state machine routes to the next agent based on labels emitted in the previous agent's output
+- [x] **CLST-04**: Label-based state machine routes to the next agent based on labels emitted in the previous agent's output
 - [x] **CLST-05**: Cluster runs are tracked in the database with per-agent status, role, label, PR URL, and timestamps
 - [x] **CLST-06**: Operator can start a cluster through conversation via `create_cluster_job` LangGraph tool
 - [x] **CLST-07**: Clusters can be triggered via manual dispatch, webhook events, or cron schedules through `executeAction()` with `cluster` action type
 - [ ] **CLST-08**: Operator can view cluster definitions, running jobs, and completion history on a `/clusters` management page
-- [ ] **CLST-09**: Hard iteration limits (5 per agent, 15 per run) and cycle detection on `(agent_type, label_in)` pairs prevent infinite delegation loops
+- [x] **CLST-09**: Hard iteration limits (5 per agent, 15 per run) and cycle detection on `(agent_type, label_in)` pairs prevent infinite delegation loops
 - [x] **CLST-10**: Each cluster agent gets its own Docker volume — per-repo warm-start volumes are never shared between concurrent cluster agents
 - [x] **CLST-11**: All cluster agent containers use `--allowedTools` whitelist per role; zero instances of `--dangerously-skip-permissions` in any cluster code
-- [ ] **CLST-12**: Cluster notifications post one Slack thread per cluster run with agent updates as thread replies (not per-agent messages)
+- [x] **CLST-12**: Cluster notifications post one Slack thread per cluster run with agent updates as thread replies (not per-agent messages)
 
 ## Future Requirements
 
@@ -120,17 +120,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MCP-08 | Phase 27 | Complete |
 | MCP-09 | Phase 27 | Complete |
 | CLST-01 | Phase 28 | Complete |
-| CLST-02 | Phase 28 | Pending |
+| CLST-02 | Phase 28 | Complete |
 | CLST-03 | Phase 28 | Complete |
-| CLST-04 | Phase 28 | Pending |
+| CLST-04 | Phase 28 | Complete |
 | CLST-05 | Phase 28 | Complete |
 | CLST-06 | Phase 28 | Complete |
 | CLST-07 | Phase 28 | Complete |
 | CLST-08 | Phase 28 | Pending |
-| CLST-09 | Phase 28 | Pending |
+| CLST-09 | Phase 28 | Complete |
 | CLST-10 | Phase 28 | Complete |
 | CLST-11 | Phase 28 | Complete |
-| CLST-12 | Phase 28 | Pending |
+| CLST-12 | Phase 28 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 35 total
