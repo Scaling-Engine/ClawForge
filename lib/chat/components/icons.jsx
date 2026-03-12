@@ -648,6 +648,35 @@ export function WrenchIcon({ size = 16, className = '' }) {
   );
 }
 
+export function ClusterIcon({ size = 16 }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={size}
+      height={size}
+    >
+      {/* Central hub node */}
+      <circle cx="12" cy="12" r="2.5" />
+      {/* Four satellite nodes */}
+      <circle cx="12" cy="4" r="2" />
+      <circle cx="20" cy="12" r="2" />
+      <circle cx="12" cy="20" r="2" />
+      <circle cx="4" cy="12" r="2" />
+      {/* Connecting lines from hub to satellites */}
+      <line x1="12" y1="9.5" x2="12" y2="6" />
+      <line x1="14.5" y1="12" x2="18" y2="12" />
+      <line x1="12" y1="14.5" x2="12" y2="18" />
+      <line x1="9.5" y1="12" x2="6" y2="12" />
+    </svg>
+  );
+}
+
 export function LogOutIcon({ size = 16 }) {
   return (
     <svg
