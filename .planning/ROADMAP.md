@@ -76,7 +76,7 @@
 
 ---
 
-### 🚧 v2.0 Full Platform (In Progress)
+### v2.0 Full Platform (In Progress)
 
 **Milestone Goal:** Transform ClawForge from a CLI-driven agent gateway into a full-featured agent platform with web UI enhancements, multi-agent clusters, headless job streaming, and per-instance MCP tool configs.
 
@@ -131,10 +131,12 @@ Plans:
   3. A workspace container started via `start_coding` has access to the same MCP servers as job containers for the same instance
   4. If an MCP server fails to connect at container start, the failure is logged with stage `mcp_startup` and the job continues with the remaining healthy servers
   5. Operator can view configured MCP servers and their allowed tool subsets from a read-only section in the settings page
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 27-01: TBD
+- [ ] 27-01-PLAN.md — MCP config foundation (schema, loader, template resolution, buildMcpConfig)
+- [ ] 27-02-PLAN.md — Container injection (docker.js env vars, entrypoint.sh MCP block, health check, hydration)
+- [ ] 27-03-PLAN.md — Settings UI (getMcpServers Server Action, /settings/mcp page, tab wiring)
 
 ### Phase 28: Multi-Agent Clusters
 **Goal**: Operators can define and launch multi-agent pipelines where sequential agents with distinct roles collaborate via shared volume inbox/outbox, with hard safety limits preventing runaway cost
@@ -186,9 +188,9 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 24. Conversational Integration | v1.5 | 2/2 | Complete | 2026-03-11 |
 | 25. Headless Log Streaming | 3/3 | Complete    | 2026-03-12 | - |
 | 26. Web UI Auth + Repo Selector | 3/3 | Complete    | 2026-03-12 | - |
-| 27. MCP Tool Layer | v2.0 | 0/? | Not started | - |
+| 27. MCP Tool Layer | v2.0 | 0/3 | Planned | - |
 | 28. Multi-Agent Clusters | v2.0 | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-03-12 -- Phase 26 planned (3 plans, 2 waves)*
+*Last updated: 2026-03-12 -- Phase 27 planned (3 plans, 2 waves)*
