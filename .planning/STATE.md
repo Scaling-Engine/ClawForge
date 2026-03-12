@@ -30,7 +30,7 @@ Plan: 3 of 3 complete in current phase (phase fully complete)
 Status: Ready for Phase 26
 Last activity: 2026-03-12 — completed 25-03 UI layer (JobStreamViewer + Slack edit-in-place)
 
-Progress: [██████████] 100% of v2.0 plans
+Progress: [██████████] 97% of v2.0 plans
 
 ## Accumulated Context
 
