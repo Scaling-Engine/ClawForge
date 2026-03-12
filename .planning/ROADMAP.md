@@ -8,7 +8,7 @@
 - ✅ v1.3 Instance Generator -- Phases 13-17 + 16.1, 17.1 (shipped 2026-03-06)
 - ✅ v1.4 Docker Engine Foundation -- Phases 18-21 (shipped 2026-03-08)
 - ✅ v1.5 Persistent Workspaces -- Phases 22-24 (shipped 2026-03-11)
-- 🚧 v2.0 Full Platform -- Phases 25-28 (in progress)
+- ✅ v2.0 Full Platform -- Phases 25-28 (shipped 2026-03-12)
 
 ## Phases
 
@@ -83,7 +83,7 @@
 - [x] **Phase 25: Headless Log Streaming** - Live job log output piped to chat UI with filtering, job cancel, and memory-safe consumer lifecycle (completed 2026-03-12)
 - [x] **Phase 26: Web UI Auth + Repo Selector** - Server-side auth boundary on all Server Actions, repo/branch selector in chat header, code mode toggle (completed 2026-03-12)
 - [x] **Phase 27: MCP Tool Layer** - Per-instance MCP server configs with template resolution, container injection, and encrypted credential storage (completed 2026-03-12)
-- [ ] **Phase 28: Multi-Agent Clusters** - Role-based cluster runtime with coordinator dispatch, label routing, volume isolation, and safety limits
+- [x] **Phase 28: Multi-Agent Clusters** - Role-based cluster runtime with coordinator dispatch, label routing, volume isolation, and safety limits (completed 2026-03-12)
 
 ## Phase Details
 
@@ -193,7 +193,7 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 25. Headless Log Streaming | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 26. Web UI Auth + Repo Selector | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
-| 28. Multi-Agent Clusters | 4/5 | In Progress|  | - |
+| 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
 
 ---
 

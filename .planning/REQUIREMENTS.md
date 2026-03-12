@@ -48,7 +48,7 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 - [x] **CLST-05**: Cluster runs are tracked in the database with per-agent status, role, label, PR URL, and timestamps
 - [x] **CLST-06**: Operator can start a cluster through conversation via `create_cluster_job` LangGraph tool
 - [x] **CLST-07**: Clusters can be triggered via manual dispatch, webhook events, or cron schedules through `executeAction()` with `cluster` action type
-- [ ] **CLST-08**: Operator can view cluster definitions, running jobs, and completion history on a `/clusters` management page
+- [x] **CLST-08**: Operator can view cluster definitions, running jobs, and completion history on a `/clusters` management page
 - [x] **CLST-09**: Hard iteration limits (5 per agent, 15 per run) and cycle detection on `(agent_type, label_in)` pairs prevent infinite delegation loops
 - [x] **CLST-10**: Each cluster agent gets its own Docker volume — per-repo warm-start volumes are never shared between concurrent cluster agents
 - [x] **CLST-11**: All cluster agent containers use `--allowedTools` whitelist per role; zero instances of `--dangerously-skip-permissions` in any cluster code
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLST-05 | Phase 28 | Complete |
 | CLST-06 | Phase 28 | Complete |
 | CLST-07 | Phase 28 | Complete |
-| CLST-08 | Phase 28 | Pending |
+| CLST-08 | Phase 28 | Complete |
 | CLST-09 | Phase 28 | Complete |
 | CLST-10 | Phase 28 | Complete |
 | CLST-11 | Phase 28 | Complete |
