@@ -188,7 +188,7 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 24. Conversational Integration | v1.5 | 2/2 | Complete | 2026-03-11 |
 | 25. Headless Log Streaming | 3/3 | Complete    | 2026-03-12 | - |
 | 26. Web UI Auth + Repo Selector | 3/3 | Complete    | 2026-03-12 | - |
-| 27. MCP Tool Layer | 3/3 | Complete   | 2026-03-12 | - |
+| 27. MCP Tool Layer | 3/3 | Complete    | 2026-03-12 | - |
 | 28. Multi-Agent Clusters | v2.0 | 0/? | Not started | - |
 
 ---
