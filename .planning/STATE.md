@@ -1,41 +1,40 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: Persistent Workspaces
-status: shipped
-stopped_at: Milestone v1.5 complete
-last_updated: "2026-03-11"
-last_activity: 2026-03-11 -- v1.5 milestone archived
+milestone: v2.0
+milestone_name: Full Platform
+status: defining_requirements
+stopped_at: null
+last_updated: "2026-03-12"
+last_activity: 2026-03-12 -- Milestone v2.0 started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-11)
+See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** v1.5 Persistent Workspaces shipped — planning next milestone
+**Current focus:** v2.0 Full Platform — Web UI, Clusters, Headless Streaming, MCP Tool Layer
 
 ## Current Position
 
-Milestone: v1.5 Persistent Workspaces (SHIPPED)
-Status: Complete — ready for next milestone
-Last activity: 2026-03-11 -- v1.5 milestone archived
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-12 — Milestone v2.0 started
 
 ## Accumulated Context
 
 ### Decisions
 
-(Archived to PROJECT.md Key Decisions table — cleared for next milestone)
+(New milestone — no decisions yet)
 
 ### Pending Todos
 
@@ -48,6 +47,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-11
-Stopped at: Milestone v1.5 complete
+Last session: 2026-03-12
+Stopped at: Defining requirements for v2.0
 Resume file: None

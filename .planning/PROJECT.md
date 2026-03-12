@@ -102,7 +102,17 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 
 ### Active
 
-(Requirements defined with next milestone via `/gsd:new-milestone`)
+## Current Milestone: v2.0 Full Platform
+
+**Goal:** Transform ClawForge from a CLI-driven agent gateway into a full-featured agent platform with web UI, multi-agent clusters, headless streaming, and per-instance MCP tool configs — cherry-picking from PopeBot upstream (v1.2.73) without compromising multi-tenant architecture.
+
+**Target features:**
+- Web UI with chat interface, code mode toggle, repo/branch selector, DnD tabs
+- Multi-agent clusters with role-based teams and label-based state machine routing
+- Headless job streaming with live log output to chat UI
+- Per-instance MCP server configs with curated tool subsets
+
+**Use cases:** Noah's own products, Epic development for CCP projects
 
 ### Out of Scope
 
@@ -127,9 +137,8 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 **Milestone map:**
 - **v1.4 Docker Engine Foundation** — shipped 2026-03-08
 - **v1.5 Persistent Workspaces** — shipped 2026-03-11
-- **v1.6 MCP Tool Layer** — Per-instance MCP server configs, curated tool subsets (Stripe "Toolshed" equivalent)
-- **v1.7 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
-- **v1.8 Multi-Agent Clusters** — Coordinated agent groups (pull cluster schema from thepopebot, build runtime)
+- **v2.0 Full Platform** — Web UI, Clusters, Headless Streaming, MCP Tool Layer (cherry-picked from PopeBot upstream)
+- **v2.1 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
 
 **Sources:** Stripe minions blog (stripe.dev/blog/minions), thepopebot upstream (stephengpope/thepopebot), analyzed 2026-03-04
 
