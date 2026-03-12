@@ -82,7 +82,7 @@
 
 - [x] **Phase 25: Headless Log Streaming** - Live job log output piped to chat UI with filtering, job cancel, and memory-safe consumer lifecycle (completed 2026-03-12)
 - [x] **Phase 26: Web UI Auth + Repo Selector** - Server-side auth boundary on all Server Actions, repo/branch selector in chat header, code mode toggle (completed 2026-03-12)
-- [ ] **Phase 27: MCP Tool Layer** - Per-instance MCP server configs with template resolution, container injection, and encrypted credential storage
+- [x] **Phase 27: MCP Tool Layer** - Per-instance MCP server configs with template resolution, container injection, and encrypted credential storage (completed 2026-03-12)
 - [ ] **Phase 28: Multi-Agent Clusters** - Role-based cluster runtime with coordinator dispatch, label routing, volume isolation, and safety limits
 
 ## Phase Details
@@ -188,7 +188,7 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 24. Conversational Integration | v1.5 | 2/2 | Complete | 2026-03-11 |
 | 25. Headless Log Streaming | 3/3 | Complete    | 2026-03-12 | - |
 | 26. Web UI Auth + Repo Selector | 3/3 | Complete    | 2026-03-12 | - |
-| 27. MCP Tool Layer | 1/3 | In Progress|  | - |
+| 27. MCP Tool Layer | 3/3 | Complete   | 2026-03-12 | - |
 | 28. Multi-Agent Clusters | v2.0 | 0/? | Not started | - |
 
 ---

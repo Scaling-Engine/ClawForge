@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
-status: Phase 27 in progress
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-03-12T17:32:33.763Z"
-last_activity: 2026-03-12 — completed 27-01 MCP config foundation (loader + builder + template vars)
+status: completed
+stopped_at: Completed 27-02-PLAN.md
+last_updated: "2026-03-12T17:38:19.099Z"
+last_activity: 2026-03-12 — completed 27-03 MCP settings page (Server Action + UI + route)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 7
-  percent: 97
+  completed_plans: 9
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 27 of 28 (MCP Tool Layer) — IN PROGRESS
-Plan: 1 of 3 complete in current phase
-Status: Phase 27 in progress
-Last activity: 2026-03-12 — completed 27-01 MCP config foundation (loader + builder + template vars)
+Plan: 3 of 3 complete in current phase
+Status: Phase 27 complete
+Last activity: 2026-03-12 — completed 27-03 MCP settings page (Server Action + UI + route)
 
-Progress: [██████████] 95% of v2.0 plans
+Progress: [██████████] 100% of v2.0 plans
 
 ## Accumulated Context
 
@@ -58,6 +58,9 @@ Recent decisions affecting current work:
 - [Phase 27-01]: loadMcpServers reads fresh every call (no cache) since env vars may change between dispatches
 - [Phase 27-01]: Template vars use {{AGENT_LLM_*}} pattern matching GitHub secrets convention for LLM-accessible credentials
 - [Phase 27-01]: buildMcpConfig outputs Claude Code object map format, not ClawForge array format
+- [Phase 27-02]: Health check failure clears MCP flags and continues job without MCP (graceful degradation per MCP-06)
+- [Phase 27-02]: Hydration output capped at 10KB via head to prevent prompt bloat
+- [Phase 27-02]: Both job and workspace containers get identical MCP config (MCP-04 parity via env vars)
 
 ### Pending Todos
 
@@ -72,6 +75,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:30:15Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-03-12T17:38:19.086Z
+Stopped at: Completed 27-02-PLAN.md
 Resume file: None

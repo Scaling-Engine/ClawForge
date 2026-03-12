@@ -31,12 +31,12 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 
 - [x] **MCP-01**: Each instance has a `MCP_SERVERS.json` config file defining available MCP servers with name, command, args, env, and tool subset
 - [x] **MCP-02**: `loadMcpServers()` reads and validates instance MCP config, resolving `{{AGENT_LLM_*}}` template variables at load time
-- [ ] **MCP-03**: Job containers receive MCP server configs via `--mcp-config` flag; MCP servers are available to Claude Code during job execution
-- [ ] **MCP-04**: Workspace (interactive) containers receive the same MCP server configs as job containers
+- [x] **MCP-03**: Job containers receive MCP server configs via `--mcp-config` flag; MCP servers are available to Claude Code during job execution
+- [x] **MCP-04**: Workspace (interactive) containers receive the same MCP server configs as job containers
 - [x] **MCP-05**: Tool subset curation restricts which MCP tools are included in the `--allowedTools` whitelist per instance
-- [ ] **MCP-06**: MCP startup health check validates server connections at container start; logs clear error on failure with `mcp_startup` failure stage
+- [x] **MCP-06**: MCP startup health check validates server connections at container start; logs clear error on failure with `mcp_startup` failure stage
 - [ ] **MCP-07**: Operator can view configured MCP servers and their tool subsets in a read-only settings page section
-- [ ] **MCP-08**: Pre-run MCP context hydration executes specified tools before `claude -p` and appends output to the job prompt
+- [x] **MCP-08**: Pre-run MCP context hydration executes specified tools before `claude -p` and appends output to the job prompt
 - [x] **MCP-09**: MCP credentials are never stored in git; `{{AGENT_LLM_*}}` template variables resolve from environment at container start
 
 ### Multi-Agent Clusters
@@ -112,12 +112,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEBUI-06 | Phase 26 | Complete |
 | MCP-01 | Phase 27 | Complete |
 | MCP-02 | Phase 27 | Complete |
-| MCP-03 | Phase 27 | Pending |
-| MCP-04 | Phase 27 | Pending |
+| MCP-03 | Phase 27 | Complete |
+| MCP-04 | Phase 27 | Complete |
 | MCP-05 | Phase 27 | Complete |
-| MCP-06 | Phase 27 | Pending |
+| MCP-06 | Phase 27 | Complete |
 | MCP-07 | Phase 27 | Pending |
-| MCP-08 | Phase 27 | Pending |
+| MCP-08 | Phase 27 | Complete |
 | MCP-09 | Phase 27 | Complete |
 | CLST-01 | Phase 28 | Pending |
 | CLST-02 | Phase 28 | Pending |
