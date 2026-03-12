@@ -22,6 +22,21 @@ if [ -n "$LLM_SECRETS" ]; then
     eval $(echo "$LLM_SECRETS" | jq -r 'to_entries | .[] | "export \(.key)=\"\(.value)\""')
 fi
 
+# === MCP Config Injection ===
+if [ -n "$MCP_CONFIG_JSON" ]; then
+  echo "$MCP_CONFIG_JSON" > /tmp/mcp-config.json
+  MCP_FLAGS="--mcp-config /tmp/mcp-config.json --strict-mcp-config"
+  if [ -n "$MCP_ALLOWED_TOOLS" ]; then
+    MCP_TOOL_FLAGS="$MCP_ALLOWED_TOOLS"
+  else
+    MCP_TOOL_FLAGS=""
+  fi
+  echo "[mcp] Config written to /tmp/mcp-config.json"
+else
+  MCP_FLAGS=""
+  MCP_TOOL_FLAGS=""
+fi
+
 # 4. Git setup from GitHub token
 gh auth setup-git
 GH_USER_JSON=$(gh api user -q '{name: .name, login: .login, email: .email, id: .id}')
@@ -249,6 +264,68 @@ echo -e "$SYSTEM_PROMPT" > /tmp/system-prompt.md
 # 10. Determine allowed tools
 ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-Read,Write,Edit,Bash,Glob,Grep,Task,Skill}"
 
+# === MCP Health Check ===
+if [ -n "$MCP_CONFIG_JSON" ]; then
+  echo "[mcp] Running MCP server health check..."
+  # Extract server names from config for logging
+  MCP_SERVER_NAMES=$(echo "$MCP_CONFIG_JSON" | node -e "
+    const d=require('fs').readFileSync('/dev/stdin','utf8');
+    const c=JSON.parse(d);
+    console.log(Object.keys(c.mcpServers||{}).join(', '));
+  " 2>/dev/null || echo "unknown")
+  echo "[mcp] Configured servers: $MCP_SERVER_NAMES"
+
+  # Health check: try a minimal claude invocation with MCP config to verify servers start
+  timeout 60 claude --mcp-config /tmp/mcp-config.json -p "list your available MCP tools" --output-format json --max-turns 1 > /tmp/mcp-health.json 2>&1
+  MCP_HEALTH_EXIT=$?
+  if [ $MCP_HEALTH_EXIT -ne 0 ]; then
+    echo "[mcp] WARNING: MCP health check failed (exit $MCP_HEALTH_EXIT)"
+    echo "[mcp] Failure stage: mcp_startup"
+    echo "[mcp] Job will continue without MCP servers"
+    cat /tmp/mcp-health.json 2>/dev/null || true
+    # Clear MCP flags so job runs without MCP
+    MCP_FLAGS=""
+    MCP_TOOL_FLAGS=""
+  else
+    echo "[mcp] Health check passed"
+  fi
+fi
+
+# === MCP Pre-Run Hydration ===
+if [ -n "$MCP_HYDRATION_STEPS" ] && [ -n "$MCP_FLAGS" ]; then
+  echo "[mcp] Running pre-run hydration..."
+  # Parse hydration steps and execute each tool
+  node -e "
+    const steps = JSON.parse(process.env.MCP_HYDRATION_STEPS || '[]');
+    if (!steps.length) { process.exit(0); }
+    const prompts = steps.map(s => 'Use the MCP tool ' + s.serverName + '/' + s.tool + ' with args: ' + JSON.stringify(s.args || {})).join('. Then ');
+    process.stdout.write(prompts);
+  " > /tmp/mcp-hydration-prompt.txt 2>/dev/null
+
+  HYDRATION_PROMPT=$(cat /tmp/mcp-hydration-prompt.txt)
+  if [ -n "$HYDRATION_PROMPT" ]; then
+    timeout 120 claude --mcp-config /tmp/mcp-config.json \
+      -p "$HYDRATION_PROMPT" \
+      --output-format text \
+      --max-turns 3 \
+      > /tmp/mcp-hydration-output.txt 2>/dev/null
+    HYDRATION_EXIT=$?
+    if [ $HYDRATION_EXIT -eq 0 ] && [ -s /tmp/mcp-hydration-output.txt ]; then
+      # Limit hydration output to 10KB
+      head -c 10240 /tmp/mcp-hydration-output.txt > /tmp/mcp-hydration-trimmed.txt
+      HYDRATION_CONTEXT=$(cat /tmp/mcp-hydration-trimmed.txt)
+      echo "[mcp] Hydration complete ($(wc -c < /tmp/mcp-hydration-trimmed.txt) bytes)"
+    else
+      echo "[mcp] Hydration failed or empty (exit $HYDRATION_EXIT), continuing without"
+      HYDRATION_CONTEXT=""
+    fi
+  else
+    HYDRATION_CONTEXT=""
+  fi
+else
+  HYDRATION_CONTEXT=""
+fi
+
 # 11. Run Claude Code with job description
 
 # Build Repository Documentation section
@@ -326,6 +403,22 @@ ${JOB_DESCRIPTION}
 Recommended: /gsd:${GSD_HINT}
 Reason: ${GSD_HINT_REASON}"
 
+# Prepend MCP hydration context to prompt if available
+if [ -n "$HYDRATION_CONTEXT" ]; then
+    FULL_PROMPT="## MCP Context
+
+${HYDRATION_CONTEXT}
+
+---
+
+${FULL_PROMPT}"
+fi
+
+# Append MCP tool flags to allowed tools
+if [ -n "$MCP_TOOL_FLAGS" ]; then
+    ALLOWED_TOOLS="${ALLOWED_TOOLS},${MCP_TOOL_FLAGS}"
+fi
+
 echo "Running Claude Code with job ${JOB_ID}..."
 echo "FULL_PROMPT length: ${#FULL_PROMPT}"
 
@@ -339,6 +432,7 @@ claude -p \
     --output-format json \
     --append-system-prompt "$(cat /tmp/system-prompt.md)" \
     --allowedTools "${ALLOWED_TOOLS}" \
+    $MCP_FLAGS \
     < /tmp/prompt.txt \
     2>&1 | tee "${LOG_DIR}/claude-output.jsonl" || CLAUDE_EXIT=$?
 
