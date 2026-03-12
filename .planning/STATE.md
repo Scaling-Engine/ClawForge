@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
 status: Ready for Phase 26
-stopped_at: Completed 25-03-PLAN.md (Phase 25 complete)
-last_updated: "2026-03-12T15:16:34.966Z"
+stopped_at: Completed 26-02-PLAN.md
+last_updated: "2026-03-12T15:52:52.818Z"
 last_activity: 2026-03-12 — completed 25-03 UI layer (JobStreamViewer + Slack edit-in-place)
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 5
   percent: 100
 ---
 
@@ -51,6 +51,8 @@ Recent decisions affecting current work:
 - [Phase 25-02]: cancelJobTool injects confirmation via addToThread() per CONTEXT.md decision for LangGraph memory
 - [Phase 25-03]: JOB_STREAM marker appended to tool response text so agent reply naturally triggers JobStreamViewer in message.jsx
 - [Phase 25-03]: Slack interval stores _unsub as a property to ensure subscriber cleanup in all exit paths
+- [Phase 26-web-ui-auth-repo-selector]: unauthorized() from next/navigation is the canonical Next.js 15 way to signal 401 from Server Actions — integrates with unauthorized.js boundary vs generic Error throwing
+- [Phase 26-02]: Feature flags fetched client-side via useEffect+getFeatureFlags() Server Action; FeaturesProvider outermost; RepoChatProvider inside ChatNavProvider scoped to chat session
 
 ### Pending Todos
 
@@ -65,6 +67,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T15:11:42.427Z
-Stopped at: Completed 25-03-PLAN.md (Phase 25 complete)
+Last session: 2026-03-12T15:52:52.816Z
+Stopped at: Completed 26-02-PLAN.md
 Resume file: None

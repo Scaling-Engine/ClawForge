@@ -22,10 +22,10 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 
 - [ ] **WEBUI-01**: Operator can toggle code mode in chat input for syntax-highlighted monospace rendering of code blocks
 - [ ] **WEBUI-02**: Operator can select a repo and branch from a persistent dropdown in the chat header; selection becomes the default for job dispatch in that chat
-- [ ] **WEBUI-03**: Feature flags system (FeaturesContext) enables/disables in-development features per instance without code deploys
+- [x] **WEBUI-03**: Feature flags system (FeaturesContext) enables/disables in-development features per instance without code deploys
 - [ ] **WEBUI-04**: Live job streaming output renders inline in chat messages as the job executes (consumes SSE from streaming infrastructure)
-- [ ] **WEBUI-05**: All Server Actions enforce server-side auth via NextAuth `auth()` — no client-only session checks
-- [ ] **WEBUI-06**: API-key-protected routes continue to work unchanged alongside new session-protected Server Actions
+- [x] **WEBUI-05**: All Server Actions enforce server-side auth via NextAuth `auth()` — no client-only session checks
+- [x] **WEBUI-06**: API-key-protected routes continue to work unchanged alongside new session-protected Server Actions
 
 ### MCP Tool Layer
 
@@ -106,10 +106,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STRM-08 | Phase 25 | Complete |
 | WEBUI-01 | Phase 26 | Pending |
 | WEBUI-02 | Phase 26 | Pending |
-| WEBUI-03 | Phase 26 | Pending |
+| WEBUI-03 | Phase 26 | Complete |
 | WEBUI-04 | Phase 26 | Pending |
-| WEBUI-05 | Phase 26 | Pending |
-| WEBUI-06 | Phase 26 | Pending |
+| WEBUI-05 | Phase 26 | Complete |
+| WEBUI-06 | Phase 26 | Complete |
 | MCP-01 | Phase 27 | Pending |
 | MCP-02 | Phase 27 | Pending |
 | MCP-03 | Phase 27 | Pending |
