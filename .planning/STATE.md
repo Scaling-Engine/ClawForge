@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
 status: completed
-stopped_at: Completed 27-03-PLAN.md
-last_updated: "2026-03-12T17:42:22.860Z"
+stopped_at: Completed 28-02-PLAN.md
+last_updated: "2026-03-12T18:22:30.732Z"
 last_activity: 2026-03-12 — completed 27-03 MCP settings page (Server Action + UI + route)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 14
+  completed_plans: 10
   percent: 100
 ---
 
@@ -63,6 +63,8 @@ Recent decisions affecting current work:
 - [Phase 27-02]: Both job and workspace containers get identical MCP config (MCP-04 parity via env vars)
 - [Phase 27-03]: Env values omitted from getMcpServers() response — credentials never sent to client (MCP-09)
 - [Phase 27-03]: Route page follows existing barrel import pattern (no separate requireAuth in page)
+- [Phase 28-multi-agent-clusters]: label.txt default 'complete' written by entrypoint if agent doesn't write it — coordinator never needs null-check
+- [Phase 28-multi-agent-clusters]: ALLOWED_TOOLS env var required in cluster entrypoint (no default) — forces explicit whitelist, blocks accidental dangerously-skip-permissions usage
 
 ### Pending Todos
 
@@ -77,6 +79,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:40:00Z
-Stopped at: Completed 27-03-PLAN.md
+Last session: 2026-03-12T18:22:21.453Z
+Stopped at: Completed 28-02-PLAN.md
 Resume file: None
