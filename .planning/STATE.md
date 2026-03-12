@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
-status: Ready for Phase 26
-stopped_at: Completed 26-03-PLAN.md
-last_updated: "2026-03-12T16:46:03.030Z"
-last_activity: 2026-03-12 — completed 25-03 UI layer (JobStreamViewer + Slack edit-in-place)
+status: Phase 27 in progress
+stopped_at: Completed 27-01-PLAN.md
+last_updated: "2026-03-12T17:32:33.763Z"
+last_activity: 2026-03-12 — completed 27-01 MCP config foundation (loader + builder + template vars)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
   percent: 97
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Phase 25 — Headless Log Streaming
+**Current focus:** Phase 27 — MCP Tool Layer
 
 ## Current Position
 
-Phase: 25 of 28 (Headless Log Streaming) — COMPLETE
-Plan: 3 of 3 complete in current phase (phase fully complete)
-Status: Ready for Phase 26
-Last activity: 2026-03-12 — completed 25-03 UI layer (JobStreamViewer + Slack edit-in-place)
+Phase: 27 of 28 (MCP Tool Layer) — IN PROGRESS
+Plan: 1 of 3 complete in current phase
+Status: Phase 27 in progress
+Last activity: 2026-03-12 — completed 27-01 MCP config foundation (loader + builder + template vars)
 
-Progress: [██████████] 97% of v2.0 plans
+Progress: [██████████] 95% of v2.0 plans
 
 ## Accumulated Context
 
@@ -55,6 +55,9 @@ Recent decisions affecting current work:
 - [Phase 26-02]: Feature flags fetched client-side via useEffect+getFeatureFlags() Server Action; FeaturesProvider outermost; RepoChatProvider inside ChatNavProvider scoped to chat session
 - [Phase 26-03]: codeMode state lives in chat.jsx so it can influence transport and other consumers without prop-drilling
 - [Phase 26-03]: Branch fetch race guard uses useRef (not useState) to avoid re-renders during fast repo switching
+- [Phase 27-01]: loadMcpServers reads fresh every call (no cache) since env vars may change between dispatches
+- [Phase 27-01]: Template vars use {{AGENT_LLM_*}} pattern matching GitHub secrets convention for LLM-accessible credentials
+- [Phase 27-01]: buildMcpConfig outputs Claude Code object map format, not ClawForge array format
 
 ### Pending Todos
 
@@ -69,6 +72,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T16:28:27.969Z
-Stopped at: Completed 26-03-PLAN.md
+Last session: 2026-03-12T17:30:15Z
+Stopped at: Completed 27-01-PLAN.md
 Resume file: None
