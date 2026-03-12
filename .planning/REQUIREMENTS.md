@@ -10,13 +10,13 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 ### Headless Streaming
 
 - [ ] **STRM-01**: Operator sees live log output from a running job container in the web chat thread as it executes
-- [ ] **STRM-02**: Log output is filtered to semantic events (file modifications, bash outputs, key decisions) — raw JSONL is suppressed
+- [x] **STRM-02**: Log output is filtered to semantic events (file modifications, bash outputs, key decisions) — raw JSONL is suppressed
 - [ ] **STRM-03**: Operator sees a progress indicator with elapsed time while a job is running
 - [ ] **STRM-04**: Operator can cancel a running job via conversational command; container stops cleanly and branch is preserved for inspection
-- [ ] **STRM-05**: Log stream shows only changed files since last update (diff highlighting) instead of raw log lines
+- [x] **STRM-05**: Log stream shows only changed files since last update (diff highlighting) instead of raw log lines
 - [ ] **STRM-06**: Slack channel receives a single auto-updating message with latest job status every 10s (not per-chunk message spam)
-- [ ] **STRM-07**: Stream consumer disconnection (browser tab close) releases resources; no memory leak from orphaned Docker log streams
-- [ ] **STRM-08**: Sensitive values (tokens, keys, secrets) are never forwarded in log stream output
+- [x] **STRM-07**: Stream consumer disconnection (browser tab close) releases resources; no memory leak from orphaned Docker log streams
+- [x] **STRM-08**: Sensitive values (tokens, keys, secrets) are never forwarded in log stream output
 
 ### Web UI
 
@@ -97,13 +97,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | STRM-01 | Phase 25 | Pending |
-| STRM-02 | Phase 25 | Pending |
+| STRM-02 | Phase 25 | Complete |
 | STRM-03 | Phase 25 | Pending |
 | STRM-04 | Phase 25 | Pending |
-| STRM-05 | Phase 25 | Pending |
+| STRM-05 | Phase 25 | Complete |
 | STRM-06 | Phase 25 | Pending |
-| STRM-07 | Phase 25 | Pending |
-| STRM-08 | Phase 25 | Pending |
+| STRM-07 | Phase 25 | Complete |
+| STRM-08 | Phase 25 | Complete |
 | WEBUI-01 | Phase 26 | Pending |
 | WEBUI-02 | Phase 26 | Pending |
 | WEBUI-03 | Phase 26 | Pending |

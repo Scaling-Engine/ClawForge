@@ -182,7 +182,7 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 22. Workspace Infrastructure | v1.5 | 3/3 | Complete | 2026-03-09 |
 | 23. WebSocket & Browser Terminal | v1.5 | 2/2 | Complete | 2026-03-09 |
 | 24. Conversational Integration | v1.5 | 2/2 | Complete | 2026-03-11 |
-| 25. Headless Log Streaming | v2.0 | 0/3 | Planning complete | - |
+| 25. Headless Log Streaming | 1/3 | In Progress|  | - |
 | 26. Web UI Auth + Repo Selector | v2.0 | 0/? | Not started | - |
 | 27. MCP Tool Layer | v2.0 | 0/? | Not started | - |
 | 28. Multi-Agent Clusters | v2.0 | 0/? | Not started | - |
