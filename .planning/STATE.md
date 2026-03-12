@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
 status: Ready for Phase 26
-stopped_at: Completed 26-02-PLAN.md
-last_updated: "2026-03-12T15:52:52.818Z"
+stopped_at: Completed 26-03-PLAN.md
+last_updated: "2026-03-12T16:28:34.307Z"
 last_activity: 2026-03-12 — completed 25-03 UI layer (JobStreamViewer + Slack edit-in-place)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 100
+  completed_plans: 6
+  percent: 97
 ---
 
 # Project State
@@ -53,6 +53,8 @@ Recent decisions affecting current work:
 - [Phase 25-03]: Slack interval stores _unsub as a property to ensure subscriber cleanup in all exit paths
 - [Phase 26-web-ui-auth-repo-selector]: unauthorized() from next/navigation is the canonical Next.js 15 way to signal 401 from Server Actions — integrates with unauthorized.js boundary vs generic Error throwing
 - [Phase 26-02]: Feature flags fetched client-side via useEffect+getFeatureFlags() Server Action; FeaturesProvider outermost; RepoChatProvider inside ChatNavProvider scoped to chat session
+- [Phase 26-03]: codeMode state lives in chat.jsx so it can influence transport and other consumers without prop-drilling
+- [Phase 26-03]: Branch fetch race guard uses useRef (not useState) to avoid re-renders during fast repo switching
 
 ### Pending Todos
 
@@ -67,6 +69,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T15:52:52.816Z
-Stopped at: Completed 26-02-PLAN.md
+Last session: 2026-03-12T16:28:27.969Z
+Stopped at: Completed 26-03-PLAN.md
 Resume file: None
