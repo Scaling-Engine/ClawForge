@@ -1,303 +1,296 @@
 # Technology Stack
 
-**Project:** ClawForge v1.5 Persistent Workspaces
-**Milestone:** v1.5 — Interactive browser terminals connected to persistent Docker containers
-**Researched:** 2026-03-08
-**Confidence:** HIGH for ttyd + xterm.js (reference implementation proven); HIGH for ws (industry standard); MEDIUM for xterm.js v5 vs v6 (v6 breaking changes need testing)
+**Project:** ClawForge v2.0 Full Platform
+**Milestone:** v2.0 — Web UI (chat + code mode), Multi-Agent Clusters, Headless Job Streaming, Per-Instance MCP Tool Configs
+**Researched:** 2026-03-12
+**Confidence:** HIGH for UI and DnD (PopeBot upstream verified); HIGH for cluster/headless (full source analysis); MEDIUM for MCP config storage (no upstream precedent — build-new required)
 
 ---
 
 ## Scope
 
-This document covers **additions and changes** needed for v1.5 Persistent Workspaces only. The existing stack (LangGraph, SQLite/Drizzle, Next.js API routes, dockerode ^4.0.9, Docker socket mount, named volumes, channel adapters, next-auth) is validated from v1.0-v1.4 and not re-researched here.
+This document covers **additions and changes** needed for v2.0 only. The validated stack from v1.0–v1.5 is NOT re-researched:
 
-Five new capability areas:
+**Already in the stack (do not re-add or change):**
+- Next.js 15 + React 19 (peer deps in package.json)
+- LangGraph ReAct agent with SQLite checkpointing
+- Drizzle ORM + better-sqlite3
+- dockerode ^4.0.9 for Docker Engine API
+- ws ^8.19.0 for WebSocket proxy
+- @xterm/xterm ^6.0.0 + @xterm/addon-fit + @xterm/addon-attach (v1.5)
+- next-auth ^5.0.0-beta.30
+- @ai-sdk/react ^2.0.0 + ai ^5.0.0 (Vercel AI SDK v5)
+- grammy, @slack/web-api, @slack/bolt
+- lucide-react, tailwindcss ^4, class-variance-authority, clsx, tailwind-merge
+- streamdown ^2.2.0
 
-1. **Terminal server** inside workspace containers (ttyd)
-2. **Terminal emulator** in browser (xterm.js)
-3. **WebSocket proxy** in event handler (ws)
-4. **Container lifecycle** for long-running workspaces (dockerode extensions)
-5. **tmux** for session persistence inside containers
+Four new capability areas for v2.0:
 
----
-
-## Recommended Stack
-
-### New Runtime Dependencies (Event Handler)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `ws` | `^8.19.0` | WebSocket server for terminal proxy | The de facto Node.js WebSocket library. 90M+ weekly downloads. Needed to proxy browser WebSocket connections to ttyd inside workspace containers. Next.js API routes cannot handle WebSocket upgrade requests natively -- a standalone `ws` server attached to the HTTP upgrade event is required. The reference implementation (thepopebot) uses this exact pattern. |
-
-### New Client-Side Dependencies (Browser Terminal UI)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `@xterm/xterm` | `^5.5.0` | Terminal emulator rendered in browser | Industry standard browser terminal. Powers VS Code's integrated terminal. The `@xterm` scoped package replaces the deprecated `xterm` package. Using v5.5.0 (not v6.0.0) because v6 has breaking changes (removed canvas renderer addon, changed scrollbar behavior, replaced EventEmitter) and the reference implementation is validated on v5.5. |
-| `@xterm/addon-fit` | `^0.10.0` | Auto-resize terminal to container dimensions | Required for responsive terminal that fills its parent element. Handles resize events and sends updated dimensions. |
-| `@xterm/addon-attach` | `^0.11.0` | Connects xterm.js to a WebSocket | Bidirectional bridge between the Terminal instance and a WebSocket connection. Handles binary frame encoding. Eliminates manual `ws.onmessage` / `terminal.write()` wiring. |
-
-### New Packages in Workspace Container Dockerfile
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `ttyd` | `1.7.7` | Terminal server exposing shell via WebSocket | Runs inside workspace container, binds to a port (e.g., 7681), serves a tmux session over WebSocket. The event handler's ws proxy connects to this port. ttyd handles PTY allocation, flow control (pause/resume protocol), and window resize. No need to build custom PTY management. Installed via `apt-get` in workspace Dockerfile. |
-| `tmux` | (distro default) | Session multiplexer for persistence | Wraps the Claude Code CLI session so it survives disconnects. `ttyd tmux new -A -s workspace` creates or attaches to a named session. If the browser disconnects and reconnects, the session is intact. Installed via `apt-get` in workspace Dockerfile. |
-
-### No Other New Dependencies Needed
-
-The workspace container extends the existing job container Dockerfile. Node 22, git, gh CLI, Claude Code CLI, and GSD are already present. The event handler already has dockerode for container lifecycle management.
+1. **Web UI** — chat page with code mode toggle, repo/branch selector, DnD tab management
+2. **Multi-Agent Clusters** — role-based teams with cron/file-watch/webhook triggers
+3. **Headless Job Streaming** — live Docker log output piped to chat UI during jobs
+4. **MCP Tool Layer** — per-instance MCP server configs injected into cluster worker containers
 
 ---
 
-## Architecture: Why ttyd-in-Container + ws Proxy
+## PopeBot Upstream Evaluation
 
-Two viable approaches exist for browser terminal access to Docker containers:
+PopeBot v1.2.73 (`stephengpope/thepopebot`) is the reference implementation. It shares the same base stack as ClawForge (forked origin). The evaluation approach:
 
-### Approach A: ttyd inside container + ws proxy in event handler (RECOMMENDED)
+**Full source analysis via GitHub raw API — not guesswork.**
 
-```
-Browser (xterm.js) --WebSocket--> Event Handler (ws proxy) --WebSocket--> Container (ttyd:7681)
-```
+### What PopeBot Has That We Don't
 
-### Approach B: dockerode exec + custom PTY bridge in event handler
+| Feature | PopeBot Implementation | Our Status |
+|---------|----------------------|------------|
+| DnD tabs in code mode | `@dnd-kit/core` + `@dnd-kit/sortable` | Missing — need to add |
+| xterm.js search/serialize addons | `@xterm/addon-search`, `@xterm/addon-serialize`, `@xterm/addon-web-links` | Missing — only have attach+fit |
+| File watching for cluster triggers | `chokidar` | Missing — need for cluster runtime |
+| Encrypted DB config | `libsodium-wrappers` (AES-256-GCM via PBKDF2) | We have `settings` table but no encryption |
+| Voice input | AssemblyAI `wss://streaming.assemblyai.com/v3/ws` | Out of scope for v2.0 |
+| LLM provider registry | `llm-providers.js` static object | We have multi-provider model.js already |
+| Headless streaming | `lib/ai/headless-stream.js` (Docker frame parser + JSONL mapper) | Missing — need to build |
+| Cluster system | `lib/cluster/` (actions, execute, runtime, stream) | Missing — need to build |
+| Feature flags context | `FeaturesContext` React context | Optional — simple to add |
+| `@xterm/addon-attach` | Missing in PopeBot — they use custom WS wiring | We have it already from v1.5 |
 
-```
-Browser (xterm.js) --WebSocket--> Event Handler (dockerode exec + stream pipe) --Docker API--> Container
-```
+### What We Have That PopeBot Doesn't
 
-**Why Approach A wins:**
-
-| Criterion | ttyd-in-container | dockerode exec |
-|-----------|-------------------|----------------|
-| PTY management | ttyd handles it (battle-tested C code) | Must manage PTY via Docker exec API, fragile stream demuxing |
-| Flow control | Built-in pause/resume protocol prevents browser overwhelm | Manual implementation required |
-| Window resize | ttyd handles SIGWINCH natively | Must intercept resize events and send to exec session |
-| Session persistence | `ttyd tmux` -- session survives disconnects | exec sessions die on disconnect, no recovery |
-| Proven in reference | thepopebot uses this exact pattern in production | Not used in reference implementation |
-| Complexity | One binary, one line in Dockerfile | Custom stream piping, error handling, resize protocol |
-| Performance | Native C WebSocket server, minimal overhead | Node.js event handler in the data path for every keystroke |
-
-**Approach B's only advantage** is avoiding an open port on the container. But since workspace containers are on isolated Docker networks (noah-net, strategyES-net) not exposed to the internet, port exposure is internal only. The event handler is the only entity that can reach the container's ttyd port.
+| Capability | Our Implementation | PopeBot |
+|------------|-------------------|---------|
+| Multi-tenant architecture | Per-instance Docker networks + scoped REPOS.json | Single-tenant |
+| Named volumes with flock mutex | Warm starts across jobs | Not present |
+| Cross-repo job targeting | Two-phase clone with target.json sidecar | Not present |
+| Ticket-based WS auth (single-use, 30s TTL) | In-memory Map | Simpler cookie-based auth |
+| Instance generator conversation | Multi-turn intake → PR with 7 artifacts | Not present |
 
 ---
 
-## WebSocket Proxy Architecture
+## Recommended Stack — New Additions Only
 
-### Why a Proxy (Not Direct Browser-to-ttyd)
+### Web UI: DnD Tab Management
 
-The browser cannot connect directly to ttyd because:
-1. ttyd runs inside a Docker container on an internal network -- no external port mapping
-2. Authentication must be verified before granting terminal access
-3. Traefik handles TLS termination; the proxy upgrades the connection inside the event handler
+| Library | Version | Purpose | Why | Action |
+|---------|---------|---------|-----|--------|
+| `@dnd-kit/core` | `^6.3.1` | DnD context provider + sensors | The PopeBot upstream uses this exact library for code-mode tab reordering. `@dnd-kit` is the successor to `react-beautiful-dnd` (now unmaintained). Headless, accessible, works correctly with React 19. No DOM manipulation — pure React. | FORK from PopeBot `lib/code/code-page.jsx` |
+| `@dnd-kit/sortable` | `^10.0.0` | `SortableContext` + `horizontalListSortingStrategy` | Companion to core — provides the sortable primitives (`useSortable`) and strategy for horizontal tab lists. The tab reorder handler in PopeBot's code page uses `arrayMove` from this package. | FORK from PopeBot `lib/code/code-page.jsx` |
 
-### Implementation Pattern
+**PopeBot fork vs adapt vs build-new:** FORK the DnD tab logic from `lib/code/code-page.jsx`. It's a self-contained `handleDragEnd` callback that calls `arrayMove` on dynamic tabs. Our `CodePage` equivalent will need minor adaptation: we use workspace IDs instead of PopeBot's session IDs, and our tab state structure is different.
+
+### Web UI: Additional xterm.js Addons
+
+| Library | Version | Purpose | Why | Action |
+|---------|---------|---------|-----|--------|
+| `@xterm/addon-search` | `^0.16.0` | In-terminal text search | PopeBot uses this for workspace terminals. Confirmed latest stable via npm. Not in our current install. Low complexity to add. | ADD (new) |
+| `@xterm/addon-serialize` | `^0.14.0` | Terminal content serialization | Used by PopeBot for state save. Enables capturing terminal buffer for context injection back into chat. Relevant for our bidirectional context bridging. | ADD (new) |
+| `@xterm/addon-web-links` | `^0.12.0` | Clickable URLs in terminal output | PopeBot uses this. Makes URLs in Claude's terminal output clickable. Low effort, high quality-of-life. | ADD (new) |
+
+**xterm.js version compatibility (verified):** All three stable addon versions declare "requires xterm.js v4+" with no strict npm peer dependency range. Verified via `npm view @xterm/addon-search@0.16.0 --json` — peerDependencies field is absent. These addons install cleanly alongside `@xterm/xterm@6.0.0` without peer dep warnings or conflicts. The beta channel (`0.17.0-beta.xxx`) targets a future xterm 7.x and is not needed.
+
+Note: `@xterm/addon-canvas` was present in older xterm.js and is absent in the v6 addon set — do not add it. The default renderer in xterm 6.x is sufficient.
+
+**PopeBot fork vs adapt vs build-new:** ADD new addons. The terminal view implementation (PopeBot's `lib/code/terminal-view.jsx`) is more sophisticated than our xterm usage (adds search UI, web links, serialize). ADAPT the terminal view component to add these addons to our existing `TerminalView`.
+
+### Cluster System: File Watching
+
+| Library | Version | Purpose | Why | Action |
+|---------|---------|---------|-----|--------|
+| `chokidar` | `^5.0.0` | File system watcher for cluster triggers | PopeBot's cluster runtime uses chokidar to watch file paths and trigger role execution on change. Chokidar v5 is the current major version (pure ESM). We already use ESM throughout. node-cron (already in our stack) handles the cron trigger path — chokidar only needed for file-watch triggers. | ADD (new) |
+
+**PopeBot fork vs adapt vs build-new:** ADAPT. The cluster runtime (`lib/cluster/runtime.js`) can be forked and adapted. Key changes needed: integrate with our per-instance architecture (PopeBot is single-tenant, we need instance scoping on all DB operations and container dispatch). The trigger logic (cron + file watch + webhook) is portable; the execution path needs to call our `dispatchDockerJob` variant.
+
+### Headless Job Streaming: No New Dependencies
+
+The headless streaming system (`lib/ai/headless-stream.js` in PopeBot) has **zero new dependencies**. It uses:
+
+- Node.js built-in `Buffer` — for Docker frame parsing
+- Existing `dockerode` — to tail container logs
+- Native `ReadableStream` API — for SSE stream to browser
+
+**PopeBot fork vs adapt vs build-new:** FORK `lib/ai/headless-stream.js` directly. It is a pure utility module: Docker multiplexed frame parser → NDJSON line splitter → Claude Code JSONL event mapper. It has no instance-specific assumptions. The `mapLine()` function maps Claude Code stream-json format to `{ type: 'text' | 'tool-call' | 'tool-result', ... }` events. This is 1:1 compatible with our job container output format.
+
+The cluster stream SSE endpoint (`lib/cluster/stream.js`) also uses no new dependencies — SSE via native `ReadableStream`, dockerode log tailing, polling every 3s, keepalive ping every 15s.
+
+**ADAPT** the cluster stream endpoint for multi-tenant: add instance scoping, validate that the requesting user can access the cluster, and gate container inspection to the correct Docker network.
+
+### Encrypted DB Config: libsodium-wrappers vs crypto
+
+| Library | Version | Purpose | Why | Action |
+|---------|---------|---------|-----|--------|
+| `libsodium-wrappers` | `^0.8.2` | AES-256-GCM encryption for sensitive config values | PopeBot uses this for encrypting LLM API keys and provider secrets stored in the `settings` table. Node.js built-in `crypto` module can do AES-256-GCM identically, but libsodium-wrappers is what PopeBot uses. **Recommendation: use Node's built-in `crypto` instead.** `crypto.createCipheriv('aes-256-gcm', key, iv)` is identical capability with zero added dependencies. PBKDF2 key derivation from `AUTH_SECRET` (same pattern) is in `crypto.pbkdf2Sync`. | BUILD-NEW using `crypto` |
+
+**Rationale for build-new with built-in crypto:** libsodium-wrappers is 1.2MB and requires WASM initialization. Node's `crypto` module is built-in, synchronous, and has no initialization delay. The encryption pattern (AES-256-GCM, PBKDF2 key derivation from `AUTH_SECRET`, IV + ciphertext + auth tag as base64 JSON) is identical. We adopt PopeBot's *algorithm and pattern* but not the library.
+
+**What to store encrypted:** MCP server configs contain API keys (e.g., Brave Search API key, GitHub PAT for MCP servers). These must be encrypted at rest. Store in the existing `settings` table with `type: 'mcp_config'`. Encrypted JSON blob per instance.
+
+### MCP Tool Layer: Per-Instance Config Storage
+
+No new libraries needed. The MCP config system is:
+
+1. **Storage:** Existing `settings` table + encrypted JSON blob via Node `crypto` (see above)
+2. **Injection:** Claude Code CLI `--mcp-config` flag accepts a JSON file path or inline JSON string. Write temp config file before container launch, inject path via env var. Use companion `--strict-mcp-config` flag to ignore any inherited MCP configs inside the container, using only the instance-configured servers.
+3. **Schema extension:** New `type: 'mcp_config'` records in `settings` — one per instance, keyed by `instanceName`.
+
+**Verified CLI flags (confirmed via `claude --help`):**
+- `--mcp-config <configs...>` — Load MCP servers from JSON files or strings (space-separated)
+- `--strict-mcp-config` — Only use MCP servers from `--mcp-config`, ignoring all other MCP configurations
+
+Use `--strict-mcp-config` in cluster worker container entrypoints to prevent container-level MCP configs (e.g., from a `~/.claude.json` baked into the image) from interfering with instance-specific configs.
+
+**MCP server transport:** When configuring MCP servers for injection, use `stdio` transport (subprocess) or `http` transport (remote). The older `sse` transport is deprecated in Claude Code as of the current CLI version — do not use `type: "sse"` in MCP config JSON.
+
+**PopeBot fork vs adapt vs build-new:** BUILD-NEW. PopeBot does not have per-instance MCP config. Their cluster roles have a `triggerConfig` JSON field that could theoretically hold MCP config, but the execute.js implementation does not pass MCP config to containers. We need to design this from scratch.
+
+**MCP Config Design (new):**
 
 ```
-1. Browser opens wss://archie.clawforge.dev/api/workspace/{id}/terminal
-2. Traefik terminates TLS, forwards to event handler port 80
-3. Event handler HTTP server receives upgrade request
-4. next-auth JWT verified from cookie (same auth as web chat)
-5. Lookup workspace container IP + ttyd port from DB
-6. Open ws connection to container's ttyd (ws://container-ip:7681/ws)
-7. Bidirectional pipe: browser <-> event handler <-> ttyd
+settings table:
+  type: 'mcp_config'
+  key:  instance name (e.g., 'noah', 'strategyES')
+  value: encrypted JSON → { mcpServers: { [serverName]: { command, args, env } } }
 ```
 
-### Next.js WebSocket Limitation
+At cluster role execution, decrypt the instance's MCP config, write to `/tmp/mcp-{uuid}.json`, pass `MCP_CONFIG_PATH=/tmp/mcp-{uuid}.json` env var to container. The container entrypoint passes `--mcp-config $MCP_CONFIG_PATH --strict-mcp-config` to the `claude -p` invocation.
 
-Next.js API routes do NOT support WebSocket upgrade. The standard pattern is:
+### Feature Flags Context
+
+No new dependencies. PopeBot's `FeaturesContext` is 15 lines of React context boilerplate. We can add it trivially.
+
+**PopeBot fork vs adapt vs build-new:** FORK directly (15 lines, zero dependencies). Used to toggle voice input, code mode, cluster mode per instance config. Useful for our two-instance setup where Epic/StrategyES has different capabilities than Noah/Archie.
+
+---
+
+## Fork vs Adapt vs Build-New Summary
+
+| Component | Decision | Rationale |
+|-----------|----------|-----------|
+| `lib/ai/headless-stream.js` | **FORK** | Zero instance assumptions, pure parsing utility |
+| `lib/cluster/actions.js` | **ADAPT** | Add instance scoping to all DB ops and container dispatch |
+| `lib/cluster/runtime.js` | **ADAPT** | Cron/chokidar trigger logic portable; integrate with per-instance config |
+| `lib/cluster/execute.js` | **ADAPT** | Change `runClusterWorkerContainer` to use our `dispatchDockerJob` variant; add MCP config injection |
+| `lib/cluster/stream.js` | **ADAPT** | Add instance scoping, use our dockerode patterns |
+| `lib/code/code-page.jsx` DnD logic | **FORK** | `handleDragEnd` + `@dnd-kit` usage is self-contained |
+| `lib/code/terminal-view.jsx` addons | **ADAPT** | Add search/serialize/web-links addons to our existing TerminalView |
+| `lib/chat/components/features-context.jsx` | **FORK** | 15-line context boilerplate |
+| `lib/db/crypto.js` pattern | **ADAPT** | Use same AES-256-GCM + PBKDF2 algorithm but Node built-in `crypto` instead of libsodium |
+| MCP config storage | **BUILD-NEW** | No upstream precedent; design for per-instance architecture |
+| `lib/llm-providers.js` | **SKIP** | We already have multi-provider model.js; not a gap |
+| Voice input (AssemblyAI) | **SKIP** | Out of scope for v2.0 |
+
+---
+
+## DB Schema Changes Required
+
+New tables and columns for v2.0:
 
 ```javascript
-// Attach to the underlying HTTP server, not Next.js routes
-const wss = new WebSocket.Server({ noServer: true });
-
-httpServer.on('upgrade', (req, socket, head) => {
-  // Authenticate, then:
-  wss.handleUpgrade(req, socket, head, (ws) => {
-    // Proxy to ttyd inside container
-  });
+// clusters table (new)
+export const clusters = sqliteTable('clusters', {
+  id: text('id').primaryKey(),
+  instanceName: text('instance_name').notNull(),  // multi-tenant addition vs PopeBot
+  name: text('name').notNull(),
+  systemPrompt: text('system_prompt').notNull().default(''),
+  enabled: integer('enabled').notNull().default(1),
+  starred: integer('starred').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
 });
-```
 
-This requires access to the raw HTTP server. ClawForge's event handler instances run via PM2 + Next.js custom server (instances/noah/Dockerfile), so the HTTP server object is accessible. This is the same pattern used by the reference implementation.
-
----
-
-## Container Lifecycle for Long-Running Workspaces
-
-### Key Difference from Job Containers
-
-| Aspect | Job Container (v1.4) | Workspace Container (v1.5) |
-|--------|----------------------|---------------------------|
-| Lifetime | Minutes (single task) | Hours/days (interactive sessions) |
-| Auto-remove | Yes (`AutoRemove: false` but removed after log collection) | No -- persists until explicitly stopped |
-| Restart policy | None | `unless-stopped` (survives Docker daemon restart) |
-| Health check | None (wait for exit) | `curl http://localhost:7681/` every 30s |
-| Entry point | `entrypoint.sh` (clone, run claude -p, commit, exit) | `ttyd tmux new -A -s workspace` (long-running) |
-| Port exposure | None | 7681 internal (ttyd) |
-| Labels | `clawforge=job` | `clawforge=workspace` |
-
-### dockerode Container Configuration (Workspace)
-
-```javascript
-const container = await docker.createContainer({
-  name: `clawforge-ws-${instanceName}-${slug}`,
-  Image: workspaceImage,
-  Env: [...env],
-  Labels: {
-    'clawforge': 'workspace',
-    'clawforge.instance': instanceName,
-    'clawforge.repo': slug,
-    'clawforge.created_at': new Date().toISOString(),
-  },
-  ExposedPorts: { '7681/tcp': {} },
-  HostConfig: {
-    NetworkMode: `${instanceName}-net`,
-    RestartPolicy: { Name: 'unless-stopped' },
-    Mounts: [{
-      Type: 'volume',
-      Source: volumeNameFor(instanceName, repoUrl),
-      Target: '/workspace',
-      ReadOnly: false,
-    }],
-  },
-  Healthcheck: {
-    Test: ['CMD', 'curl', '-sf', 'http://localhost:7681/'],
-    Interval: 30_000_000_000,  // 30s in nanoseconds
-    Timeout: 5_000_000_000,
-    Retries: 3,
-    StartPeriod: 10_000_000_000,
-  },
+// cluster_roles table (new)
+export const clusterRoles = sqliteTable('cluster_roles', {
+  id: text('id').primaryKey(),
+  clusterId: text('cluster_id').notNull(),
+  roleName: text('role_name').notNull(),
+  role: text('role').notNull().default(''),
+  triggerConfig: text('trigger_config').notNull().default('{}'),
+  maxConcurrency: integer('max_concurrency').notNull().default(1),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
 });
+
+// cluster_sessions table (new — for log tracking)
+export const clusterSessions = sqliteTable('cluster_sessions', {
+  id: text('id').primaryKey(),
+  roleId: text('role_id').notNull(),
+  clusterId: text('cluster_id').notNull(),
+  containerId: text('container_id'),
+  containerName: text('container_name'),
+  status: text('status').notNull().default('running'),
+  triggerType: text('trigger_type'),  // 'cron' | 'file' | 'webhook' | 'manual'
+  logDir: text('log_dir'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+// settings table already exists — add mcp_config type records (no schema change needed)
 ```
 
-### Workspace Container Networking
-
-No port publishing needed. The event handler discovers the container's internal IP via `docker.getContainer(id).inspect()` -> `NetworkSettings.Networks[networkName].IPAddress`. Since both the event handler and workspace container are on the same Docker network (e.g., `noah-net`), the proxy connects via internal DNS/IP.
+**Multi-tenant deviation from PopeBot:** PopeBot's `clusters` table has no `instanceName` column (single-tenant). We must add it. Every cluster DB operation filters by `instanceName` to enforce isolation between Noah/Archie and Epic/StrategyES.
 
 ---
 
-## Workspace Container Dockerfile
+## Code Mode Toggle: Chat + Code Integration
 
-The workspace container is a NEW Dockerfile, separate from the job container. It shares the same base (Node 22 + Claude Code CLI + GSD) but adds ttyd + tmux and runs a long-lived process instead of a one-shot script.
+No new dependencies. The chat page already exists (`lib/chat/components/chat-page.jsx`). Code mode is a state toggle:
 
-```dockerfile
-# templates/docker/workspace/Dockerfile
-FROM node:22-bookworm-slim
+- `mode: 'chat' | 'code'` — stored in state, reflected in URL (e.g., `/chat/{id}` vs `/code/{workspaceId}`)
+- Repo/branch selector — uses existing GitHub API tooling (`get_repository_details` tool)
+- DnD tabs — `@dnd-kit` (see above)
+- `FeaturesContext` gates whether code mode option appears (disabled for Epic instance if desired)
 
-# Same apt packages as job container + ttyd + tmux
-RUN apt-get update && apt-get install -y \
-    git jq curl procps tmux \
-    libnss3 libnspr4 ... \
-    && rm -rf /var/lib/apt/lists/*
+**PopeBot's code page** (`lib/code/code-page.jsx`) is the reference. ADAPT it: replace `listTerminalSessions()` with our `list_workspaces` Server Action, replace `createTerminalSession()` with our `start_coding` tool invocation, and wire `closeTerminalSession()` to our `closeWorkspace` Server Action.
 
-# Install ttyd from GitHub releases (apt version is outdated)
-RUN curl -fsSL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
-    -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd
-
-# Same Claude Code + GSD + gh CLI as job container
-RUN npm install -g @anthropic-ai/claude-code
-RUN npx get-shit-done-cc@latest --claude --global
-# ... (same GSD verification, hooks, defaults as job Dockerfile)
-
-WORKDIR /workspace
-EXPOSE 7681
-
-# ttyd wraps tmux; -W enables write access; -p sets port
-CMD ["ttyd", "-W", "-p", "7681", "tmux", "new", "-A", "-s", "workspace"]
-```
-
-**Key decisions:**
-- ttyd installed from GitHub releases binary (not apt) because apt repos carry outdated versions
-- `-W` flag enables writable terminal (read-only by default)
-- `-p 7681` explicit port (matches health check)
-- `tmux new -A -s workspace` creates or attaches to session named "workspace"
-- No ttyd authentication (`-c` flag omitted) because access is gated by the event handler's JWT-validated WebSocket proxy
+The existing `chat-page.jsx` handles navigation; extend it with a mode toggle that renders either `<Chat>` (current) or `<CodePage>` (new).
 
 ---
 
-## Security Considerations
+## Headless Streaming Architecture
 
-### Terminal Access Authorization
+How live log output flows from a running cluster worker container to the chat UI:
 
-| Layer | Control | Implementation |
-|-------|---------|----------------|
-| TLS | Traefik terminates HTTPS/WSS | Already configured in docker-compose.yml |
-| Authentication | next-auth JWT from cookie | Verified on WebSocket upgrade request before proxying |
-| Authorization | Instance-scoped user check | Same `SLACK_ALLOWED_USERS` / NextAuth credential check |
-| Network isolation | Docker networks | Workspace containers only reachable from same instance network |
-| No direct ttyd exposure | Internal port only | ttyd binds to container-internal 7681, no host port mapping |
-| Container isolation | Separate Docker networks per instance | Noah's workspaces unreachable from StrategyES's event handler |
-
-### ttyd Has No Auth (By Design)
-
-ttyd supports basic auth (`-c user:pass`) but we deliberately skip it. Authentication is handled at the proxy layer (next-auth JWT). Adding ttyd auth would create a second credential to manage and would require passing passwords into containers.
-
-### WebSocket Origin Checking
-
-The ws proxy should validate the `Origin` header to prevent cross-site WebSocket hijacking. Only allow origins matching the instance's `APP_HOSTNAME`.
-
-### Container Resource Limits
-
-Long-running workspace containers should have resource constraints to prevent runaway processes:
-
-```javascript
-HostConfig: {
-  Memory: 2 * 1024 * 1024 * 1024,  // 2GB RAM limit
-  CpuPeriod: 100000,
-  CpuQuota: 100000,  // 1 CPU core
-}
+```
+Cluster Worker Container (claude -p running)
+  → stdout JSONL → Docker log stream
+  → dockerode container.logs({ follow: true, stdout: true })
+  → headless-stream.js (frame parser + JSONL mapper)
+  → mapLine() → { type: 'text'|'tool-call'|'tool-result', ... }
+  → SSE stream via ReadableStream (lib/cluster/stream.js GET endpoint)
+  → Browser EventSource → React state update → chat message parts
 ```
 
----
+**Why SSE (not WebSocket) for log streaming:**
+- Unidirectional (container → browser) — SSE is the correct primitive
+- SSE works through Next.js API routes (unlike WebSocket which requires the custom HTTP server)
+- Browser `EventSource` auto-reconnects on disconnect
+- No additional dependencies
 
-## Version Decisions
-
-### xterm.js v5.5.0 (Not v6.0.0)
-
-v6.0.0 (released Dec 2024) introduced significant breaking changes:
-- Removed canvas renderer addon (WebGL or DOM only)
-- Changed scrollbar implementation (integrated VS Code base platform)
-- Replaced EventEmitter with VS Code's Emitter
-- Removed `windowsMode` and `fastScrollModifier` options
-- Changed alt key handling
-
-The reference implementation is validated on v5.5.0. The v6 improvements (synchronized output, new scrollbar) are not needed for this use case. Upgrade to v6 can happen in a future milestone after the workspace feature is stable.
-
-**Package names:** Use the `@xterm` scoped packages (`@xterm/xterm`, `@xterm/addon-fit`, `@xterm/addon-attach`) even for v5.5. The unscoped `xterm` package is deprecated. The v5.5.0 release is available under both scoped and unscoped names.
-
-### ws v8.19.0 (Latest Stable)
-
-No version risk. ws has been stable for years, follows semver, and v8.x has no upcoming breaking changes. 90M+ weekly downloads.
-
-### ttyd 1.7.7 (Latest Release)
-
-Released March 2024. Minor fix release (version detection in non-git builds). Stable and production-ready. The reference implementation uses this version.
+**Why ReadableStream (not node-streams) for SSE:**
+- Next.js 15 API routes return `Response` objects; `new Response(new ReadableStream(...))` is the standard pattern
+- Avoids the `stream.pipe(res)` pattern which is incompatible with Next.js App Router
 
 ---
 
 ## Installation
 
 ```bash
-# Event handler: WebSocket proxy
-npm install ws@^8.19.0
+# DnD kit for tab reordering in code mode
+npm install @dnd-kit/core@^6.3.1 @dnd-kit/sortable@^10.0.0
 
-# Event handler: Terminal UI components (client-side)
-npm install @xterm/xterm@^5.5.0 @xterm/addon-fit@^0.10.0 @xterm/addon-attach@^0.11.0
+# Additional xterm.js addons for richer terminal UX
+# These addons declare "requires xterm.js v4+" with no strict peer dep range
+# — compatible with our @xterm/xterm@6.0.0 install
+npm install @xterm/addon-search@^0.16.0 @xterm/addon-serialize@^0.14.0 @xterm/addon-web-links@^0.12.0
+
+# File watching for cluster triggers
+npm install chokidar@^5.0.0
 ```
 
-No new dev dependencies. No peer dependency changes.
+No new dev dependencies.
 
-### Workspace Dockerfile additions (not npm)
-
-```bash
-# ttyd binary (in workspace Dockerfile)
-curl -fsSL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
-  -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd
-
-# tmux (in workspace Dockerfile)
-apt-get install -y tmux
-```
+**NOT installing (from PopeBot's package.json that we skip):**
+- `libsodium-wrappers` — using Node built-in `crypto` instead
+- `assembliai` / voice libs — out of scope for v2.0
 
 ---
 
@@ -305,18 +298,14 @@ apt-get install -y tmux
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| Terminal server | ttyd 1.7.7 | Custom PTY server (node-pty + ws) | Reinventing ttyd's flow control, resize handling, and PTY management. Adds node-pty native dependency compilation in container. |
-| Terminal server | ttyd 1.7.7 | GoTTY | Abandoned (last release 2017). ttyd is its spiritual successor with active maintenance. |
-| Terminal server | ttyd 1.7.7 | wetty (Node.js) | SSH-based, adds unnecessary SSH server in container. Heavier than ttyd's single binary. |
-| Terminal server | ttyd 1.7.7 | dockerode exec stream | No session persistence. No flow control. Stream demuxing is fragile. Every keystroke routes through Node.js. |
-| Terminal emulator | @xterm/xterm 5.5.0 | @xterm/xterm 6.0.0 | Breaking changes (see above). Reference implementation on v5.5. Upgrade later. |
-| Terminal emulator | @xterm/xterm 5.5.0 | hterm (Google) | Less ecosystem, fewer addons, no fit/attach equivalents. |
-| Terminal emulator | @xterm/xterm 5.5.0 | terminal.js | Abandoned, no WebSocket addon ecosystem. |
-| WebSocket library | ws 8.19.0 | socket.io | Overkill -- adds rooms, namespaces, fallback transport. We need raw WebSocket for terminal binary frames. |
-| WebSocket library | ws 8.19.0 | Next.js native | Next.js cannot handle WebSocket upgrade in API routes. Not supported. |
-| WebSocket library | ws 8.19.0 | uWebSockets.js | Faster but requires native compilation, less compatible. ws is fast enough for terminal traffic. |
-| Session persistence | tmux | screen | tmux has better scripting, pane management, and modern defaults. Industry standard. |
-| Session persistence | tmux | None (reconnect to new shell) | Losing work-in-progress on disconnect is unacceptable for interactive coding sessions. |
+| DnD tab management | `@dnd-kit` | `react-beautiful-dnd` | Unmaintained since 2022 (Atlassian archived it). `@dnd-kit` is the community successor. |
+| DnD tab management | `@dnd-kit` | Native HTML5 drag-and-drop | No animation, no keyboard accessibility, no touch support. |
+| Encrypted config | Node `crypto` (built-in) | `libsodium-wrappers` | libsodium is 1.2MB + WASM init. Identical AES-256-GCM capability in Node's built-in `crypto`. Zero added dependency. |
+| Cluster trigger: file watch | `chokidar` | `fs.watch` (built-in) | `fs.watch` is unreliable (missed events, incorrect event types on macOS/Linux). `chokidar` normalizes across platforms and adds debouncing. |
+| Cluster trigger: cron | `node-cron` (already installed) | `cron` package | We already have `node-cron`. No reason to add a second cron library. |
+| Headless streaming | SSE via `ReadableStream` | WebSocket | WebSocket is bidirectional; log streaming is unidirectional. SSE is simpler, auto-reconnects, works through Next.js API routes. |
+| MCP config storage | Encrypted `settings` table record | Separate `mcp_configs` table | Reuses existing table structure. `type: 'mcp_config'` follows established pattern for `type: 'config_secret'`. Fewer migrations. |
+| Voice input | SKIP for v2.0 | AssemblyAI (WebSocket streaming) | Out of scope. AssemblyAI is $0.50/hour of audio — relevant cost at scale. Add in a future milestone if operators want voice. |
 
 ---
 
@@ -324,15 +313,29 @@ apt-get install -y tmux
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `node-pty` | Native compilation hassle; ttyd handles PTY allocation in C | ttyd binary in container |
-| `socket.io` | Overhead of fallback transport, rooms, namespaces -- unnecessary for 1:1 terminal streams | `ws` for raw WebSocket |
-| `@xterm/addon-webgl` | WebGL renderer is optional performance optimization; DOM renderer works fine initially | Default DOM renderer, add WebGL later if needed |
-| `@xterm/addon-serialize` | Terminal serialization for state save/restore -- not needed when tmux handles persistence | tmux session persistence |
-| SSH server in container | Adds attack surface, key management, user provisioning complexity | ttyd direct PTY access |
-| `express` or `fastify` for WS | Event handler already has Next.js HTTP server; just attach ws upgrade handler | `ws` with `noServer: true` on existing HTTP server |
-| `dockerode` (again) | Already installed from v1.4 | Extend existing `lib/tools/docker.js` with workspace lifecycle functions |
-| Port mapping/publishing for ttyd | Would expose ttyd directly; proxy handles routing | Internal container networking via Docker network |
-| autoheal container | Restart policy `unless-stopped` + health checks sufficient for 2 instances | Built-in Docker restart policy |
+| `libsodium-wrappers` | 1.2MB WASM dependency when Node `crypto` does the same | `crypto.createCipheriv('aes-256-gcm', ...)` |
+| `react-beautiful-dnd` | Archived/unmaintained since 2022 | `@dnd-kit/core` + `@dnd-kit/sortable` |
+| `socket.io` | Overkill; SSE handles unidirectional log streaming | Native `ReadableStream` SSE |
+| `assemblyai` npm package | Out of scope for v2.0, cost implications | Skip for now |
+| PopeBot's `lib/tools/docker.js` verbatim | PopeBot auto-detects Docker network by inspecting event-handler container — single-tenant assumption. We use explicit per-instance Docker networks. | Extend our existing `lib/tools/docker.js` with cluster worker container support |
+| `dockerode` again | Already installed | Extend existing `lib/tools/docker.js` |
+| `@xterm/addon-canvas` | Removed in xterm v6; PopeBot (on v5.5) uses it but we're on v6 | Default renderer (WebGL or DOM) |
+| MCP server `type: "sse"` transport | SSE transport is deprecated in Claude Code CLI | Use `stdio` (subprocess) or `http` (remote) transport |
+
+---
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `@dnd-kit/core@^6.3.1` | React 19 | Confirmed — uses standard React hooks, no deprecated APIs |
+| `@dnd-kit/sortable@^10.0.0` | `@dnd-kit/core@^6.x` | Must match major version of core |
+| `@xterm/addon-search@^0.16.0` | `@xterm/xterm@^4+` (no strict peer dep) | Verified via npm: no peerDependencies field declared; description says "v4+". Installs cleanly with xterm 6.0.0. |
+| `@xterm/addon-serialize@^0.14.0` | `@xterm/xterm@^4+` (no strict peer dep) | Same — no npm peer dep constraint. |
+| `@xterm/addon-web-links@^0.12.0` | `@xterm/xterm@^4+` (no strict peer dep) | Same — no npm peer dep constraint. |
+| `chokidar@^5.0.0` | Node >=18, pure ESM | chokidar v5 is ESM-only; compatible with our `"type": "module"` package |
+
+**Note on xterm beta channel:** `@xterm/addon-search@0.17.0-beta.xxx` targets `@xterm/xterm@^6.1.0-beta.xxx` — this is a development version for the next major xterm release. Do not use beta addon versions; the stable 0.16.0 works with xterm 6.0.0.
 
 ---
 
@@ -340,58 +343,64 @@ apt-get install -y tmux
 
 ### dockerode (lib/tools/docker.js)
 
-Extend the existing module with workspace-specific functions:
-- `createWorkspaceContainer()` -- like `dispatchDockerJob()` but long-running, with health check and restart policy
-- `getWorkspaceContainer()` -- lookup by instance + repo labels
-- `stopWorkspace()` / `startWorkspace()` -- container.stop() / container.start()
-- `destroyWorkspace()` -- container.remove({ force: true })
-- `getWorkspaceIP()` -- inspect container for internal IP on instance network
-
-Reuse existing: `volumeNameFor()`, `ensureVolume()`, `reconcileOrphans()` (extend label filter to include `clawforge=workspace`).
-
-### next-auth (lib/auth/)
-
-WebSocket upgrade auth uses the same JWT session verification. Parse the cookie from the upgrade request headers, validate with next-auth's `getToken()`, check user against instance allowed list.
-
-### Drizzle ORM (lib/db/)
-
-New `workspaces` table to track workspace state:
-- `id` (UUID), `instance_name`, `repo_slug`, `container_id`, `status` (created/running/stopped/destroyed), `created_at`, `last_accessed_at`
+Add `runClusterWorkerContainer()` function. Key difference from `dispatchDockerJob()`:
+- `AutoRemove: true` (ephemeral — exits when Claude Code job completes)
+- Mount a named role-specific volume (cluster shared directory)
+- Pass `SYSTEM_PROMPT`, `PROMPT`, cluster metadata as env vars
+- Network: existing per-instance Docker network (same as job containers)
+- No health check needed (exits on its own)
 
 ### LangGraph Agent (lib/ai/tools.js)
 
-New `start_coding` tool that creates or connects to a workspace, returns a URL for the browser terminal.
+No new tools needed for v2.0 cluster features. Clusters are managed via the Web UI (Next.js Server Actions), not via the conversational agent. The agent gets a `start_headless_coding` tool that can trigger a cluster-style headless job on a specific repo/branch.
 
-### Named Volumes (existing)
+### Drizzle ORM (lib/db/schema.js)
 
-Workspace containers mount the SAME named volumes as job containers (`clawforge-{instance}-{slug}`). This means a job container that cloned a repo creates warm state that the workspace container can immediately use. Shared access is safe because job containers are ephemeral and workspace containers have flock mutex (already implemented in v1.4 entrypoint).
+Add `clusters`, `clusterRoles`, and `clusterSessions` tables. Generate new migration:
+```bash
+npm run db:generate  # after updating schema.js
+```
+
+### settings table (existing)
+
+No schema change. Add encrypted MCP configs as `type: 'mcp_config'` records. Decrypt in the cluster execute path before launching containers.
+
+### Chat UI (lib/chat/components/)
+
+Code mode toggle is a new prop/state on `ChatPage`. When `mode === 'code'`, render `CodePage` (new component). When `mode === 'chat'`, render existing `Chat`. The sidebar stays constant. `FeaturesContext` wraps both modes.
+
+### Custom HTTP Server (server.js)
+
+No changes needed for v2.0. Cluster worker containers do not need WebSocket proxying — they are headless (no browser terminal). SSE for log streaming goes through Next.js API routes natively.
 
 ---
 
 ## Sources
 
-- [ttyd GitHub repository](https://github.com/tsl0922/ttyd) -- v1.7.7, architecture details, WebSocket protocol, auth options (HIGH confidence -- official source)
-- [ttyd releases](https://github.com/tsl0922/ttyd/releases) -- v1.7.7 confirmed as latest, March 2024 (HIGH confidence)
-- [xterm.js GitHub releases](https://github.com/xtermjs/xterm.js/releases) -- v5.5.0 (Apr 2024), v6.0.0 (Dec 2024) confirmed (HIGH confidence)
-- [xterm.js 6.0.0 release notes](https://github.com/xtermjs/xterm.js/releases/tag/6.0.0) -- breaking changes documented (HIGH confidence)
-- [@xterm/xterm npm](https://www.npmjs.com/@xterm/xterm) -- scoped package availability confirmed (HIGH confidence)
-- [@xterm/addon-fit npm](https://www.npmjs.com/package/@xterm/addon-fit) -- v0.10.0 confirmed (HIGH confidence)
-- [@xterm/addon-attach npm](https://www.npmjs.com/package/@xterm/addon-attach) -- v0.11.0 confirmed (HIGH confidence)
-- [ws npm package](https://www.npmjs.com/package/ws) -- v8.19.0 confirmed as latest (HIGH confidence)
-- [ws GitHub](https://github.com/websockets/ws) -- WebSocket upgrade handling pattern, noServer mode (HIGH confidence)
-- [Next.js WebSocket discussion #53780](https://github.com/vercel/next.js/discussions/53780) -- confirms API routes cannot handle upgrade requests (HIGH confidence)
-- [Next.js WebSocket discussion #58698](https://github.com/vercel/next.js/discussions/58698) -- confirms custom server required for WS (HIGH confidence)
-- [Docker health checks guide](https://oneuptime.com/blog/post/2026-01-30-docker-health-check-best-practices/view) -- health check configuration patterns (MEDIUM confidence)
-- [xtermjs-dockerode example](https://github.com/mkjiau/xtermjs-dockerode-expressjs-socket) -- reference architecture for xterm.js + dockerode + WebSocket (MEDIUM confidence)
-- [Presidio blog: Browser-based terminal using Docker and XtermJS](https://www.presidio.com/technical-blog/building-a-browser-based-terminal-using-docker-and-xtermjs/) -- architecture patterns (MEDIUM confidence)
-- [ttyd WebSocket protocol / flow control](https://github.com/tsl0922/ttyd/issues/1400) -- custom client connection details (MEDIUM confidence)
-- Direct codebase inspection: `lib/tools/docker.js` -- existing dockerode integration, volume naming, container lifecycle (HIGH confidence)
-- Direct codebase inspection: `docker-compose.yml` -- Traefik config, network isolation, volume mounts (HIGH confidence)
-- Direct codebase inspection: `templates/docker/job/Dockerfile` -- base image pattern for workspace Dockerfile (HIGH confidence)
-- Direct codebase inspection: `package.json` -- current dependencies, no ws/xterm present (HIGH confidence)
-- Direct codebase inspection: `.planning/VISION.md` -- upstream thepopebot workspace architecture reference (HIGH confidence)
+- PopeBot `package.json` raw — confirmed `@dnd-kit/core@^6.3.1`, `@dnd-kit/sortable@^10.0.0`, `chokidar@^5.0.0`, `libsodium-wrappers@^0.8.2`, `@xterm/addon-search/serialize/web-links` (HIGH confidence — direct source inspection)
+- PopeBot `lib/cluster/actions.js`, `runtime.js`, `execute.js`, `stream.js` — cluster architecture analysis (HIGH confidence — direct source inspection)
+- PopeBot `lib/ai/headless-stream.js` — Docker frame parser + JSONL mapper implementation (HIGH confidence — direct source inspection)
+- PopeBot `lib/code/code-page.jsx` — DnD tab management, code page structure (HIGH confidence — direct source inspection)
+- PopeBot `lib/code/terminal-view.jsx` — xterm.js addon usage (search, serialize, web-links) (HIGH confidence — direct source inspection)
+- PopeBot `lib/code/ws-proxy.js` — WebSocket proxy pattern (HIGH confidence — direct source inspection)
+- PopeBot `lib/db/crypto.js` — AES-256-GCM + PBKDF2 encryption pattern (HIGH confidence — direct source inspection)
+- PopeBot `lib/db/config.js` — encrypted settings storage pattern (HIGH confidence — direct source inspection)
+- PopeBot `lib/tools/docker.js` — cluster worker vs workspace container differences (HIGH confidence — direct source inspection)
+- PopeBot `lib/voice/use-voice-input.js` — AssemblyAI WebSocket streaming (HIGH confidence — out-of-scope for v2.0)
+- PopeBot `lib/db/schema.js` — confirmed no per-instance scoping in clusters table (HIGH confidence — direct source inspection)
+- `npm info @dnd-kit/core version` → `6.3.1` (HIGH confidence — live npm registry)
+- `npm info @dnd-kit/sortable version` → `10.0.0` (HIGH confidence — live npm registry)
+- `npm view @xterm/addon-search@0.16.0 --json` → no peerDependencies, description "requires xterm.js v4+" (HIGH confidence — live npm registry, verified)
+- `npm view @xterm/addon-serialize@0.14.0 --json` → no peerDependencies, description "requires xterm.js v4+" (HIGH confidence — live npm registry, verified)
+- `npm view @xterm/addon-web-links@0.12.0 --json` → no peerDependencies, description "requires xterm.js v4+" (HIGH confidence — live npm registry, verified)
+- `npm view @xterm/addon-search@"0.17.0-beta.192" peerDependencies` → `{ '@xterm/xterm': '^6.1.0-beta.192' }` — confirms beta track targets next xterm major, not stable 6.0 (HIGH confidence — live npm registry)
+- `npm info chokidar version` → `5.0.0` (HIGH confidence — live npm registry)
+- `claude --help` output — confirmed `--mcp-config <configs...>` and `--strict-mcp-config` flags exist (HIGH confidence — local CLI verification)
+- ClawForge `package.json` — current dependency baseline (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/db/schema.js` — existing `settings` table structure (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/chat/components/chat-page.jsx`, `chat.jsx` — existing chat UI patterns (HIGH confidence — direct codebase inspection)
 
 ---
 
-*Stack research for: ClawForge v1.5 Persistent Workspaces*
-*Researched: 2026-03-08*
+*Stack research for: ClawForge v2.0 Full Platform (Web UI, Clusters, Headless Streaming, MCP Tool Layer)*
+*Researched: 2026-03-12*
