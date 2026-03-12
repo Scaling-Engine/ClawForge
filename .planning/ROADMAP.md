@@ -148,10 +148,14 @@ Plans:
   3. Each agent in a cluster run operates in its own Docker container with its own isolated volume; no two concurrent agents share a named volume
   4. A cluster that would loop infinitely (agents cycling between each other) terminates automatically after hitting the hard cap (5 iterations per agent, 15 per run) with a notification identifying the cycle
   5. Cluster run history, per-agent status, labels emitted, and PR URLs are visible on the `/clusters` management page
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 28-01: TBD
+- [ ] 28-01-PLAN.md — Config schema, DB tables, volume naming foundation
+- [ ] 28-02-PLAN.md — Cluster agent Docker entrypoint script
+- [ ] 28-03-PLAN.md — Coordinator dispatch loop with label routing and safety limits
+- [ ] 28-04-PLAN.md — LangGraph tool + executeAction cluster type
+- [ ] 28-05-PLAN.md — /clusters management page with run history
 
 ## Progress
 
@@ -186,11 +190,11 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 22. Workspace Infrastructure | v1.5 | 3/3 | Complete | 2026-03-09 |
 | 23. WebSocket & Browser Terminal | v1.5 | 2/2 | Complete | 2026-03-09 |
 | 24. Conversational Integration | v1.5 | 2/2 | Complete | 2026-03-11 |
-| 25. Headless Log Streaming | 3/3 | Complete    | 2026-03-12 | - |
-| 26. Web UI Auth + Repo Selector | 3/3 | Complete    | 2026-03-12 | - |
-| 27. MCP Tool Layer | 3/3 | Complete    | 2026-03-12 | - |
-| 28. Multi-Agent Clusters | v2.0 | 0/? | Not started | - |
+| 25. Headless Log Streaming | v2.0 | 3/3 | Complete | 2026-03-12 |
+| 26. Web UI Auth + Repo Selector | v2.0 | 3/3 | Complete | 2026-03-12 |
+| 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
+| 28. Multi-Agent Clusters | v2.0 | 0/5 | Not started | - |
 
 ---
 
-*Last updated: 2026-03-12 -- Phase 27 planned (3 plans, 2 waves)*
+*Last updated: 2026-03-12 -- Phase 28 planned (5 plans, 3 waves)*
