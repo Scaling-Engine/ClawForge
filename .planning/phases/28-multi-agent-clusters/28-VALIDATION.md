@@ -49,7 +49,7 @@ created: 2026-03-12
 | 28-02-06 | 02 | 2 | CLST-12 | manual integration | check Slack thread | N/A | ⬜ pending |
 | 28-03-01 | 03 | 2 | CLST-06 | manual integration | say "run cluster" in chat | N/A | ⬜ pending |
 | 28-03-02 | 03 | 2 | CLST-07 | unit | `node --test lib/actions.test.js` | ❌ W0 | ⬜ pending |
-| 28-04-01 | 04 | 3 | CLST-08 | manual | navigate to /clusters | N/A | ⬜ pending |
+| 28-04-01 | 04 | 3 | CLST-08 | manual | navigate to /clusters | N/A | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
