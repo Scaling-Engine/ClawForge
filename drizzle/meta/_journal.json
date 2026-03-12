@@ -43,6 +43,13 @@
       "when": 1773026232000,
       "tag": "0005_workspace_table",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1773339617000,
+      "tag": "0006_cluster_tables",
+      "breakpoints": true
     }
   ]
 }
