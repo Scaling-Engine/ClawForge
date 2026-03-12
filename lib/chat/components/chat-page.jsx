@@ -5,7 +5,9 @@ import { AppSidebar } from './app-sidebar.js';
 import { Chat } from './chat.js';
 import { SidebarProvider, SidebarInset } from './ui/sidebar.js';
 import { ChatNavProvider } from './chat-nav-context.js';
-import { getChatMessages } from '../actions.js';
+import { getChatMessages, getFeatureFlags } from '../actions.js';
+import { FeaturesProvider } from '../features-context.jsx';
+import { RepoChatProvider } from '../repo-chat-context.jsx';
 
 /**
  * Main chat page component.
@@ -19,6 +21,11 @@ export function ChatPage({ session, needsSetup, chatId }) {
   const [activeChatId, setActiveChatId] = useState(chatId || null);
   const [resolvedChatId, setResolvedChatId] = useState(() => chatId ? null : crypto.randomUUID());
   const [initialMessages, setInitialMessages] = useState([]);
+  const [featureFlags, setFeatureFlags] = useState({});
+
+  useEffect(() => {
+    getFeatureFlags().then(setFeatureFlags).catch(() => setFeatureFlags({}));
+  }, []);
 
   const navigateToChat = useCallback((id) => {
     if (id) {
@@ -81,19 +88,23 @@ export function ChatPage({ session, needsSetup, chatId }) {
   }
 
   return (
-    <ChatNavProvider value={{ activeChatId: resolvedChatId, navigateToChat }}>
-      <SidebarProvider>
-        <AppSidebar user={session.user} />
-        <SidebarInset>
-          {resolvedChatId && (
-            <Chat
-              key={resolvedChatId}
-              chatId={resolvedChatId}
-              initialMessages={initialMessages}
-            />
-          )}
-        </SidebarInset>
-      </SidebarProvider>
-    </ChatNavProvider>
+    <FeaturesProvider flags={featureFlags}>
+      <ChatNavProvider value={{ activeChatId: resolvedChatId, navigateToChat }}>
+        <RepoChatProvider>
+          <SidebarProvider>
+            <AppSidebar user={session.user} />
+            <SidebarInset>
+              {resolvedChatId && (
+                <Chat
+                  key={resolvedChatId}
+                  chatId={resolvedChatId}
+                  initialMessages={initialMessages}
+                />
+              )}
+            </SidebarInset>
+          </SidebarProvider>
+        </RepoChatProvider>
+      </ChatNavProvider>
+    </FeaturesProvider>
   );
 }
