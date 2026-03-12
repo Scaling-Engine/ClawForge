@@ -37,7 +37,7 @@ function getEffectiveType(file) {
   return extMap[ext] || file.type || 'text/plain';
 }
 
-export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles }) {
+export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeMode = false, onToggleCodeMode }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -173,6 +173,25 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
               <PaperclipIcon size={16} />
             </button>
 
+            {/* Code mode toggle */}
+            {onToggleCodeMode && (
+              <button
+                type="button"
+                onClick={onToggleCodeMode}
+                className={cn(
+                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
+                  codeMode
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                aria-label="Toggle code mode"
+                aria-pressed={codeMode}
+                disabled={isStreaming}
+              >
+                {'</>'}
+              </button>
+            )}
+
             <input
               ref={fileInputRef}
               type="file"
@@ -195,7 +214,8 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
               className={cn(
                 'flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground',
                 'placeholder:text-muted-foreground focus:outline-none',
-                'max-h-[200px]'
+                'max-h-[200px]',
+                codeMode && 'font-mono'
               )}
               disabled={isStreaming}
             />
