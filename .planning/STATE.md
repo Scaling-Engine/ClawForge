@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
 status: completed
-stopped_at: Completed 28-02-PLAN.md
-last_updated: "2026-03-12T18:22:30.732Z"
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-03-12T18:25:38.585Z"
 last_activity: 2026-03-12 — completed 27-03 MCP settings page (Server Action + UI + route)
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 14
-  completed_plans: 10
+  completed_plans: 11
   percent: 100
 ---
 
@@ -65,6 +65,9 @@ Recent decisions affecting current work:
 - [Phase 27-03]: Route page follows existing barrel import pattern (no separate requireAuth in page)
 - [Phase 28-multi-agent-clusters]: label.txt default 'complete' written by entrypoint if agent doesn't write it — coordinator never needs null-check
 - [Phase 28-multi-agent-clusters]: ALLOWED_TOOLS env var required in cluster entrypoint (no default) — forces explicit whitelist, blocks accidental dangerously-skip-permissions usage
+- [Phase 28-01]: loadClusterConfig accepts optional filePath override so tests can point to fixtures without process.cwd() hacks
+- [Phase 28-01]: clusterVolumeNameFor uses clawforge-cluster-{runId}-{agentIndex} — the cluster segment prevents collision with job and workspace volumes
+- [Phase 28-01]: Migration file 0006_cluster_tables.sql required — plan said no migration needed but initDatabase() uses explicit Drizzle migrations
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T18:22:21.453Z
-Stopped at: Completed 28-02-PLAN.md
+Last session: 2026-03-12T18:25:38.581Z
+Stopped at: Completed 28-01-PLAN.md
 Resume file: None
