@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
-status: in_progress
-stopped_at: "Completed 25-01-PLAN.md"
-last_updated: "2026-03-12"
-last_activity: 2026-03-12 -- completed 25-01 stream infrastructure (stream-manager + log-parser)
+status: executing
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-03-12T14:47:33.141Z"
+last_activity: 2026-03-12 — completed 25-01 stream infrastructure (stream-manager + log-parser)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
   percent: 0
 ---
 
@@ -47,6 +47,8 @@ Recent decisions affecting current work:
 - [25-01]: globalThis.__clawforge_streams map persists stream state across Next.js hot-reloads
 - [25-01]: Log parser handles both JSONL and plain-text stdout; stream_event/system types suppressed as noise
 - [25-01]: Secret scrubbing is double-pass: rawLine before parse + all string fields in emitted events
+- [Phase 25-02]: streamAbort.abort() called in waitAndNotify after container exits as backup cleanup for log stream
+- [Phase 25-02]: cancelJobTool injects confirmation via addToThread() per CONTEXT.md decision for LangGraph memory
 
 ### Pending Todos
 
@@ -61,6 +63,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12
-Stopped at: Completed 25-01-PLAN.md (stream manager + log parser)
+Last session: 2026-03-12T14:47:33.140Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
