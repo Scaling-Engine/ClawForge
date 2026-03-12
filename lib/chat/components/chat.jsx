@@ -7,19 +7,27 @@ import { Messages } from './messages.js';
 import { ChatInput } from './chat-input.js';
 import { ChatHeader } from './chat-header.js';
 import { Greeting } from './greeting.js';
+import { useRepoChat } from '../repo-chat-context.js';
 
 export function Chat({ chatId, initialMessages = [] }) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState([]);
+  const [codeMode, setCodeMode] = useState(false);
   const hasNavigated = useRef(false);
+
+  const { selectedRepo, selectedBranch } = useRepoChat();
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/stream/chat',
-        body: { chatId },
+        body: {
+          chatId,
+          selectedRepo: selectedRepo?.slug || null,
+          selectedBranch: selectedBranch || null,
+        },
       }),
-    [chatId]
+    [chatId, selectedRepo, selectedBranch]
   );
 
   const {
@@ -50,7 +58,10 @@ export function Chat({ chatId, initialMessages = [] }) {
 
   const handleSend = () => {
     if (!input.trim() && files.length === 0) return;
-    const text = input;
+    const rawText = input;
+    const text = codeMode && rawText.trim()
+      ? `\`\`\`\n${rawText.trim()}\n\`\`\``
+      : rawText;
     const currentFiles = files;
     setInput('');
     setFiles([]);
@@ -123,6 +134,8 @@ export function Chat({ chatId, initialMessages = [] }) {
                 stop={stop}
                 files={files}
                 setFiles={setFiles}
+                codeMode={codeMode}
+                onToggleCodeMode={() => setCodeMode((prev) => !prev)}
               />
             </div>
           </div>
@@ -145,6 +158,8 @@ export function Chat({ chatId, initialMessages = [] }) {
             stop={stop}
             files={files}
             setFiles={setFiles}
+            codeMode={codeMode}
+            onToggleCodeMode={() => setCodeMode((prev) => !prev)}
           />
         </>
       )}
