@@ -32,7 +32,7 @@
     "drizzle/"
   ],
   "scripts": {
-    "build": "esbuild lib/chat/components/*.jsx lib/chat/components/**/*.jsx --outdir=lib/chat/components --format=esm --jsx=automatic --outbase=lib/chat/components",
+    "build": "esbuild lib/chat/*.jsx lib/chat/components/*.jsx lib/chat/components/**/*.jsx --outdir=lib/chat --format=esm --jsx=automatic --outbase=lib/chat",
     "prepublishOnly": "npm run build",
     "local": "bash bin/local.sh",
     "postinstall": "if [ -f bin/postinstall.js ]; then node bin/postinstall.js; fi",
