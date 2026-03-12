@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Streamdown } from 'streamdown';
 import { cn } from '../utils.js';
 import { SpinnerIcon, FileTextIcon, CopyIcon, CheckIcon, RefreshIcon, SquarePenIcon, WrenchIcon, XIcon, ChevronDownIcon } from './icons.js';
+import { JobStreamViewer } from './job-stream-viewer.jsx';
 
 function LinkSafetyModal({ url, isOpen, onClose, onConfirm }) {
   const [copied, setCopied] = useState(false);
@@ -69,6 +70,40 @@ const TOOL_DISPLAY_NAMES = {
   get_job_status: 'Check Job Status',
   get_system_technical_specs: 'Read System Docs',
 };
+
+const JOB_STREAM_RE = /\[JOB_STREAM:([a-f0-9-]+)\]/;
+
+/**
+ * Render a text string that may contain [JOB_STREAM:uuid] markers.
+ * If a marker is found, the text is split around it and a JobStreamViewer
+ * is rendered in place of the marker.
+ *
+ * @param {string} text - Raw message text
+ * @param {boolean} isLoading - Whether the message is still streaming
+ * @returns {React.ReactNode}
+ */
+function renderTextWithStreamViewer(text, isLoading) {
+  const match = JOB_STREAM_RE.exec(text);
+  if (!match) {
+    return <Streamdown mode={isLoading ? 'streaming' : 'static'} linkSafety={linkSafety}>{text}</Streamdown>;
+  }
+
+  const jobId = match[1];
+  const before = text.slice(0, match.index).trim();
+  const after = text.slice(match.index + match[0].length).trim();
+
+  return (
+    <>
+      {before && (
+        <Streamdown mode={isLoading ? 'streaming' : 'static'} linkSafety={linkSafety}>{before}</Streamdown>
+      )}
+      <JobStreamViewer jobId={jobId} />
+      {after && (
+        <Streamdown mode="static" linkSafety={linkSafety}>{after}</Streamdown>
+      )}
+    </>
+  );
+}
 
 function getToolDisplayName(toolName) {
   return TOOL_DISPLAY_NAMES[toolName] || toolName.replace(/_/g, ' ');
@@ -316,7 +351,7 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
                   {message.parts?.length > 0 ? (
                     message.parts.map((part, i) => {
                       if (part.type === 'text') {
-                        return <Streamdown key={i} mode={isLoading ? 'streaming' : 'static'} linkSafety={linkSafety}>{part.text}</Streamdown>;
+                        return <span key={i}>{renderTextWithStreamViewer(part.text, isLoading)}</span>;
                       }
                       if (part.type === 'file') {
                         if (part.mediaType?.startsWith('image/')) {
@@ -339,7 +374,7 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
                       return null;
                     })
                   ) : text ? (
-                    <Streamdown mode={isLoading ? 'streaming' : 'static'} linkSafety={linkSafety}>{text}</Streamdown>
+                    renderTextWithStreamViewer(text, isLoading)
                   ) : isLoading && !hasToolParts ? (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <SpinnerIcon size={14} />

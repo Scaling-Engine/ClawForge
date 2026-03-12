@@ -8,6 +8,7 @@ const TOOL_DISPLAY_NAMES = {
   create_job: 'Create Job',
   get_job_status: 'Check Job Status',
   get_system_technical_specs: 'Read System Docs',
+  cancel_job: 'Cancel Job',
 };
 
 function getToolDisplayName(toolName) {
