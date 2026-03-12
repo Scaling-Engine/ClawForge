@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
 status: completed
-stopped_at: Completed 27-02-PLAN.md
-last_updated: "2026-03-12T17:38:19.099Z"
+stopped_at: Completed 27-03-PLAN.md
+last_updated: "2026-03-12T17:40:00.000Z"
 last_activity: 2026-03-12 — completed 27-03 MCP settings page (Server Action + UI + route)
 progress:
   total_phases: 4
@@ -61,6 +61,8 @@ Recent decisions affecting current work:
 - [Phase 27-02]: Health check failure clears MCP flags and continues job without MCP (graceful degradation per MCP-06)
 - [Phase 27-02]: Hydration output capped at 10KB via head to prevent prompt bloat
 - [Phase 27-02]: Both job and workspace containers get identical MCP config (MCP-04 parity via env vars)
+- [Phase 27-03]: Env values omitted from getMcpServers() response — credentials never sent to client (MCP-09)
+- [Phase 27-03]: Route page follows existing barrel import pattern (no separate requireAuth in page)
 
 ### Pending Todos
 
@@ -75,6 +77,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:38:19.086Z
-Stopped at: Completed 27-02-PLAN.md
+Last session: 2026-03-12T17:40:00Z
+Stopped at: Completed 27-03-PLAN.md
 Resume file: None

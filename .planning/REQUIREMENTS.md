@@ -35,7 +35,7 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 - [x] **MCP-04**: Workspace (interactive) containers receive the same MCP server configs as job containers
 - [x] **MCP-05**: Tool subset curation restricts which MCP tools are included in the `--allowedTools` whitelist per instance
 - [x] **MCP-06**: MCP startup health check validates server connections at container start; logs clear error on failure with `mcp_startup` failure stage
-- [ ] **MCP-07**: Operator can view configured MCP servers and their tool subsets in a read-only settings page section
+- [x] **MCP-07**: Operator can view configured MCP servers and their tool subsets in a read-only settings page section
 - [x] **MCP-08**: Pre-run MCP context hydration executes specified tools before `claude -p` and appends output to the job prompt
 - [x] **MCP-09**: MCP credentials are never stored in git; `{{AGENT_LLM_*}}` template variables resolve from environment at container start
 
@@ -116,7 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MCP-04 | Phase 27 | Complete |
 | MCP-05 | Phase 27 | Complete |
 | MCP-06 | Phase 27 | Complete |
-| MCP-07 | Phase 27 | Pending |
+| MCP-07 | Phase 27 | Complete |
 | MCP-08 | Phase 27 | Complete |
 | MCP-09 | Phase 27 | Complete |
 | CLST-01 | Phase 28 | Pending |
