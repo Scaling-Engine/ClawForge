@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Full Platform
 status: completed
-stopped_at: Completed 28-01-PLAN.md
-last_updated: "2026-03-12T18:25:38.585Z"
+stopped_at: Completed 28-04-PLAN.md
+last_updated: "2026-03-12T18:30:33.333Z"
 last_activity: 2026-03-12 — completed 27-03 MCP settings page (Server Action + UI + route)
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 14
-  completed_plans: 11
+  completed_plans: 12
   percent: 100
 ---
 
@@ -68,6 +68,8 @@ Recent decisions affecting current work:
 - [Phase 28-01]: loadClusterConfig accepts optional filePath override so tests can point to fixtures without process.cwd() hacks
 - [Phase 28-01]: clusterVolumeNameFor uses clawforge-cluster-{runId}-{agentIndex} — the cluster segment prevents collision with job and workspace volumes
 - [Phase 28-01]: Migration file 0006_cluster_tables.sql required — plan said no migration needed but initDatabase() uses explicit Drizzle migrations
+- [Phase 28-04]: Non-awaiting dynamic import (import().then()) used for fire-and-forget cluster dispatch in both tools.js and actions.js
+- [Phase 28-04]: import().then().catch() pattern ensures function returns runId immediately even if cluster/index.js doesn't exist yet
 
 ### Pending Todos
 
@@ -82,6 +84,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T18:25:38.581Z
-Stopped at: Completed 28-01-PLAN.md
+Last session: 2026-03-12T18:30:33.331Z
+Stopped at: Completed 28-04-PLAN.md
 Resume file: None
