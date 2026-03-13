@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
-status: Phase 31 shipped — Shiki syntax highlighting + interactive mode routing wired end-to-end
-stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-03-13T05:57:52.836Z"
-last_activity: 2026-03-13 — Phase 31 executed and verified
+status: Phase 32 shipped — RBAC enforcement with middleware guard, forbidden page, and admin sidebar link
+stopped_at: Completed 32-01-PLAN.md
+last_updated: "2026-03-13T06:10:00.000Z"
+last_activity: 2026-03-13 — Phase 32 executed and verified
 progress:
   total_phases: 10
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 4
+  total_plans: 6
+  completed_plans: 6
   percent: 30
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 31 of 38 (Chat Enhancements) — COMPLETE
+Phase: 32 of 38 (Auth Roles) — COMPLETE
 Plan: 1/1 plans executed and verified
-Status: Phase 31 shipped — Shiki syntax highlighting + interactive mode routing wired end-to-end
-Last activity: 2026-03-13 — Phase 31 executed and verified
+Status: Phase 32 shipped — RBAC enforcement with middleware guard, forbidden page, and admin sidebar link
+Last activity: 2026-03-13 — Phase 32 executed and verified
 
-Progress: [███░░░░░░░] 30% of v2.1 phases (3/10)
+Progress: [████░░░░░░] 40% of v2.1 phases (4/10)
 
 ## Accumulated Context
 
@@ -54,6 +54,8 @@ Recent decisions affecting current work:
 - [Phase 31-chat-enhancements]: @streamdown/code exports a pre-built code instance (not a factory) — imported directly, no code() call needed
 - [Phase 31-chat-enhancements]: interactiveMode hint injected after repo context so [INTERACTIVE_MODE: true] is first token agent sees in prompt
 - [Phase 31-chat-enhancements]: controls prop set to false during streaming to prevent copy/collapse button jitter mid-stream
+- [Phase 32-auth-roles]: ForbiddenPage is bare page (no sidebar) matching unauthorized.js precedent
+- [Phase 32-auth-roles]: Admin middleware check placed AFTER auth check so unauthenticated users hit /login first
 
 ### Pending Todos
 
@@ -66,6 +68,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T05:53:12.011Z
-Stopped at: Completed 31-01-PLAN.md
+Last session: 2026-03-13T06:10:00.000Z
+Stopped at: Completed 32-01-PLAN.md
 Resume file: None

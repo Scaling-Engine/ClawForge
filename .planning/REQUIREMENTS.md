@@ -80,10 +80,10 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Auth Roles (Phase 32)
 
-- [ ] **ROLE-01**: Users table has `role` column (`admin`/`user`); first registered user is auto-admin
-- [ ] **ROLE-02**: Middleware guards `/admin/*` routes; returns 403 for non-admin users
-- [ ] **ROLE-03**: `/forbidden` page renders with clear messaging when non-admin accesses restricted routes
-- [ ] **ROLE-04**: Client-side navigation conditionally shows/hides admin links based on session role
+- [x] **ROLE-01**: Users table has `role` column (`admin`/`user`); first registered user is auto-admin
+- [x] **ROLE-02**: Middleware guards `/admin/*` routes; returns 403 for non-admin users
+- [x] **ROLE-03**: `/forbidden` page renders with clear messaging when non-admin accesses restricted routes
+- [x] **ROLE-04**: Client-side navigation conditionally shows/hides admin links based on session role
 
 ### Admin Panel (Phase 33)
 
