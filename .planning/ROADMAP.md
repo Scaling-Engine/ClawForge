@@ -102,7 +102,7 @@
 
 - [x] **Phase 32: Auth Roles** — Role column on users table, admin/user middleware, /forbidden page, route guards (completed 2026-03-13)
 - [x] **Phase 33: Admin Panel** — /settings/ → /admin/* restructure with shared layout, sub-pages migration (completed 2026-03-13)
-- [ ] **Phase 34: GitHub Secrets Management** — github-api.js wrapper, secrets CRUD UI, Node crypto encryption, AGENT_* prefix enforcement
+- [x] **Phase 34: GitHub Secrets Management** — github-api.js wrapper, secrets CRUD UI, Node crypto encryption, AGENT_* prefix enforcement (completed 2026-03-13)
 
 #### Wave 3: Higher Effort (Phases 35-38)
 
@@ -192,7 +192,7 @@ Plans:
 **Goal**: Operators can manage GitHub secrets and variables from the admin panel without leaving ClawForge
 **Depends on**: Phase 33 (admin panel must exist)
 **Requirements**: GHSEC-01, GHSEC-02, GHSEC-03, GHSEC-04
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 34-01-PLAN.md — GitHub secrets/variables CRUD wrapper, server actions, and admin UI sections
@@ -284,7 +284,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 31. Chat Enhancements | v2.1 | 1/1 | Complete | 2026-03-13 |
 | 32. Auth Roles | v2.1 | 1/1 | Complete | 2026-03-13 |
 | 33. Admin Panel | v2.1 | 1/1 | Complete | 2026-03-13 |
-| 34. GitHub Secrets Management | v2.1 | 0/1 | Planned | — |
+| 34. GitHub Secrets Management | 1/1 | Complete   | 2026-03-13 | — |
 | 35. Voice Input | v2.1 | 0/? | Planned | — |
 | 36. Code Workspaces V2 | v2.1 | 0/? | Planned | — |
 | 37. Cluster Detail Views | v2.1 | 0/? | Planned | — |

@@ -94,10 +94,10 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### GitHub Secrets Management (Phase 34)
 
-- [ ] **GHSEC-01**: `lib/github-api.js` provides CRUD for GitHub repo secrets and variables via REST API
-- [ ] **GHSEC-02**: `/admin/secrets` page lists secrets (masked, last 4 chars) with create/update/delete
-- [ ] **GHSEC-03**: Secret values encrypted with Node `crypto` (AES-256-GCM) for any local storage
-- [ ] **GHSEC-04**: AGENT_* prefix convention enforced in create/edit forms
+- [x] **GHSEC-01**: `lib/github-api.js` provides CRUD for GitHub repo secrets and variables via REST API
+- [x] **GHSEC-02**: `/admin/secrets` page lists secrets (masked, last 4 chars) with create/update/delete
+- [x] **GHSEC-03**: Secret values encrypted with Node `crypto` (AES-256-GCM) for any local storage
+- [x] **GHSEC-04**: AGENT_* prefix convention enforced in create/edit forms
 
 ### Voice Input (Phase 35)
 
