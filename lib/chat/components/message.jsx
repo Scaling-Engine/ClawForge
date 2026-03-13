@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Streamdown } from 'streamdown';
+import { code as codePlugin } from '@streamdown/code';
 import { cn } from '../utils.js';
 import { SpinnerIcon, FileTextIcon, CopyIcon, CheckIcon, RefreshIcon, SquarePenIcon, WrenchIcon, XIcon, ChevronDownIcon } from './icons.js';
 import { JobStreamViewer } from './job-stream-viewer.jsx';
@@ -85,7 +86,15 @@ const JOB_STREAM_RE = /\[JOB_STREAM:([a-f0-9-]+)\]/;
 function renderTextWithStreamViewer(text, isLoading) {
   const match = JOB_STREAM_RE.exec(text);
   if (!match) {
-    return <Streamdown mode={isLoading ? 'streaming' : 'static'} linkSafety={linkSafety}>{text}</Streamdown>;
+    return (
+      <Streamdown
+        mode={isLoading ? 'streaming' : 'static'}
+        linkSafety={linkSafety}
+        plugins={{ code: codePlugin }}
+        shikiTheme={['github-light', 'github-dark']}
+        controls={isLoading ? false : { code: true }}
+      >{text}</Streamdown>
+    );
   }
 
   const jobId = match[1];
@@ -95,11 +104,23 @@ function renderTextWithStreamViewer(text, isLoading) {
   return (
     <>
       {before && (
-        <Streamdown mode={isLoading ? 'streaming' : 'static'} linkSafety={linkSafety}>{before}</Streamdown>
+        <Streamdown
+          mode={isLoading ? 'streaming' : 'static'}
+          linkSafety={linkSafety}
+          plugins={{ code: codePlugin }}
+          shikiTheme={['github-light', 'github-dark']}
+          controls={isLoading ? false : { code: true }}
+        >{before}</Streamdown>
       )}
       <JobStreamViewer jobId={jobId} />
       {after && (
-        <Streamdown mode="static" linkSafety={linkSafety}>{after}</Streamdown>
+        <Streamdown
+          mode="static"
+          linkSafety={linkSafety}
+          plugins={{ code: codePlugin }}
+          shikiTheme={['github-light', 'github-dark']}
+          controls={{ code: true }}
+        >{after}</Streamdown>
       )}
     </>
   );
