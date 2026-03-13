@@ -101,10 +101,10 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Voice Input (Phase 35)
 
-- [ ] **VOICE-01**: Microphone button in chat input toggles recording; volume bars animate during capture
-- [ ] **VOICE-02**: Audio streamed to AssemblyAI real-time; interim and final transcriptions in chat input
-- [ ] **VOICE-03**: Graceful handling of microphone permission denial (notification, no crash)
-- [ ] **VOICE-04**: No audio data stored server-side — purely client-to-AssemblyAI streaming
+- [x] **VOICE-01**: Microphone button in chat input toggles recording; volume bars animate during capture
+- [x] **VOICE-02**: Audio streamed to AssemblyAI real-time; interim and final transcriptions in chat input
+- [x] **VOICE-03**: Graceful handling of microphone permission denial (notification, no crash)
+- [x] **VOICE-04**: No audio data stored server-side — purely client-to-AssemblyAI streaming
 
 ### Code Workspaces V2 (Phase 36)
 

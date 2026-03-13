@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
-status: Phase 34 shipped — GitHub secrets/variables CRUD on admin panel with sealed-box encryption
-stopped_at: Completed 34-01-PLAN.md
-last_updated: "2026-03-13T06:55:19Z"
-last_activity: 2026-03-13 — Phase 34 executed and verified
+status: Phase 35 shipped — Voice-to-text input via AssemblyAI real-time streaming
+stopped_at: Completed 35-01-PLAN.md
+last_updated: "2026-03-13T07:10:05Z"
+last_activity: 2026-03-13 — Phase 35 executed and verified
 progress:
   total_phases: 10
-  completed_phases: 7
-  total_plans: 9
-  completed_plans: 9
-  percent: 50
+  completed_phases: 8
+  total_plans: 10
+  completed_plans: 10
+  percent: 80
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 34 of 38 (GitHub Secrets) — COMPLETE
+Phase: 35 of 38 (Voice Input) — COMPLETE
 Plan: 1/1 plans executed and verified
-Status: Phase 34 shipped — GitHub secrets/variables CRUD on admin panel with sealed-box encryption
-Last activity: 2026-03-13 — Phase 34 executed and verified
+Status: Phase 35 shipped — Voice-to-text input via AssemblyAI real-time streaming
+Last activity: 2026-03-13 — Phase 35 executed and verified
 
-Progress: [██████░░░░] 60% of v2.1 phases (6/10)
+Progress: [████████░░] 80% of v2.1 phases (8/10)
 
 ## Accumulated Context
 
@@ -62,6 +62,10 @@ Recent decisions affecting current work:
 - [Phase 34-github-secrets]: githubApiRaw helper for PUT/DELETE 204 responses instead of modifying shared githubApi
 - [Phase 34-github-secrets]: Local secret cache uses ghsec: prefix in config_secret table for masked display
 - [Phase 34-github-secrets]: deleteConfigSecret added to config.js following deleteCustomProvider pattern
+- [Phase 35-voice-input]: AssemblyAI v3 WebSocket with Turn messages (not v2 SessionBegins/FinalTranscript)
+- [Phase 35-voice-input]: AudioWorklet processor as static file in public/ (cannot be bundled)
+- [Phase 35-voice-input]: Token generated on-click (not pre-fetched) to avoid stale 60s tokens
+- [Phase 35-voice-input]: Audio never touches server — browser streams directly to AssemblyAI
 
 ### Pending Todos
 
@@ -74,6 +78,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T06:55:19Z
-Stopped at: Completed 34-01-PLAN.md
+Last session: 2026-03-13T07:10:05Z
+Stopped at: Completed 35-01-PLAN.md
 Resume file: None
