@@ -21,19 +21,29 @@ Stripe ships 1,000+ AI-authored PRs per week with their "minions" system. ClawFo
 
 ## What thepopebot Already Built That We Can Pull
 
-| Feature | Upstream Status | Pull Difficulty | Priority |
-|---|---|---|---|
-| Docker Engine API (Unix socket) | Production | Medium — replace GH Actions dispatch | High |
-| Code Workspaces (interactive containers + xterm.js) | Production | Large — new feature surface | High |
-| Shared named volumes (persistent workspace state) | Production | Small — volume config change | High |
-| Headless code containers (ephemeral task runners) | Production | Medium — parallel to our jobs | High |
-| Container recovery (inspect/restart/recreate) | Production | Small — add to docker.js | Medium |
-| Skills system (plugin directories) | Production | Medium — new abstraction | Medium |
-| Clusters (multi-agent coordination) | UI/DB only, no runtime | Large — build runtime ourselves | Future |
-| Voice input (Whisper) | Production | Small — already have OpenAI | Low |
-| `exec-in-container` | Production | Small — Docker API call | Medium |
-| Binary WebSocket frames for terminal | Production | Small — perf optimization | Low |
-| NPM package architecture | Production | N/A — we keep our fork model | Skip |
+| Feature | Upstream Status | Pull Difficulty | Priority | ClawForge Status |
+|---|---|---|---|---|
+| Docker Engine API (Unix socket) | Production | Medium | High | **Shipped v1.4** (via dockerode) |
+| Code Workspaces (interactive containers + xterm.js) | Production | Large | High | **Shipped v1.5** |
+| Shared named volumes (persistent workspace state) | Production | Small | High | **Shipped v1.4** |
+| Headless code containers (ephemeral task runners) | Production | Medium | High | **Shipped v1.4** |
+| Container recovery (inspect/restart/recreate) | Production | Small | Medium | **Shipped v1.4** |
+| Skills system (plugin directories) | Production | Medium | Medium | **Shipped v1.3** (GSD skills) |
+| Clusters (multi-agent coordination) | UI/DB only | Large | Future | **Shipped v2.0** (full runtime) |
+| Voice input (AssemblyAI) | Production | Small | Medium | **v2.1 Wave 3** (Phase 35) |
+| `exec-in-container` | Production | Small | Medium | **Shipped v1.4** |
+| Binary WebSocket frames for terminal | Production | Small | Low | **Shipped v1.5** |
+| NPM package architecture | Production | N/A | Skip | N/A — fork model kept |
+| Admin panel (`/admin/*`) | Production | Medium | Medium | **v2.1 Wave 2** (Phase 33) |
+| Auth roles (admin/user) | Production | Medium | Medium | **v2.1 Wave 2** (Phase 32) |
+| GitHub secrets management | Production | Medium | Medium | **v2.1 Wave 2** (Phase 34) |
+| PR approvals page | Production | Small | High | **v2.1 Wave 1** (Phase 30) |
+| Runners status page | Production | Small | High | **v2.1 Wave 1** (Phase 30) |
+| Profile page | Production | Small | Medium | **v2.1 Wave 1** (Phase 30) |
+| File upload in chat | Production | Medium | Medium | **v2.1 Wave 1** (Phase 31) |
+| Enhanced code workspaces (DnD tabs, search, file tree) | Production | Medium | Medium | **v2.1 Wave 3** (Phase 36) |
+| Cluster detail views | Production | Medium | Medium | **v2.1 Wave 3** (Phase 37) |
+| Setup wizard + CLI | Production | Small | Low | **v2.1 Wave 3** (Phase 38) |
 
 ## Architecture Evolution
 
@@ -69,60 +79,30 @@ Same as Target, plus:
 
 ## Milestone Map
 
-### v1.3 Instance Generator (In Progress)
-Finish what's started — Archie creates instances via conversation.
-Phases 13-17. No architecture changes.
+### v1.3 Instance Generator — SHIPPED
+Archie creates instances via conversation. Phases 13-17.
 
-### v1.4 Docker Engine Foundation
-Replace GitHub Actions dispatch with direct Docker Engine API for job execution. Pull `lib/tools/docker.js` pattern from thepopebot. Keep GH Actions as fallback for CI-integrated repos.
+### v1.4 Docker Engine Foundation — SHIPPED
+Docker Engine API via dockerode replaces GitHub Actions dispatch. Persistent volumes, container lifecycle management.
 
-**Why first:** Everything else (workspaces, volumes, headless mode) depends on having Docker Engine API access. This is the infrastructure unlock.
+### v1.5 Persistent Workspaces — SHIPPED
+Named Docker volumes per repo (warm start). Interactive code workspaces via xterm.js + WebSocket proxy.
 
-**Key pulls from thepopebot:**
-- `dockerApi()` — Unix socket HTTP client
-- `createHeadlessCodeContainer()` — ephemeral task runner
-- `inspectContainer()`, `startContainer()`, `removeContainer()`
-- `detectNetwork()` — auto-detect Docker network
-- Volume management (`volumeName()`, shared binds)
+### v1.6 MCP Tool Layer — SHIPPED (v2.0 Phase 27)
+Per-instance MCP server configuration. `MCP_SERVERS.json`, tool subset curation, pre-run hydration, health checks.
 
-### v1.5 Persistent Workspaces
-Named Docker volumes per repo so containers start warm (code already cloned). Interactive code workspaces via xterm.js + WebSocket proxy. This is the "devbox" equivalent.
+### v2.0 Full Platform — SHIPPED (Phases 25-28)
+Headless streaming (SSE, filtered logs, Slack updates), Web UI (auth, repo selector, feature flags), MCP tool layer, Multi-agent clusters (full runtime with label-based routing, safety limits, per-agent Docker volumes).
 
-**Key pulls from thepopebot:**
-- `lib/code/` — full workspace module (actions, terminal-view, ws-proxy)
-- `lib/tools/docker.js` — `createCodeWorkspaceContainer()`
-- Container recovery logic (`ensureCodeWorkspaceContainer`)
-- WebSocket auth proxy (JWT cookie validation → container proxy)
+### v2.1 Upstream Feature Sync — IN PROGRESS (Phases 29-38)
+Cherry-pick all missing upstream features from thepopebot without breaking ClawForge-specific systems.
 
-### v1.6 MCP Tool Layer
-Per-instance MCP server configuration. Agents get curated tool access beyond just Claude Code built-ins. This is the "Toolshed" equivalent.
+**Wave 1 (Low Risk, UI Additions):** Foundation & Config (29), New Pages (30), Chat Enhancements (31)
+**Wave 2 (Medium Risk, Auth & Admin):** Auth Roles (32), Admin Panel (33), GitHub Secrets (34)
+**Wave 3 (Higher Effort, Advanced):** Voice Input (35), Code Workspaces V2 (36), Cluster Detail Views (37), Developer Experience (38)
 
-**What to build (no thepopebot equivalent):**
-- Instance-level `MCP_SERVERS.json` config
-- MCP server lifecycle in containers (start/stop with container)
-- Tool subset curation per instance
-- Pre-run MCP tools on context links (hydrate before job starts)
-
-### v1.7 Smart Execution
-Pre-CI quality gates (lint, typecheck), CI-aware test feedback loop (at most 2 runs), and configurable merge policies per repo.
-
-**What to build:**
-- Entrypoint phases: creative work → deterministic checks → CI submit
-- CI result polling and retry (configurable max runs)
-- Per-repo merge policy config in REPOS.json
-- Local heuristic checks (<5s: lint, type errors, import resolution)
-
-### v1.8 Multi-Agent Clusters (Future)
-Coordinated agent groups with role-based task distribution. Pull cluster DB schema from thepopebot, build our own runtime.
-
-**Key pulls from thepopebot:**
-- Cluster/worker/role DB schema
-- Trigger config model (cron, file_watch, webhook)
-
-**What to build:**
-- Cluster runtime (dispatch tasks to workers)
-- Inter-worker communication
-- Result aggregation and conflict resolution
+### v2.2 Smart Execution — FUTURE
+Pre-CI quality gates, CI-aware test feedback loop, configurable merge policies per repo.
 
 ---
 

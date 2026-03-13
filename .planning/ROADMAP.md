@@ -9,6 +9,7 @@
 - ✅ v1.4 Docker Engine Foundation -- Phases 18-21 (shipped 2026-03-08)
 - ✅ v1.5 Persistent Workspaces -- Phases 22-24 (shipped 2026-03-11)
 - ✅ v2.0 Full Platform -- Phases 25-28 (shipped 2026-03-12)
+- v2.1 Upstream Feature Sync -- Phases 29-38 (planned)
 
 ## Phases
 
@@ -74,93 +75,146 @@
 
 </details>
 
+
+<details>
+<summary>✅ v2.0 Full Platform (Phases 25-28) -- SHIPPED 2026-03-12</summary>
+
+- [x] Phase 25: Headless Log Streaming (3/3 plans) -- completed 2026-03-12
+- [x] Phase 26: Web UI Auth + Repo Selector (3/3 plans) -- completed 2026-03-12
+- [x] Phase 27: MCP Tool Layer (3/3 plans) -- completed 2026-03-12
+- [x] Phase 28: Multi-Agent Clusters (5/5 plans) -- completed 2026-03-12
+
+</details>
+
 ---
 
-### v2.0 Full Platform (In Progress)
+### v2.1 Upstream Feature Sync
 
-**Milestone Goal:** Transform ClawForge from a CLI-driven agent gateway into a full-featured agent platform with web UI enhancements, multi-agent clusters, headless job streaming, and per-instance MCP tool configs.
+**Milestone Goal:** Cherry-pick all missing front-end features from PopeBot upstream (stephengpope/thepopebot) into ClawForge via 3 waves — closing the UI gap while preserving ClawForge-specific systems (dockerode, MCP, cluster coordinator, SSE streaming, multi-repo dispatch).
 
-- [x] **Phase 25: Headless Log Streaming** - Live job log output piped to chat UI with filtering, job cancel, and memory-safe consumer lifecycle (completed 2026-03-12)
-- [x] **Phase 26: Web UI Auth + Repo Selector** - Server-side auth boundary on all Server Actions, repo/branch selector in chat header, code mode toggle (completed 2026-03-12)
-- [x] **Phase 27: MCP Tool Layer** - Per-instance MCP server configs with template resolution, container injection, and encrypted credential storage (completed 2026-03-12)
-- [x] **Phase 28: Multi-Agent Clusters** - Role-based cluster runtime with coordinator dispatch, label routing, volume isolation, and safety limits (completed 2026-03-12)
+#### Wave 1: Low Risk, High Visibility (Phases 29-31)
+
+- [ ] **Phase 29: Foundation & Config System** — DB-backed config helper, combobox component, tool display names, LLM provider listing
+- [ ] **Phase 30: New Pages** — PR approvals page, Runners page, Profile page, sidebar navigation updates
+- [ ] **Phase 31: Chat Enhancements** — File upload (drag-and-drop with paperclip), enhanced code mode toggle (headless/interactive), improved message rendering
+
+#### Wave 2: Medium Risk (Phases 32-34)
+
+- [ ] **Phase 32: Auth Roles** — Role column on users table, admin/user middleware, /forbidden page, route guards
+- [ ] **Phase 33: Admin Panel** — /settings/ → /admin/* restructure with shared layout, sub-pages migration
+- [ ] **Phase 34: GitHub Secrets Management** — github-api.js wrapper, secrets CRUD UI, Node crypto encryption, AGENT_* prefix enforcement
+
+#### Wave 3: Higher Effort (Phases 35-38)
+
+- [ ] **Phase 35: Voice Input** — AssemblyAI real-time streaming, AudioWorklet microphone capture, volume bars, chat input integration
+- [ ] **Phase 36: Code Workspaces V2** — DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar (chokidar)
+- [ ] **Phase 37: Cluster Detail Views** — /cluster/[id] single view, /cluster/[id]/console live console, /cluster/[id]/logs viewer, /cluster/[id]/role/[roleId] per-role view
+- [ ] **Phase 38: Developer Experience** — Setup wizard (bin/setup), CLI tools (bin/cli.js, bin/sync.js), web search tool (Brave API)
 
 ## Phase Details
 
-### Phase 25: Headless Log Streaming
-**Goal**: Operators can watch live job progress in chat instead of waiting for a completion notification
-**Depends on**: Phase 24 (v1.5 workspaces complete; Docker Engine API and `waitAndNotify()` in place)
-**Requirements**: STRM-01, STRM-02, STRM-03, STRM-04, STRM-05, STRM-06, STRM-07, STRM-08
+### Phase 29: Foundation & Config System
+**Goal**: Establish shared infrastructure components that Phases 30-38 depend on — DB config helper, UI primitives, and utility modules
+**Depends on**: Phase 28 (v2.0 complete)
+**Requirements**: CONFIG-01, CONFIG-02, CONFIG-03, CONFIG-04
 **Success Criteria** (what must be TRUE):
-  1. Operator sees log lines appearing in the chat thread in real time as a job container executes — no reload required
-  2. Log output shows only semantic events (file saves, bash outputs, key decisions); raw JSONL lines are never surfaced to chat
-  3. A progress indicator with elapsed time is visible in chat for the duration of a running job
-  4. Operator can say "cancel the job" and the running container stops cleanly; the branch is preserved for inspection
-  5. Closing the browser tab during a job releases the Docker log stream with no orphaned listener; no memory leak observed after multiple job runs
-**Plans**: 3 plans
+  1. `lib/config.js` provides `getConfig(key)` / `setConfig(key, value)` backed by SQLite config table
+  2. `lib/chat/components/ui/combobox.jsx` renders a searchable dropdown used by at least one other component
+  3. `lib/chat/components/tool-names.js` maps internal tool IDs to human-readable display names in chat
+  4. `lib/llm-providers.js` lists available LLM providers with model IDs for settings UI
 
-Plans:
-- [ ] 25-01-PLAN.md — Stream manager singleton + log parser with secret scrubbing
-- [ ] 25-02-PLAN.md — Docker log wiring + SSE endpoint + cancel_job tool
-- [ ] 25-03-PLAN.md — Chat UI stream viewer + Slack edit-in-place updates
-
-### Phase 26: Web UI Auth + Repo Selector
-**Goal**: All browser-facing Server Actions enforce server-side auth, and operators can anchor a chat session to a specific repo and branch without typing it in every message
-**Depends on**: Phase 25
-**Requirements**: WEBUI-01, WEBUI-02, WEBUI-03, WEBUI-04, WEBUI-05, WEBUI-06
+### Phase 30: New Pages
+**Goal**: Add upstream UI pages that are pure additions — no existing ClawForge code modified
+**Depends on**: Phase 29
+**Requirements**: PAGES-01, PAGES-02, PAGES-03, PAGES-04
 **Success Criteria** (what must be TRUE):
-  1. Operator selects a repo and branch from a dropdown in the chat header; subsequent job dispatches in that session target that repo without the operator specifying it in each message
-  2. Operator can toggle code mode in the chat input to get syntax-highlighted monospace rendering for code-heavy responses
-  3. Live job streaming output from Phase 25 renders inline in chat messages via the stream-viewer component
-  4. Every Server Action returns a 401 if called without a valid NextAuth session — no client-only session checks remain
-  5. Existing API-key-protected routes (`/api/slack/events`, `/api/telegram/webhook`, etc.) continue to respond correctly after the auth boundary change
-**Plans**: 3 plans
+  1. `/pull-requests` page shows pending PRs from allowed repos with approve/reject actions
+  2. `/runners` page shows GitHub Actions runner status (online/offline/busy)
+  3. `/profile` page shows current user info with login settings
+  4. Sidebar navigation includes new page links with active state highlighting and PR badge count
 
-Plans:
-- [ ] 26-01-PLAN.md — Server Action auth hardening (requireAuth() -> unauthorized(), unauthorized.js boundary)
-- [ ] 26-02-PLAN.md — Context foundation (FeaturesContext, RepoChatContext, getFeatureFlags/getRepos/getBranches actions)
-- [ ] 26-03-PLAN.md — Chat UI enhancements (repo/branch dropdowns, code mode toggle, transport wiring, human verify)
-
-### Phase 27: MCP Tool Layer
-**Goal**: Each instance has curated MCP server configs that get injected into job and workspace containers at runtime, with credentials never stored in git
-**Depends on**: Phase 26
-**Requirements**: MCP-01, MCP-02, MCP-03, MCP-04, MCP-05, MCP-06, MCP-07, MCP-08, MCP-09
+### Phase 31: Chat Enhancements
+**Goal**: Bring chat UI to feature parity with upstream — file upload, enhanced code mode, improved rendering
+**Depends on**: Phase 30
+**Requirements**: CHAT-01, CHAT-02, CHAT-03
 **Success Criteria** (what must be TRUE):
-  1. An operator adds a new MCP server to `instances/{name}/config/MCP_SERVERS.json` and the next job container run has that server available to Claude Code via `--mcp-config`
-  2. MCP credentials specified as `{{AGENT_LLM_*}}` template variables in the config are resolved from environment at container start and never appear in git history
-  3. A workspace container started via `start_coding` has access to the same MCP servers as job containers for the same instance
-  4. If an MCP server fails to connect at container start, the failure is logged with stage `mcp_startup` and the job continues with the remaining healthy servers
-  5. Operator can view configured MCP servers and their allowed tool subsets from a read-only section in the settings page
-**Plans**: 3 plans
+  1. Operator can drag-and-drop files (images, PDFs, code) onto chat or click paperclip button to attach files to messages
+  2. Code mode toggle switches between headless job dispatch and interactive workspace coding within the same chat
+  3. Chat messages render with enhanced formatting (syntax highlighting, collapsible code blocks, image previews)
 
-Plans:
-- [ ] 27-01-PLAN.md — MCP config foundation (schema, loader, template resolution, buildMcpConfig)
-- [ ] 27-02-PLAN.md — Container injection (docker.js env vars, entrypoint.sh MCP block, health check, hydration)
-- [ ] 27-03-PLAN.md — Settings UI (getMcpServers Server Action, /settings/mcp page, tab wiring)
-
-### Phase 28: Multi-Agent Clusters
-**Goal**: Operators can define and launch multi-agent pipelines where sequential agents with distinct roles collaborate via shared volume inbox/outbox, with hard safety limits preventing runaway cost
-**Depends on**: Phase 27 (MCP must be in place — cluster role definitions reference mcpServers)
-**Requirements**: CLST-01, CLST-02, CLST-03, CLST-04, CLST-05, CLST-06, CLST-07, CLST-08, CLST-09, CLST-10, CLST-11, CLST-12
+### Phase 32: Auth Roles
+**Goal**: Add role-based access control so admin features are restricted to admin users
+**Depends on**: Phase 31
+**Requirements**: ROLE-01, ROLE-02, ROLE-03, ROLE-04
 **Success Criteria** (what must be TRUE):
-  1. Operator defines a cluster in `CLUSTER.json` with named roles, role-specific system prompts, allowed tools, and MCP server assignments; the cluster runs end-to-end without additional config
-  2. Operator launches a cluster run by saying "run the review cluster on repo X" and receives a single Slack thread with per-agent status updates as replies — not a flood of separate messages
-  3. Each agent in a cluster run operates in its own Docker container with its own isolated volume; no two concurrent agents share a named volume
-  4. A cluster that would loop infinitely (agents cycling between each other) terminates automatically after hitting the hard cap (5 iterations per agent, 15 per run) with a notification identifying the cycle
-  5. Cluster run history, per-agent status, labels emitted, and PR URLs are visible on the `/clusters` management page
-**Plans**: 5 plans
+  1. Users table has `role` column with `admin` and `user` values; first user is auto-admin
+  2. Middleware checks role on `/admin/*` routes and returns 403 for non-admin users
+  3. `/forbidden` page renders when a non-admin user attempts to access admin routes
+  4. Client-side navigation conditionally shows/hides admin links based on user role
 
-Plans:
-- [ ] 28-01-PLAN.md — Config schema, DB tables, volume naming foundation
-- [ ] 28-02-PLAN.md — Cluster agent Docker entrypoint script
-- [ ] 28-03-PLAN.md — Coordinator dispatch loop with label routing and safety limits
-- [ ] 28-04-PLAN.md — LangGraph tool + executeAction cluster type
-- [ ] 28-05-PLAN.md — /clusters management page with run history
+### Phase 33: Admin Panel
+**Goal**: Restructure settings from `/settings/` to `/admin/*` with proper layout and sub-page navigation
+**Depends on**: Phase 32 (roles must be in place before admin routes)
+**Requirements**: ADMIN-01, ADMIN-02, ADMIN-03, ADMIN-04
+**Success Criteria** (what must be TRUE):
+  1. `/admin/` layout renders with sidebar navigation listing all admin sub-pages
+  2. Existing settings pages (general, github, chat) are accessible under `/admin/*`
+  3. New admin pages (users, webhooks) are functional with CRUD operations
+  4. `/settings/*` routes redirect to corresponding `/admin/*` routes for backwards compatibility
+
+### Phase 34: GitHub Secrets Management
+**Goal**: Operators can manage GitHub secrets and variables from the admin panel without leaving ClawForge
+**Depends on**: Phase 33 (admin panel must exist)
+**Requirements**: GHSEC-01, GHSEC-02, GHSEC-03, GHSEC-04
+**Success Criteria** (what must be TRUE):
+  1. `lib/github-api.js` provides CRUD operations for GitHub repo secrets and variables
+  2. `/admin/secrets` page lists secrets with masked values (last 4 chars) and supports create/update/delete
+  3. Secret values encrypted with Node `crypto` (AES-256-GCM) before any local storage
+  4. AGENT_* prefix convention enforced in the create/edit form with clear documentation
+
+### Phase 35: Voice Input
+**Goal**: Operators can speak into their microphone in the web chat and have speech transcribed to text input
+**Depends on**: Phase 31 (chat enhancements provide the input area integration point)
+**Requirements**: VOICE-01, VOICE-02, VOICE-03, VOICE-04
+**Success Criteria** (what must be TRUE):
+  1. Microphone button in chat input toggles recording; volume bars animate during capture
+  2. Audio streamed to AssemblyAI in real-time; interim and final transcriptions appear in chat input
+  3. Graceful handling of microphone permission denial (toast notification, no crash)
+  4. No audio data stored server-side — purely client-to-AssemblyAI streaming
+
+### Phase 36: Code Workspaces V2
+**Goal**: Upgrade workspace terminal with DnD tabs, enhanced xterm addons, and file tree navigation
+**Depends on**: Phase 29 (config foundation) + existing v1.5 workspace infrastructure
+**Requirements**: CWSV2-01, CWSV2-02, CWSV2-03, CWSV2-04
+**Success Criteria** (what must be TRUE):
+  1. Workspace tabs are drag-reorderable via @dnd-kit; new tabs spawn additional tmux sessions
+  2. Terminal supports in-terminal search (addon-search) and clickable URLs (addon-web-links)
+  3. File tree sidebar shows workspace directory contents, auto-refreshes on file changes (chokidar)
+  4. Existing v1.5 workspaces continue working without migration — V2 features are additive
+
+### Phase 37: Cluster Detail Views
+**Goal**: Operators can drill into individual cluster runs to see per-agent status, live console output, and logs
+**Depends on**: Phase 28 (cluster backend must exist)
+**Requirements**: CLSTUI-01, CLSTUI-02, CLSTUI-03, CLSTUI-04
+**Success Criteria** (what must be TRUE):
+  1. `/cluster/[id]` shows cluster run overview with agent timeline, status badges, and PR links
+  2. `/cluster/[id]/console` streams live output from the currently-executing cluster agent
+  3. `/cluster/[id]/logs` shows historical log output for completed agents in the run
+  4. `/cluster/[id]/role/[roleId]` shows role-specific view with agent config, label history, and outputs
+
+### Phase 38: Developer Experience
+**Goal**: Make ClawForge easier to set up and develop against with CLI tools, setup wizard, and web search integration
+**Depends on**: Phase 29 (config system)
+**Requirements**: DX-01, DX-02, DX-03
+**Success Criteria** (what must be TRUE):
+  1. `bin/setup` interactive wizard walks through first-time setup (env vars, Docker, GitHub token)
+  2. `bin/cli.js` provides CLI commands for common operations (create instance, run job, check status)
+  3. `web_search` LangGraph tool queries Brave Search API and returns structured results to the agent
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 25 → 26 → 27 → 28
+Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 → 36 → 37 → 38
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -194,7 +248,17 @@ Phases execute in numeric order: 25 → 26 → 27 → 28
 | 26. Web UI Auth + Repo Selector | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
+| 29. Foundation & Config System | v2.1 | 0/? | Planned | — |
+| 30. New Pages | v2.1 | 0/? | Planned | — |
+| 31. Chat Enhancements | v2.1 | 0/? | Planned | — |
+| 32. Auth Roles | v2.1 | 0/? | Planned | — |
+| 33. Admin Panel | v2.1 | 0/? | Planned | — |
+| 34. GitHub Secrets Management | v2.1 | 0/? | Planned | — |
+| 35. Voice Input | v2.1 | 0/? | Planned | — |
+| 36. Code Workspaces V2 | v2.1 | 0/? | Planned | — |
+| 37. Cluster Detail Views | v2.1 | 0/? | Planned | — |
+| 38. Developer Experience | v2.1 | 0/? | Planned | — |
 
 ---
 
-*Last updated: 2026-03-12 -- Phase 28 planned (5 plans, 3 waves)*
+*Last updated: 2026-03-12 -- v2.1 milestone planned (10 phases, 3 waves)*

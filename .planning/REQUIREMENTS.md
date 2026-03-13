@@ -1,4 +1,4 @@
-# Requirements: ClawForge v2.0
+# Requirements: ClawForge v2.1
 
 **Defined:** 2026-03-12
 **Core Value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
@@ -54,13 +54,84 @@ Requirements for v2.0 Full Platform milestone. Each maps to roadmap phases.
 - [x] **CLST-11**: All cluster agent containers use `--allowedTools` whitelist per role; zero instances of `--dangerously-skip-permissions` in any cluster code
 - [x] **CLST-12**: Cluster notifications post one Slack thread per cluster run with agent updates as thread replies (not per-agent messages)
 
+## v2.1 Requirements
+
+Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBot upstream.
+
+### Foundation & Config (Phase 29)
+
+- [ ] **CONFIG-01**: `lib/config.js` provides `getConfig(key)` / `setConfig(key, value)` backed by SQLite config table
+- [ ] **CONFIG-02**: `lib/chat/components/ui/combobox.jsx` renders a searchable dropdown reusable across settings and chat
+- [ ] **CONFIG-03**: `lib/chat/components/tool-names.js` maps internal tool IDs to human-readable names displayed in chat
+- [ ] **CONFIG-04**: `lib/llm-providers.js` lists available LLM providers with model IDs for settings UI
+
+### New Pages (Phase 30)
+
+- [ ] **PAGES-01**: `/pull-requests` page shows pending PRs from allowed repos with approve/reject actions
+- [ ] **PAGES-02**: `/runners` page shows GitHub Actions runner status (online/offline/busy)
+- [ ] **PAGES-03**: `/profile` page shows current user info with login settings
+- [ ] **PAGES-04**: Sidebar navigation includes new page links with active state and PR badge count
+
+### Chat Enhancements (Phase 31)
+
+- [ ] **CHAT-01**: File upload via drag-and-drop or paperclip button supports images, PDFs, and code files
+- [ ] **CHAT-02**: Code mode toggle switches between headless job dispatch and interactive workspace coding
+- [ ] **CHAT-03**: Enhanced message rendering with syntax highlighting, collapsible code blocks, and image previews
+
+### Auth Roles (Phase 32)
+
+- [ ] **ROLE-01**: Users table has `role` column (`admin`/`user`); first registered user is auto-admin
+- [ ] **ROLE-02**: Middleware guards `/admin/*` routes; returns 403 for non-admin users
+- [ ] **ROLE-03**: `/forbidden` page renders with clear messaging when non-admin accesses restricted routes
+- [ ] **ROLE-04**: Client-side navigation conditionally shows/hides admin links based on session role
+
+### Admin Panel (Phase 33)
+
+- [ ] **ADMIN-01**: `/admin/` layout with sidebar navigation listing all admin sub-pages
+- [ ] **ADMIN-02**: Existing settings pages (general, github, chat) accessible under `/admin/*`
+- [ ] **ADMIN-03**: New admin pages (users, webhooks) with CRUD operations
+- [ ] **ADMIN-04**: `/settings/*` routes redirect to `/admin/*` for backwards compatibility
+
+### GitHub Secrets Management (Phase 34)
+
+- [ ] **GHSEC-01**: `lib/github-api.js` provides CRUD for GitHub repo secrets and variables via REST API
+- [ ] **GHSEC-02**: `/admin/secrets` page lists secrets (masked, last 4 chars) with create/update/delete
+- [ ] **GHSEC-03**: Secret values encrypted with Node `crypto` (AES-256-GCM) for any local storage
+- [ ] **GHSEC-04**: AGENT_* prefix convention enforced in create/edit forms
+
+### Voice Input (Phase 35)
+
+- [ ] **VOICE-01**: Microphone button in chat input toggles recording; volume bars animate during capture
+- [ ] **VOICE-02**: Audio streamed to AssemblyAI real-time; interim and final transcriptions in chat input
+- [ ] **VOICE-03**: Graceful handling of microphone permission denial (notification, no crash)
+- [ ] **VOICE-04**: No audio data stored server-side — purely client-to-AssemblyAI streaming
+
+### Code Workspaces V2 (Phase 36)
+
+- [ ] **CWSV2-01**: Workspace tabs are drag-reorderable via @dnd-kit; new tabs spawn tmux sessions
+- [ ] **CWSV2-02**: Terminal supports in-terminal search (addon-search) and clickable URLs (addon-web-links)
+- [ ] **CWSV2-03**: File tree sidebar shows workspace directory contents, auto-refreshes via chokidar
+- [ ] **CWSV2-04**: Existing v1.5 workspaces continue working — V2 features are additive
+
+### Cluster Detail Views (Phase 37)
+
+- [ ] **CLSTUI-01**: `/cluster/[id]` shows cluster run overview with agent timeline and PR links
+- [ ] **CLSTUI-02**: `/cluster/[id]/console` streams live output from currently-executing cluster agent
+- [ ] **CLSTUI-03**: `/cluster/[id]/logs` shows historical log output for completed agents
+- [ ] **CLSTUI-04**: `/cluster/[id]/role/[roleId]` shows role-specific view with config and outputs
+
+### Developer Experience (Phase 38)
+
+- [ ] **DX-01**: `bin/setup` interactive wizard for first-time setup (env vars, Docker, GitHub token)
+- [ ] **DX-02**: `bin/cli.js` CLI commands for common operations (create instance, run job, check status)
+- [ ] **DX-03**: `web_search` LangGraph tool queries Brave Search API and returns structured results
+
 ## Future Requirements
 
-Deferred to v2.1+. Tracked but not in current roadmap.
+Deferred to v2.2+. Tracked but not in current roadmap.
 
 ### Web UI
 
-- **WEBUI-F01**: DnD tab interface for drag-reorderable multi-workspace tabs
 - **WEBUI-F02**: GSD phase progress parsing in stream (surface current phase/sub-task from GSD output)
 
 ### Clusters

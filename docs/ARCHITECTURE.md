@@ -559,6 +559,22 @@ The container (built from `docker/job/Dockerfile`):
 
 ---
 
+## v2.1 Feature Areas (Planned)
+
+### Admin Panel (`/admin/*`)
+Restructured from `/settings/` with role-based access control. Admin/user roles on `users` table, middleware guards on `/admin/*` routes. See `docs/ADMIN_PANEL.md`.
+
+### Voice Input
+Browser-to-AssemblyAI real-time streaming for speech-to-text in web chat. AudioWorklet capture → WebSocket → AssemblyAI → chat input. No server-side audio storage. See `docs/VOICE.md`.
+
+### Enhanced Code Workspaces (V2)
+DnD-reorderable tabs via @dnd-kit, in-terminal search (addon-search), clickable URLs (addon-web-links), file tree sidebar via chokidar. Additive to existing v1.5 workspaces. See `docs/CODE_WORKSPACES_V2.md`.
+
+### Cluster Detail Views
+`/cluster/[id]` overview, `/cluster/[id]/console` live output, `/cluster/[id]/logs` history, `/cluster/[id]/role/[roleId]` per-role view. Cherry-picked UI components from upstream, backed by ClawForge's existing cluster runtime.
+
+---
+
 ## Adding MCP Servers to Jobs
 
 MCPs can be added to the job container:

@@ -44,6 +44,9 @@ docker compose up    # Multi-instance orchestration
 | `docs/CONTEXT_ENGINEERING.md` | SOUL.md, EVENT_HANDLER.md, AGENT.md persona files |
 | `docs/CHAT_INTEGRATIONS.md` | Slack, Telegram, Web Chat integration details |
 | `docs/AUTO_MERGE.md` | Path-restricted auto-merge rules |
+| `docs/ADMIN_PANEL.md` | Admin panel architecture, role system, config storage |
+| `docs/VOICE.md` | Voice input architecture, AssemblyAI integration |
+| `docs/CODE_WORKSPACES_V2.md` | Enhanced workspaces with DnD tabs, WebSocket proxy |
 
 ## Key Decisions
 
@@ -52,6 +55,9 @@ docker compose up    # Multi-instance orchestration
 - **Separate Docker networks** per instance (noah-net, strategyES-net)
 - **Separate Slack apps** per instance (different workspaces, tokens, scopes)
 - **Org-level GitHub Runner** shared across repos
+- **Cherry-pick upstream features** via 3 waves (v2.1); never overwrite ClawForge-specific systems (dockerode, MCP, cluster coordinator, SSE streaming)
+- **Node crypto** (AES-256-GCM) for all encryption — no libsodium dependency
+- **Relative imports** only — upstream `thepopebot/*` package imports converted on cherry-pick
 
 ## Instances
 
@@ -72,3 +78,5 @@ Rules in `.claude/rules/` are auto-attached when editing matching files:
 - `channels.md` — Channel adapters, API routes, instance isolation
 - `jobs.md` — Job execution, Docker, GitHub Actions, secrets
 - `ai-agent.md` — LangGraph agent, LLM config, instance persona files
+- `admin.md` — Admin panel, auth roles, config storage, GitHub secrets management
+- `voice.md` — Voice input, AssemblyAI streaming, AudioWorklet

@@ -102,17 +102,24 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 
 ### Active
 
-## Current Milestone: v2.0 Full Platform
+## Current Milestone: v2.1 Upstream Feature Sync
 
-**Goal:** Transform ClawForge from a CLI-driven agent gateway into a full-featured agent platform with web UI, multi-agent clusters, headless streaming, and per-instance MCP tool configs — cherry-picking from PopeBot upstream (v1.2.73) without compromising multi-tenant architecture.
+**Goal:** Cherry-pick all missing front-end features from PopeBot upstream (stephengpope/thepopebot) into ClawForge via 3 waves — low-risk UI additions first, then admin panel restructure, then advanced features (voice, enhanced workspaces, cluster detail views). Never overwrite ClawForge-specific systems.
 
 **Target features:**
-- Web UI with chat interface, code mode toggle, repo/branch selector, DnD tabs
-- Multi-agent clusters with role-based teams and label-based state machine routing
-- Headless job streaming with live log output to chat UI
-- Per-instance MCP server configs with curated tool subsets
+- **Wave 1 (low risk):** Foundation config system, PR approvals page, Runners page, Profile page, sidebar updates, file upload in chat, enhanced code mode toggle
+- **Wave 2 (medium risk):** Auth roles (admin/user), admin panel restructure (/settings/ → /admin/*), GitHub secrets management UI
+- **Wave 3 (higher effort):** Voice input (AssemblyAI), enhanced code workspaces (DnD tabs, file tree, xterm addons), cluster detail views (/cluster/[id]/*), developer experience (setup wizard, CLI tools, web search tool)
 
 **Use cases:** Noah's own products, Epic development for CCP projects
+
+**Cherry-pick strategy:** ~60-70% of shared code has diverged. Only upstream-only files are safe to copy directly. Heavily-diverged files (tools.js, agent.js, docker.js, schema.js, paths.js) keep ClawForge versions. All `thepopebot/*` package imports converted to relative imports on cherry-pick. See `.planning/references/cherry-pick-merge-guide.md` for file-level guidance.
+
+## Previous Milestone: v2.0 Full Platform (shipped 2026-03-12)
+
+**Goal:** Transform ClawForge from a CLI-driven agent gateway into a full-featured agent platform with web UI, multi-agent clusters, headless streaming, and per-instance MCP tool configs.
+
+**Delivered:** Headless log streaming, web UI auth + repo selector, MCP tool layer, multi-agent clusters. 35 requirements satisfied across 4 phases (25-28).
 
 ### Out of Scope
 
@@ -137,8 +144,9 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 **Milestone map:**
 - **v1.4 Docker Engine Foundation** — shipped 2026-03-08
 - **v1.5 Persistent Workspaces** — shipped 2026-03-11
-- **v2.0 Full Platform** — Web UI, Clusters, Headless Streaming, MCP Tool Layer (cherry-picked from PopeBot upstream)
-- **v2.1 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
+- **v2.0 Full Platform** — shipped 2026-03-12 (Web UI, Clusters, Headless Streaming, MCP Tool Layer)
+- **v2.1 Upstream Feature Sync** — Cherry-pick all missing upstream features in 3 waves (UI pages, admin panel, advanced features)
+- **v2.2 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
 
 **Sources:** Stripe minions blog (stripe.dev/blog/minions), thepopebot upstream (stephengpope/thepopebot), analyzed 2026-03-04
 
@@ -209,6 +217,10 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 | Chat context JSON-encoded, 20KB cap | Handles newlines/special chars in Docker env vars; prevents oversized env | ✓ Reliable injection |
 | closeWorkspace delegates to stopWorkspace | Non-running workspaces handled gracefully without duplicate status checks | ✓ Robust close path |
 | notifyWorkspaceEvent is module-local | Only closeWorkspace and reconcile/idle paths call it; not exposed to external callers | ✓ Controlled notification |
+| Cherry-pick upstream via 3 waves (v2.1) | ~60-70% code divergence makes full sync infeasible; wave approach manages risk | Planned — v2.1 |
+| Keep dockerode, never adopt upstream raw http | dockerode is battle-tested with stream demuxing; upstream raw http is 472 lines of manual HTTP | ✓ Architecture decision |
+| Keep Node crypto, never adopt libsodium | Already using AES-256-GCM; no reason to add native dependency | ✓ Architecture decision |
+| Convert thepopebot/* imports to relative | ClawForge uses relative imports; upstream NPM package imports break in our fork model | Planned — v2.1 |
 
 - Instance updates/deletion — define creation first, update flows are additive complexity
 - Automated deployment — security-sensitive; human review via PR is the right gate
