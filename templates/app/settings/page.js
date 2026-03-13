@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function SettingsRoot() {
-  redirect('/settings/crons');
+export default function SettingsRedirect() {
+  redirect('/admin/crons');
 }

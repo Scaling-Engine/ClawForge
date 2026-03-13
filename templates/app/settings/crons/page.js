@@ -1,5 +1,5 @@
-import { CronsPage } from '../../../lib/chat/components/index.js';
+import { redirect } from 'next/navigation';
 
-export default function SettingsCronsRoute() {
-  return <CronsPage />;
+export default function SettingsCronsRedirect() {
+  redirect('/admin/crons');
 }

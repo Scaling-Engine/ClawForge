@@ -1,5 +1,5 @@
-import { TriggersPage } from '../../../lib/chat/components/index.js';
+import { redirect } from 'next/navigation';
 
-export default function SettingsTriggersRoute() {
-  return <TriggersPage />;
+export default function SettingsTriggersRedirect() {
+  redirect('/admin/triggers');
 }
