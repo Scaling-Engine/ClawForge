@@ -120,8 +120,8 @@
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 29-01-PLAN.md — DB config system (crypto, config CRUD, LLM providers, config facade)
-- [ ] 29-02-PLAN.md — UI combobox component and tool display names
+- [x] 29-01-PLAN.md — DB config system (crypto, config CRUD, LLM providers, config facade)
+- [x] 29-02-PLAN.md — UI combobox component and tool display names
 
 **Success Criteria** (what must be TRUE):
   1. `lib/config.js` provides `getConfig(key)` / `setConfig(key, value)` backed by SQLite config table
@@ -138,6 +138,12 @@ Plans:
   2. `/runners` page shows GitHub Actions runner status (online/offline/busy)
   3. `/profile` page shows current user info with login settings
   4. Sidebar navigation includes new page links with active state highlighting and PR badge count
+**Plans:** 2 plans
+
+Plans:
+- [ ] 30-01-PLAN.md — Server Actions, icons, and Pull Requests page
+- [ ] 30-02-PLAN.md — Runners page, Profile page, and sidebar navigation updates
+
 
 ### Phase 31: Chat Enhancements
 **Goal**: Bring chat UI to feature parity with upstream — file upload, enhanced code mode, improved rendering
@@ -255,7 +261,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 29. Foundation & Config System | 2/2 | Complete   | 2026-03-13 | — |
-| 30. New Pages | v2.1 | 0/? | Planned | — |
+| 30. New Pages | v2.1 | 0/2 | Planned | — |
 | 31. Chat Enhancements | v2.1 | 0/? | Planned | — |
 | 32. Auth Roles | v2.1 | 0/? | Planned | — |
 | 33. Admin Panel | v2.1 | 0/? | Planned | — |
