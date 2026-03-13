@@ -226,6 +226,11 @@ Plans:
   2. Terminal supports in-terminal search (addon-search) and clickable URLs (addon-web-links)
   3. File tree sidebar shows workspace directory contents, auto-refreshes on file changes (chokidar)
   4. Existing v1.5 workspaces continue working without migration — V2 features are additive
+**Plans:** 1 plan
+
+Plans:
+- [ ] 36-01-PLAN.md — DnD tabs, xterm addons (search/web-links/serialize), file tree sidebar
+
 
 ### Phase 37: Cluster Detail Views
 **Goal**: Operators can drill into individual cluster runs to see per-agent status, live console output, and logs
@@ -290,7 +295,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 33. Admin Panel | v2.1 | 1/1 | Complete | 2026-03-13 |
 | 34. GitHub Secrets Management | 1/1 | Complete   | 2026-03-13 | — |
 | 35. Voice Input | 1/1 | Complete   | 2026-03-13 | — |
-| 36. Code Workspaces V2 | v2.1 | 0/? | Planned | — |
+| 36. Code Workspaces V2 | v2.1 | 0/1 | Planned | — |
 | 37. Cluster Detail Views | v2.1 | 0/? | Planned | — |
 | 38. Developer Experience | v2.1 | 0/? | Planned | — |
 
