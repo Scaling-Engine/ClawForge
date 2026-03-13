@@ -87,10 +87,10 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Admin Panel (Phase 33)
 
-- [ ] **ADMIN-01**: `/admin/` layout with sidebar navigation listing all admin sub-pages
-- [ ] **ADMIN-02**: Existing settings pages (general, github, chat) accessible under `/admin/*`
-- [ ] **ADMIN-03**: New admin pages (users, webhooks) with CRUD operations
-- [ ] **ADMIN-04**: `/settings/*` routes redirect to `/admin/*` for backwards compatibility
+- [x] **ADMIN-01**: `/admin/` layout with sidebar navigation listing all admin sub-pages
+- [x] **ADMIN-02**: Existing settings pages (general, github, chat) accessible under `/admin/*`
+- [x] **ADMIN-03**: New admin pages (users, webhooks) with CRUD operations
+- [x] **ADMIN-04**: `/settings/*` routes redirect to `/admin/*` for backwards compatibility
 
 ### GitHub Secrets Management (Phase 34)
 

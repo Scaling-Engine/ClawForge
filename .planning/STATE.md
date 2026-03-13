@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
-status: Phase 32 shipped — RBAC enforcement with middleware guard, forbidden page, and admin sidebar link
-stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-03-13T06:10:00.000Z"
-last_activity: 2026-03-13 — Phase 32 executed and verified
+status: Phase 33 shipped — Admin panel with sidebar layout, user management, webhooks display, settings redirects
+stopped_at: Completed 33-01-PLAN.md
+last_updated: "2026-03-13T06:25:31Z"
+last_activity: 2026-03-13 — Phase 33 executed and verified
 progress:
   total_phases: 10
-  completed_phases: 4
-  total_plans: 6
-  completed_plans: 6
-  percent: 30
+  completed_phases: 6
+  total_plans: 8
+  completed_plans: 8
+  percent: 50
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 32 of 38 (Auth Roles) — COMPLETE
+Phase: 33 of 38 (Admin Panel) — COMPLETE
 Plan: 1/1 plans executed and verified
-Status: Phase 32 shipped — RBAC enforcement with middleware guard, forbidden page, and admin sidebar link
-Last activity: 2026-03-13 — Phase 32 executed and verified
+Status: Phase 33 shipped — Admin panel with sidebar layout, user management, webhooks display, settings redirects
+Last activity: 2026-03-13 — Phase 33 executed and verified
 
-Progress: [████░░░░░░] 40% of v2.1 phases (4/10)
+Progress: [█████░░░░░] 50% of v2.1 phases (5/10)
 
 ## Accumulated Context
 
@@ -56,6 +56,9 @@ Recent decisions affecting current work:
 - [Phase 31-chat-enhancements]: controls prop set to false during streaming to prevent copy/collapse button jitter mid-stream
 - [Phase 32-auth-roles]: ForbiddenPage is bare page (no sidebar) matching unauthorized.js precedent
 - [Phase 32-auth-roles]: Admin middleware check placed AFTER auth check so unauthenticated users hit /login first
+- [Phase 33-admin-panel]: AdminLayout uses sidebar navigation (not tabs) for scalability with 6+ sub-pages
+- [Phase 33-admin-panel]: getAllUsers() uses explicit column selection to never expose passwordHash
+- [Phase 33-admin-panel]: SettingsLayout and settings/layout.js left untouched -- redirect() short-circuits before layout renders
 
 ### Pending Todos
 
@@ -68,6 +71,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T06:10:00.000Z
-Stopped at: Completed 32-01-PLAN.md
+Last session: 2026-03-13T06:25:31Z
+Stopped at: Completed 33-01-PLAN.md
 Resume file: None
