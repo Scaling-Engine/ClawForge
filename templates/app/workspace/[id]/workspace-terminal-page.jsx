@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import Terminal from './terminal.jsx';
+import { SortableTab } from './sortable-tab.jsx';
+import FileTreeSidebar from './file-tree-sidebar.jsx';
 import { requestTerminalTicket, requestSpawnShell, requestGitStatus, closeWorkspaceAction } from 'clawforge/ws/actions';
 
 const BASE_PORT = 7681;
@@ -9,6 +13,7 @@ const MAX_EXTRA_PORT = 7685;
 
 /**
  * Client component managing terminal tabs, WebSocket connections, and git safety.
+ * V2 additions: DnD tab reordering, file tree sidebar, search bar integration.
  *
  * @param {object} props
  * @param {string} props.workspaceId
@@ -17,11 +22,30 @@ const MAX_EXTRA_PORT = 7685;
  */
 export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBranch }) {
   const [tabs, setTabs] = useState([]);
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [activeTabId, setActiveTabId] = useState(null);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
   const [gitStatus, setGitStatus] = useState(null);
   const [disconnectedTabs, setDisconnectedTabs] = useState(new Set());
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFileTree, setShowFileTree] = useState(false);
   const initializedRef = useRef(false);
+
+  // Derive activeTabIndex from activeTabId for rendering (survives reorders -- Pitfall #3)
+  const activeTabIndex = tabs.findIndex((t) => t.id === activeTabId);
+
+  // DnD sensor: 5px activation distance prevents click/drag conflicts (Pitfall #2)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleDragEnd = useCallback((event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setTabs((prev) => {
+        const oldIndex = prev.findIndex((t) => t.id === active.id);
+        const newIndex = prev.findIndex((t) => t.id === over.id);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  }, []);
 
   // Construct WebSocket URL from current page location
   const getWsUrl = useCallback(() => {
@@ -38,7 +62,9 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
     async function initFirstTab() {
       try {
         const { ticket } = await requestTerminalTicket(workspaceId, BASE_PORT);
-        setTabs([{ id: `tab-${BASE_PORT}`, port: BASE_PORT, ticket }]);
+        const firstTabId = `tab-${BASE_PORT}`;
+        setTabs([{ id: firstTabId, port: BASE_PORT, ticket }]);
+        setActiveTabId(firstTabId);
       } catch (err) {
         console.error('Failed to initialize terminal:', err);
       }
@@ -78,48 +104,54 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
 
       // Request ticket for the new port
       const { ticket } = await requestTerminalTicket(workspaceId, nextPort);
-      setTabs((prev) => [...prev, { id: `tab-${nextPort}`, port: nextPort, ticket }]);
-      setActiveTabIndex(tabs.length); // Switch to new tab
+      const newTab = { id: `tab-${nextPort}`, port: nextPort, ticket };
+      setTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
     } catch (err) {
       console.error('Failed to create new tab:', err);
       alert(`Failed to create new tab: ${err.message}`);
     }
   }, [tabs, workspaceId]);
 
-  // Close a tab
-  const handleCloseTab = useCallback((index) => {
+  // Close a tab (by ID, not index -- survives DnD reorders)
+  const handleCloseTab = useCallback((tabId) => {
     setTabs((prev) => {
-      const next = prev.filter((_, i) => i !== index);
+      const index = prev.findIndex((t) => t.id === tabId);
+      if (index === -1) return prev;
+      const next = prev.filter((t) => t.id !== tabId);
       if (next.length === 0) return prev; // Don't close last tab
       return next;
     });
-    setActiveTabIndex((prev) => {
-      if (index < prev) return prev - 1;
-      if (index === prev) return Math.max(0, prev - 1);
-      return prev;
+    setActiveTabId((prevId) => {
+      if (prevId !== tabId) return prevId;
+      // Closing active tab -- switch to adjacent
+      const currentTabs = tabs;
+      const index = currentTabs.findIndex((t) => t.id === tabId);
+      const remaining = currentTabs.filter((t) => t.id !== tabId);
+      if (remaining.length === 0) return prevId;
+      const newIndex = Math.min(index, remaining.length - 1);
+      return remaining[newIndex].id;
     });
-  }, []);
+  }, [tabs]);
 
   // Handle disconnect for a tab
   const handleDisconnect = useCallback((tabId) => {
     setDisconnectedTabs((prev) => new Set(prev).add(tabId));
   }, []);
 
-  // Reconnect a tab
-  const handleReconnect = useCallback(async (index) => {
-    const tab = tabs[index];
+  // Reconnect a tab (by ID)
+  const handleReconnect = useCallback(async (tabId) => {
+    const tab = tabs.find((t) => t.id === tabId);
     if (!tab) return;
 
     try {
       const { ticket } = await requestTerminalTicket(workspaceId, tab.port);
-      setTabs((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], ticket };
-        return next;
-      });
+      setTabs((prev) =>
+        prev.map((t) => (t.id === tabId ? { ...t, ticket } : t))
+      );
       setDisconnectedTabs((prev) => {
         const next = new Set(prev);
-        next.delete(tab.id);
+        next.delete(tabId);
         return next;
       });
     } catch (err) {
@@ -177,37 +209,22 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Tab buttons */}
-          {tabs.map((tab, i) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTabIndex(i)}
-              style={{
-                padding: '4px 12px',
-                fontSize: '12px',
-                backgroundColor: i === activeTabIndex ? '#313244' : 'transparent',
-                color: disconnectedTabs.has(tab.id) ? '#f38ba8' : '#cdd6f4',
-                border: '1px solid',
-                borderColor: i === activeTabIndex ? '#585b70' : 'transparent',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              Shell {tab.port === BASE_PORT ? '1' : tab.port - BASE_PORT + 1}
-              {disconnectedTabs.has(tab.id) && ' (disconnected)'}
-              {tabs.length > 1 && (
-                <span
-                  onClick={(e) => { e.stopPropagation(); handleCloseTab(i); }}
-                  style={{ color: '#585b70', cursor: 'pointer', marginLeft: '4px' }}
-                >
-                  x
-                </span>
-              )}
-            </button>
-          ))}
+          {/* DnD-sortable tab buttons */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+              {tabs.map((tab) => (
+                <SortableTab
+                  key={tab.id}
+                  tab={tab}
+                  isActive={tab.id === activeTabId}
+                  isDisconnected={disconnectedTabs.has(tab.id)}
+                  onSelect={() => setActiveTabId(tab.id)}
+                  onClose={() => handleCloseTab(tab.id)}
+                  showClose={tabs.length > 1}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           <button
             onClick={handleNewTab}
@@ -222,6 +239,21 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
             }}
           >
             + New Tab
+          </button>
+
+          <button
+            onClick={() => setShowFileTree((prev) => !prev)}
+            style={{
+              padding: '4px 10px',
+              fontSize: '12px',
+              backgroundColor: showFileTree ? '#313244' : 'transparent',
+              color: '#a6adc8',
+              border: '1px solid #585b70',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {showFileTree ? 'Hide Files' : 'Files'}
           </button>
 
           <button
@@ -242,53 +274,65 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
         </div>
       </div>
 
-      {/* Terminal area */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {tabs.map((tab, i) => (
-          <div
-            key={tab.id}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: i === activeTabIndex ? 'block' : 'none',
+      {/* Terminal area with optional file tree sidebar */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {showFileTree && (
+          <FileTreeSidebar
+            workspaceId={workspaceId}
+            onFileClick={(path) => {
+              console.log('File clicked:', path);
             }}
-          >
-            {disconnectedTabs.has(tab.id) ? (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                gap: '16px',
-              }}>
-                <span style={{ color: '#f38ba8', fontSize: '14px' }}>Disconnected</span>
-                <button
-                  onClick={() => handleReconnect(i)}
-                  style={{
-                    padding: '8px 24px',
-                    fontSize: '14px',
-                    backgroundColor: '#a6e3a1',
-                    color: '#1e1e2e',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Reconnect
-                </button>
-              </div>
-            ) : (
-              <Terminal
-                workspaceId={workspaceId}
-                port={tab.port}
-                ticket={tab.ticket}
-                wsUrl={wsUrl}
-                onDisconnect={() => handleDisconnect(tab.id)}
-              />
-            )}
-          </div>
-        ))}
+          />
+        )}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          {tabs.map((tab, i) => (
+            <div
+              key={tab.id}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: i === activeTabIndex ? 'block' : 'none',
+              }}
+            >
+              {disconnectedTabs.has(tab.id) ? (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  gap: '16px',
+                }}>
+                  <span style={{ color: '#f38ba8', fontSize: '14px' }}>Disconnected</span>
+                  <button
+                    onClick={() => handleReconnect(tab.id)}
+                    style={{
+                      padding: '8px 24px',
+                      fontSize: '14px',
+                      backgroundColor: '#a6e3a1',
+                      color: '#1e1e2e',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Reconnect
+                  </button>
+                </div>
+              ) : (
+                <Terminal
+                  workspaceId={workspaceId}
+                  port={tab.port}
+                  ticket={tab.ticket}
+                  wsUrl={wsUrl}
+                  onDisconnect={() => handleDisconnect(tab.id)}
+                  showSearch={tab.id === activeTabId && showSearch}
+                  onSearchToggle={() => setShowSearch((prev) => !prev)}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Close warning modal */}
