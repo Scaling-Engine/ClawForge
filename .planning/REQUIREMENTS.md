@@ -60,10 +60,10 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Foundation & Config (Phase 29)
 
-- [ ] **CONFIG-01**: `lib/config.js` provides `getConfig(key)` / `setConfig(key, value)` backed by SQLite config table
-- [ ] **CONFIG-02**: `lib/chat/components/ui/combobox.jsx` renders a searchable dropdown reusable across settings and chat
-- [ ] **CONFIG-03**: `lib/chat/components/tool-names.js` maps internal tool IDs to human-readable names displayed in chat
-- [ ] **CONFIG-04**: `lib/llm-providers.js` lists available LLM providers with model IDs for settings UI
+- [x] **CONFIG-01**: `lib/config.js` provides `getConfig(key)` / `setConfig(key, value)` backed by SQLite config table
+- [x] **CONFIG-02**: `lib/chat/components/ui/combobox.jsx` renders a searchable dropdown reusable across settings and chat
+- [x] **CONFIG-03**: `lib/chat/components/tool-names.js` maps internal tool IDs to human-readable names displayed in chat
+- [x] **CONFIG-04**: `lib/llm-providers.js` lists available LLM providers with model IDs for settings UI
 
 ### New Pages (Phase 30)
 

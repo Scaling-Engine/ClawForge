@@ -94,7 +94,7 @@
 
 #### Wave 1: Low Risk, High Visibility (Phases 29-31)
 
-- [ ] **Phase 29: Foundation & Config System** — DB-backed config helper, combobox component, tool display names, LLM provider listing
+- [x] **Phase 29: Foundation & Config System** — DB-backed config helper, combobox component, tool display names, LLM provider listing (completed 2026-03-13)
 - [ ] **Phase 30: New Pages** — PR approvals page, Runners page, Profile page, sidebar navigation updates
 - [ ] **Phase 31: Chat Enhancements** — File upload (drag-and-drop with paperclip), enhanced code mode toggle (headless/interactive), improved message rendering
 
@@ -117,7 +117,7 @@
 **Goal**: Establish shared infrastructure components that Phases 30-38 depend on — DB config helper, UI primitives, and utility modules
 **Depends on**: Phase 28 (v2.0 complete)
 **Requirements**: CONFIG-01, CONFIG-02, CONFIG-03, CONFIG-04
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 29-01-PLAN.md — DB config system (crypto, config CRUD, LLM providers, config facade)
@@ -254,7 +254,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 26. Web UI Auth + Repo Selector | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
-| 29. Foundation & Config System | v2.1 | 0/2 | Planned | — |
+| 29. Foundation & Config System | 2/2 | Complete   | 2026-03-13 | — |
 | 30. New Pages | v2.1 | 0/? | Planned | — |
 | 31. Chat Enhancements | v2.1 | 0/? | Planned | — |
 | 32. Auth Roles | v2.1 | 0/? | Planned | — |

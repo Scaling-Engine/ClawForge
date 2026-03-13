@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
 status: planning
-stopped_at: Strategy ingestion complete — ready for Phase 29 planning
-last_updated: "2026-03-12T23:00:00.000Z"
-last_activity: 2026-03-12 — v2.1 strategy ingested, requirements defined, roadmap phases 29-38 created
+stopped_at: Completed 29-02-PLAN.md
+last_updated: "2026-03-13T04:18:54.138Z"
+last_activity: 2026-03-12 — v2.1 milestone initialized
 progress:
   total_phases: 10
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
   percent: 0
 ---
 
@@ -46,6 +46,8 @@ Recent decisions affecting current work:
 - [v2.1 strategy]: Keep ClawForge xterm v6, not upstream xterm v5
 - [v2.1 strategy]: Keep ClawForge cluster backend — cherry-pick only upstream cluster UI components
 - [v2.1 strategy]: AssemblyAI for voice (not OpenAI Whisper as upstream uses)
+- [Phase 29-foundation-config]: crypto.js reads AUTH_SECRET directly from process.env to avoid circular dependency with getConfig
+- [Phase 29-foundation-config]: setConfig wrapper added to lib/config.js (not in upstream) to satisfy CONFIG-01 requirement
 
 ### Pending Todos
 
@@ -58,6 +60,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:00:00.000Z
-Stopped at: Strategy ingestion complete
+Last session: 2026-03-13T04:18:54.137Z
+Stopped at: Completed 29-02-PLAN.md
 Resume file: None
