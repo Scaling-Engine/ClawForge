@@ -1,7 +1,12 @@
 'use client';
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { SendIcon, StopIcon, PaperclipIcon, XIcon, FileTextIcon } from './icons.js';
+import { SendIcon, StopIcon, PaperclipIcon, XIcon, FileTextIcon, MicIcon, MicOffIcon } from './icons.js';
+import { VoiceBars } from './voice-bars.jsx';
+import { isVoiceSupported } from '../../voice/config.js';
+import { startMicCapture } from '../../voice/recorder.js';
+import { createTranscriber } from '../../voice/transcription.js';
+import { getVoiceToken } from '../actions.js';
 import { cn } from '../utils.js';
 
 const ACCEPTED_TYPES = [
@@ -41,6 +46,13 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [volume, setVolume] = useState(0);
+  const [voiceError, setVoiceError] = useState(null);
+  const [interimText, setInterimText] = useState('');
+  const recorderRef = useRef(null);
+  const transcriberRef = useRef(null);
+  const voiceSupported = isVoiceSupported();
   const isStreaming = status === 'streaming' || status === 'submitted';
 
   // Auto-resize textarea
@@ -59,6 +71,84 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
+
+  // Voice recording cleanup on unmount
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.stop();
+      transcriberRef.current?.close();
+    };
+  }, []);
+
+  // Auto-dismiss voice errors after 5 seconds
+  useEffect(() => {
+    if (voiceError) {
+      const timer = setTimeout(() => setVoiceError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [voiceError]);
+
+  const startRecording = async () => {
+    setVoiceError(null);
+
+    // Get temporary token from server
+    const result = await getVoiceToken();
+    if (result.error) {
+      setVoiceError(result.error);
+      return;
+    }
+
+    // Create transcriber connection
+    const transcriber = createTranscriber({
+      token: result.token,
+      onTranscript({ text, isFinal }) {
+        if (isFinal) {
+          setInput((prev) => (prev ? prev + ' ' + text : text));
+          setInterimText('');
+        } else {
+          setInterimText(text);
+        }
+      },
+      onError(msg) {
+        setVoiceError(msg);
+      },
+    });
+    transcriberRef.current = transcriber;
+
+    // Start mic capture
+    const recorder = await startMicCapture({
+      onAudioData(buffer) {
+        transcriberRef.current?.send(buffer);
+      },
+      onVolume(v) {
+        setVolume(v);
+      },
+      onError(msg) {
+        setVoiceError(msg);
+        setIsRecording(false);
+      },
+    });
+
+    if (!recorder) {
+      // Permission denied or mic not found — clean up transcriber
+      transcriber.close();
+      transcriberRef.current = null;
+      return;
+    }
+
+    recorderRef.current = recorder;
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    transcriberRef.current?.close();
+    transcriberRef.current = null;
+    recorderRef.current?.stop();
+    recorderRef.current = null;
+    setIsRecording(false);
+    setVolume(0);
+    setInterimText('');
+  };
 
   const handleFiles = useCallback((fileList) => {
     const newFiles = Array.from(fileList).filter(isAcceptedType);
@@ -161,7 +251,13 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
             </div>
           )}
 
-          <div className="flex items-end gap-2">
+          <div className="relative flex items-end gap-2">
+            {/* Interim transcription text */}
+            {isRecording && interimText && (
+              <div className="absolute bottom-full left-0 right-0 px-3 py-1 text-xs text-muted-foreground italic truncate">
+                {interimText}
+              </div>
+            )}
             {/* Paperclip button */}
             <button
               type="button"
@@ -189,6 +285,33 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
                 disabled={isStreaming}
               >
                 {'</>'}
+              </button>
+            )}
+
+            {/* Mic button — hidden if browser lacks AudioWorklet */}
+            {voiceSupported && (
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={cn(
+                  'inline-flex items-center justify-center rounded-lg p-2 transition-colors',
+                  isRecording
+                    ? 'bg-red-500/10 text-red-500'
+                    : 'text-muted-foreground hover:text-foreground',
+                  voiceError && 'text-destructive'
+                )}
+                aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
+                disabled={isStreaming}
+                title={voiceError || (isRecording ? 'Stop recording' : 'Voice input')}
+              >
+                {isRecording ? (
+                  <span className="flex items-center gap-1">
+                    <MicOffIcon size={16} />
+                    <VoiceBars volume={volume} />
+                  </span>
+                ) : (
+                  <MicIcon size={16} />
+                )}
               </button>
             )}
 
