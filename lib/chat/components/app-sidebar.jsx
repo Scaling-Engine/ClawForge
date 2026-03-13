@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CirclePlusIcon, PanelLeftIcon, MessageIcon, BellIcon, SwarmIcon, ClusterIcon, ArrowUpCircleIcon, LifeBuoyIcon, GitPullRequestIcon, ServerIcon, UserIcon } from './icons.js';
+import { CirclePlusIcon, PanelLeftIcon, MessageIcon, BellIcon, SwarmIcon, ClusterIcon, ArrowUpCircleIcon, LifeBuoyIcon, GitPullRequestIcon, ServerIcon, UserIcon, ShieldIcon } from './icons.js';
 import { getUnreadNotificationCount, getAppVersion, getPendingPRCount } from '../actions.js';
 import { SidebarHistory } from './sidebar-history.js';
 import { SidebarUserNav } from './sidebar-user-nav.js';
@@ -228,6 +228,29 @@ export function AppSidebar({ user }) {
               )}
             </Tooltip>
           </SidebarMenuItem>
+
+          {/* Admin (role-gated) */}
+          {user?.role === 'admin' && (
+            <SidebarMenuItem>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
+                    className={collapsed ? 'justify-center' : ''}
+                    onClick={() => {
+                      setOpenMobile(false);
+                      window.location.href = '/admin';
+                    }}
+                  >
+                    <ShieldIcon size={16} />
+                    {!collapsed && <span>Admin</span>}
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                {collapsed && (
+                  <TooltipContent side="right">Admin</TooltipContent>
+                )}
+              </Tooltip>
+            </SidebarMenuItem>
+          )}
 
           {/* Notifications */}
           <SidebarMenuItem>
