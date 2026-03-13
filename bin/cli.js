@@ -59,6 +59,9 @@ Commands:
   set-agent-secret <KEY> [VALUE]    Set a GitHub secret with AGENT_ prefix (also updates .env)
   set-agent-llm-secret <KEY> [VALUE]  Set a GitHub secret with AGENT_LLM_ prefix
   set-var <KEY> [VALUE]             Set a GitHub repository variable
+  create-instance [name]            Create a new ClawForge instance
+  run-job [description]             Dispatch a job via GitHub Actions
+  check-status [job_id]             Check job status (all running if no ID)
 `);
 }
 
@@ -454,6 +457,99 @@ function loadRepoInfo() {
 }
 
 /**
+ * Load .env variables into process.env so lib/ modules can read them.
+ */
+function loadEnvToProcess() {
+  const envPath = path.join(process.cwd(), '.env');
+  if (!fs.existsSync(envPath)) {
+    console.error('\n  No .env file found. Run "npm run setup" first.\n');
+    process.exit(1);
+  }
+  const content = fs.readFileSync(envPath, 'utf-8');
+  for (const line of content.split('\n')) {
+    const match = line.match(/^([^#=]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      if (!process.env[key]) process.env[key] = match[2].trim();
+    }
+  }
+}
+
+/**
+ * Dispatch a job via GitHub Actions.
+ */
+async function runJob(description) {
+  if (!description) {
+    const { text, isCancel } = await import('@clack/prompts');
+    const input = await text({ message: 'Enter job description:' });
+    if (isCancel(input)) {
+      console.log('\nCancelled.\n');
+      process.exit(0);
+    }
+    if (!input || !input.trim()) {
+      console.error('\n  Job description cannot be empty.\n');
+      process.exit(1);
+    }
+    description = input.trim();
+  }
+
+  loadEnvToProcess();
+  const { createJob } = await import(path.join(__dirname, '..', 'lib', 'tools', 'create-job.js'));
+  const result = await createJob(description);
+  console.log(`\n  Job ID:  ${result.job_id}`);
+  console.log(`  Branch:  ${result.branch}\n`);
+}
+
+/**
+ * Create a new ClawForge instance via job dispatch.
+ */
+async function createInstance(name) {
+  const { text, multiselect, isCancel } = await import('@clack/prompts');
+
+  if (!name) {
+    const input = await text({ message: 'Instance name (slug, lowercase, no spaces):' });
+    if (isCancel(input)) { console.log('\nCancelled.\n'); process.exit(0); }
+    name = input.trim();
+  }
+
+  const purpose = await text({ message: 'Instance purpose:' });
+  if (isCancel(purpose)) { console.log('\nCancelled.\n'); process.exit(0); }
+
+  const reposInput = await text({ message: 'Allowed repos (comma-separated):' });
+  if (isCancel(reposInput)) { console.log('\nCancelled.\n'); process.exit(0); }
+  const allowed_repos = reposInput.split(',').map(r => r.trim()).filter(Boolean);
+
+  const enabled_channels = await multiselect({
+    message: 'Channels:',
+    options: [
+      { value: 'slack', label: 'Slack' },
+      { value: 'telegram', label: 'Telegram' },
+      { value: 'web', label: 'Web Chat' },
+    ],
+  });
+  if (isCancel(enabled_channels)) { console.log('\nCancelled.\n'); process.exit(0); }
+
+  loadEnvToProcess();
+  const { buildInstanceJobDescription } = await import(path.join(__dirname, '..', 'lib', 'tools', 'instance-job.js'));
+  const { createJob } = await import(path.join(__dirname, '..', 'lib', 'tools', 'create-job.js'));
+
+  const description = buildInstanceJobDescription({ name, purpose, allowed_repos, enabled_channels });
+  const result = await createJob(description);
+  console.log(`\n  Job ID:  ${result.job_id}`);
+  console.log(`  Branch:  ${result.branch}\n`);
+}
+
+/**
+ * Check job status (all running if no ID, specific job if ID provided).
+ */
+async function checkStatus(jobId) {
+  loadEnvToProcess();
+  const { getJobStatus } = await import(path.join(__dirname, '..', 'lib', 'tools', 'github.js'));
+  const result = await getJobStatus(jobId);
+  console.log(JSON.stringify(result, null, 2));
+}
+
+/**
  * Prompt for a secret value interactively if not provided as an argument
  */
 async function promptForValue(key) {
@@ -570,6 +666,15 @@ switch (command) {
     break;
   case 'set-var':
     await setVar(args[0], args[1]);
+    break;
+  case 'create-instance':
+    await createInstance(args[0]);
+    break;
+  case 'run-job':
+    await runJob(args.join(' ') || undefined);
+    break;
+  case 'check-status':
+    await checkStatus(args[0]);
     break;
   default:
     printUsage();
