@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
-status: Phase 36 shipped — Code Workspaces V2 with DnD tabs, xterm addons, file tree sidebar
-stopped_at: Completed 36-01-PLAN.md
-last_updated: "2026-03-13T07:27:10.017Z"
-last_activity: 2026-03-13 — Phase 36 executed and verified
+status: Phase 37 shipped — Cluster Detail Views with overview, console, logs, role pages
+stopped_at: Completed 37-01-PLAN.md
+last_updated: "2026-03-13T08:00:00.000Z"
+last_activity: 2026-03-13 — Phase 37 executed and verified
 progress:
   total_phases: 10
-  completed_phases: 8
-  total_plans: 10
-  completed_plans: 10
-  percent: 80
+  completed_phases: 10
+  total_plans: 13
+  completed_plans: 12
+  percent: 98
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 36 of 38 (Code Workspaces V2) — COMPLETE
+Phase: 37 of 38 (Cluster Detail Views) — COMPLETE
 Plan: 1/1 plans executed and verified
-Status: Phase 36 shipped — Code Workspaces V2 with DnD tabs, xterm addons, file tree sidebar
-Last activity: 2026-03-13 — Phase 36 executed and verified
+Status: Phase 37 shipped — Cluster Detail Views with overview, console, logs, role pages
+Last activity: 2026-03-13 — Phase 37 executed and verified
 
-Progress: [█████████░] 90% of v2.1 phases (9/10)
+Progress: [██████████] 98% of v2.1 phases (10/10 phases, 12/13 plans)
 
 ## Accumulated Context
 
@@ -68,6 +68,10 @@ Recent decisions affecting current work:
 - [Phase 35-voice-input]: Audio never touches server — browser streams directly to AssemblyAI
 - [Phase 36]: SearchBar managed inside Terminal via showSearch prop to avoid forwardRef complexity
 - [Phase 36]: activeTabIndex replaced with activeTabId (string) so tab identity survives DnD reorders
+- [Phase 37]: Duplicate StatusBadge/timeAgo/formatTs into each page since clusters-page does not export them
+- [Phase 37]: agentRunId used as SSE stream key so console connects to correct container stream
+- [Phase 37]: Persisted logs truncated to 200KB to prevent SQLite bloat
+- [Phase 37]: Role page handles missing config gracefully with warning message
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T07:27:06.895Z
-Stopped at: Completed 36-01-PLAN.md
+Last session: 2026-03-13T08:00:00.000Z
+Stopped at: Completed 37-01-PLAN.md
 Resume file: None

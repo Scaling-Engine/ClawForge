@@ -115,10 +115,10 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Cluster Detail Views (Phase 37)
 
-- [ ] **CLSTUI-01**: `/cluster/[id]` shows cluster run overview with agent timeline and PR links
-- [ ] **CLSTUI-02**: `/cluster/[id]/console` streams live output from currently-executing cluster agent
-- [ ] **CLSTUI-03**: `/cluster/[id]/logs` shows historical log output for completed agents
-- [ ] **CLSTUI-04**: `/cluster/[id]/role/[roleId]` shows role-specific view with config and outputs
+- [x] **CLSTUI-01**: `/cluster/[id]` shows cluster run overview with agent timeline and PR links
+- [x] **CLSTUI-02**: `/cluster/[id]/console` streams live output from currently-executing cluster agent
+- [x] **CLSTUI-03**: `/cluster/[id]/logs` shows historical log output for completed agents
+- [x] **CLSTUI-04**: `/cluster/[id]/role/[roleId]` shows role-specific view with config and outputs
 
 ### Developer Experience (Phase 38)
 
