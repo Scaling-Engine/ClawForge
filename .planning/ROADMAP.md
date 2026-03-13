@@ -168,6 +168,10 @@ Plans:
   2. Middleware checks role on `/admin/*` routes and returns 403 for non-admin users
   3. `/forbidden` page renders when a non-admin user attempts to access admin routes
   4. Client-side navigation conditionally shows/hides admin links based on user role
+**Plans:** 1 plan
+
+Plans:
+- [ ] 32-01-PLAN.md — RBAC: fix role default, middleware guard, forbidden page, admin sidebar link
 
 ### Phase 33: Admin Panel
 **Goal**: Restructure settings from `/settings/` to `/admin/*` with proper layout and sub-page navigation
@@ -268,7 +272,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 29. Foundation & Config System | 2/2 | Complete   | 2026-03-13 | — |
 | 30. New Pages | 2/2 | Complete    | 2026-03-13 | — |
 | 31. Chat Enhancements | 1/1 | Complete    | 2026-03-13 | — |
-| 32. Auth Roles | v2.1 | 0/? | Planned | — |
+| 32. Auth Roles | v2.1 | 0/1 | Planning | — |
 | 33. Admin Panel | v2.1 | 0/? | Planned | — |
 | 34. GitHub Secrets Management | v2.1 | 0/? | Planned | — |
 | 35. Voice Input | v2.1 | 0/? | Planned | — |
