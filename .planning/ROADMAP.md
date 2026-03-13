@@ -251,6 +251,11 @@ Plans:
 **Goal**: Make ClawForge easier to set up and develop against with CLI tools, setup wizard, and web search integration
 **Depends on**: Phase 29 (config system)
 **Requirements**: DX-01, DX-02, DX-03
+**Plans:** 1 plan
+
+Plans:
+- [ ] 38-01-PLAN.md — Web search LangGraph tool + CLI commands (create-instance, run-job, check-status)
+
 **Success Criteria** (what must be TRUE):
   1. `bin/setup` interactive wizard walks through first-time setup (env vars, Docker, GitHub token)
   2. `bin/cli.js` provides CLI commands for common operations (create instance, run job, check status)
@@ -302,7 +307,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 35. Voice Input | 1/1 | Complete   | 2026-03-13 | — |
 | 36. Code Workspaces V2 | 1/1 | Complete   | 2026-03-13 | — |
 | 37. Cluster Detail Views | v2.1 | 0/1 | Planned | — |
-| 38. Developer Experience | v2.1 | 0/? | Planned | — |
+| 38. Developer Experience | v2.1 | 0/1 | Planned | — |
 
 ---
 
