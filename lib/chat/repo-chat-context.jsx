@@ -23,5 +23,9 @@ export function RepoChatProvider({ children }) {
  * selectedRepo shape: { owner: string, slug: string, name: string } | null
  */
 export function useRepoChat() {
-  return useContext(RepoChatContext);
+  const ctx = useContext(RepoChatContext);
+  if (!ctx) {
+    return { selectedRepo: null, setSelectedRepo: () => {}, selectedBranch: null, setSelectedBranch: () => {} };
+  }
+  return ctx;
 }
