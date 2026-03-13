@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
 status: planning
-stopped_at: Completed 29-02-PLAN.md
-last_updated: "2026-03-13T04:18:54.138Z"
-last_activity: 2026-03-12 — v2.1 milestone initialized
+stopped_at: Completed 30-01-PLAN.md
+last_updated: "2026-03-13T04:57:22.209Z"
+last_activity: 2026-03-13 — Phase 29 executed and verified
 progress:
   total_phases: 10
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 0
+  total_plans: 4
+  completed_plans: 3
+  percent: 10
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 29 of 38 (Foundation & Config) — NOT STARTED
-Plan: None created yet
-Status: Strategy ingested, requirements defined, ready for Phase 29 planning
-Last activity: 2026-03-12 — v2.1 milestone initialized
+Phase: 29 of 38 (Foundation & Config) — COMPLETE
+Plan: 2/2 plans executed and verified
+Status: Phase 29 shipped — ready for Phase 30 planning
+Last activity: 2026-03-13 — Phase 29 executed and verified
 
-Progress: [░░░░░░░░░░] 0% of v2.1 plans
+Progress: [█░░░░░░░░░] 10% of v2.1 phases (1/10)
 
 ## Accumulated Context
 
@@ -48,6 +48,7 @@ Recent decisions affecting current work:
 - [v2.1 strategy]: AssemblyAI for voice (not OpenAI Whisper as upstream uses)
 - [Phase 29-foundation-config]: crypto.js reads AUTH_SECRET directly from process.env to avoid circular dependency with getConfig
 - [Phase 29-foundation-config]: setConfig wrapper added to lib/config.js (not in upstream) to satisfy CONFIG-01 requirement
+- [Phase 30-new-pages]: updatePassword imports auth() via dynamic import to avoid circular dependency
 
 ### Pending Todos
 
@@ -60,6 +61,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T04:18:54.137Z
-Stopped at: Completed 29-02-PLAN.md
+Last session: 2026-03-13T04:57:22.206Z
+Stopped at: Completed 30-01-PLAN.md
 Resume file: None

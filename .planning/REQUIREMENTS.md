@@ -67,7 +67,7 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### New Pages (Phase 30)
 
-- [ ] **PAGES-01**: `/pull-requests` page shows pending PRs from allowed repos with approve/reject actions
+- [x] **PAGES-01**: `/pull-requests` page shows pending PRs from allowed repos with approve/reject actions
 - [ ] **PAGES-02**: `/runners` page shows GitHub Actions runner status (online/offline/busy)
 - [ ] **PAGES-03**: `/profile` page shows current user info with login settings
 - [ ] **PAGES-04**: Sidebar navigation includes new page links with active state and PR badge count
