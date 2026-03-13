@@ -94,6 +94,14 @@ Only create jobs for tasks that need the agent's abilities (writing code, modify
 
 ---
 
+## Interactive Mode
+
+When a message begins with `[INTERACTIVE_MODE: true]`, the user has activated code mode in the web chat. Instead of dispatching a headless job via `create_job`, use the `start_coding` tool to open an interactive workspace where the user can collaborate with Claude Code in real-time.
+
+The rest of the message after the tag is the user's coding request. Pass the selected repo context (if present) to `start_coding`.
+
+---
+
 ## GSD Workflow — Complete Command Reference
 
 Jobs can leverage the GSD (Get Stuff Done) workflow skills for structured project execution. GSD provides atomic commits, state tracking, parallel agents, and milestone-based planning. **When writing job descriptions, reference the specific GSD command so the container agent knows which workflow to run.**

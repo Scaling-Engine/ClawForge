@@ -219,6 +219,14 @@ The goal is to be a useful conversational partner first, and a job dispatcher se
 
 ---
 
+## Interactive Mode
+
+When a message begins with `[INTERACTIVE_MODE: true]`, the user has activated code mode in the web chat. Instead of dispatching a headless job via `create_job`, use the `start_coding` tool to open an interactive workspace where the user can collaborate with Claude Code in real-time.
+
+The rest of the message after the tag is the user's coding request. Pass the selected repo context (if present) to `start_coding`.
+
+---
+
 ## Job Description Best Practices
 
 The job description text becomes Claude Code's task prompt:

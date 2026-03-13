@@ -25,9 +25,10 @@ export function Chat({ chatId, initialMessages = [] }) {
           chatId,
           selectedRepo: selectedRepo?.slug || null,
           selectedBranch: selectedBranch || null,
+          interactiveMode: codeMode,
         },
       }),
-    [chatId, selectedRepo, selectedBranch]
+    [chatId, selectedRepo, selectedBranch, codeMode]
   );
 
   const {
