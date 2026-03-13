@@ -95,7 +95,7 @@
 #### Wave 1: Low Risk, High Visibility (Phases 29-31)
 
 - [x] **Phase 29: Foundation & Config System** — DB-backed config helper, combobox component, tool display names, LLM provider listing (completed 2026-03-13)
-- [ ] **Phase 30: New Pages** — PR approvals page, Runners page, Profile page, sidebar navigation updates
+- [x] **Phase 30: New Pages** — PR approvals page, Runners page, Profile page, sidebar navigation updates (completed 2026-03-13)
 - [ ] **Phase 31: Chat Enhancements** — File upload (drag-and-drop with paperclip), enhanced code mode toggle (headless/interactive), improved message rendering
 
 #### Wave 2: Medium Risk (Phases 32-34)
@@ -138,7 +138,7 @@ Plans:
   2. `/runners` page shows GitHub Actions runner status (online/offline/busy)
   3. `/profile` page shows current user info with login settings
   4. Sidebar navigation includes new page links with active state highlighting and PR badge count
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 30-01-PLAN.md — Server Actions, icons, and Pull Requests page
@@ -261,7 +261,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 29. Foundation & Config System | 2/2 | Complete   | 2026-03-13 | — |
-| 30. New Pages | 1/2 | In Progress|  | — |
+| 30. New Pages | 2/2 | Complete   | 2026-03-13 | — |
 | 31. Chat Enhancements | v2.1 | 0/? | Planned | — |
 | 32. Auth Roles | v2.1 | 0/? | Planned | — |
 | 33. Admin Panel | v2.1 | 0/? | Planned | — |

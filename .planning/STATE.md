@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
 status: planning
-stopped_at: Completed 30-01-PLAN.md
-last_updated: "2026-03-13T04:57:22.209Z"
-last_activity: 2026-03-13 — Phase 29 executed and verified
+stopped_at: Completed 30-02-PLAN.md
+last_updated: "2026-03-13T05:01:04.825Z"
+last_activity: 2026-03-13 — Phase 30 executed and verified
 progress:
   total_phases: 10
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 10
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 29 of 38 (Foundation & Config) — COMPLETE
+Phase: 30 of 38 (New Pages) — COMPLETE
 Plan: 2/2 plans executed and verified
-Status: Phase 29 shipped — ready for Phase 30 planning
-Last activity: 2026-03-13 — Phase 29 executed and verified
+Status: Phase 30 shipped — Runners, Profile, Pull Requests pages + sidebar navigation complete
+Last activity: 2026-03-13 — Phase 30 executed and verified
 
-Progress: [█░░░░░░░░░] 10% of v2.1 phases (1/10)
+Progress: [██░░░░░░░░] 20% of v2.1 phases (2/10)
 
 ## Accumulated Context
 
@@ -49,6 +49,8 @@ Recent decisions affecting current work:
 - [Phase 29-foundation-config]: crypto.js reads AUTH_SECRET directly from process.env to avoid circular dependency with getConfig
 - [Phase 29-foundation-config]: setConfig wrapper added to lib/config.js (not in upstream) to satisfy CONFIG-01 requirement
 - [Phase 30-new-pages]: updatePassword imports auth() via dynamic import to avoid circular dependency
+- [Phase 30-new-pages]: Runners empty state message specifically calls out admin:org scope requirement to explain 403 gracefully
+- [Phase 30-new-pages]: PR badge uses identical pattern to Notifications badge (collapsed absolute + expanded inline)
 
 ### Pending Todos
 
@@ -61,6 +63,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T04:57:22.206Z
-Stopped at: Completed 30-01-PLAN.md
+Last session: 2026-03-13T05:01:01.278Z
+Stopped at: Completed 30-02-PLAN.md
 Resume file: None
