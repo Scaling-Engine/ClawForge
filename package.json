@@ -55,6 +55,8 @@
   "dependencies": {
     "@ai-sdk/react": "^2.0.0",
     "@clack/prompts": "^0.10.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
     "@grammyjs/parse-mode": "^2.2.0",
     "@langchain/anthropic": "^1.3.17",
     "@langchain/core": "^1.1.24",
@@ -68,6 +70,9 @@
     "@tailwindcss/postcss": "^4.2.0",
     "@xterm/addon-attach": "^0.12.0",
     "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/addon-serialize": "^0.14.0",
+    "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
     "ai": "^5.0.0",
     "bcrypt-ts": "^6.0.0",

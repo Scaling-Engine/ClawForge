@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
+import SearchBar from './search-bar.jsx';
 
 /**
  * Terminal component that renders xterm.js connected to a WebSocket.
  * Dynamic imports avoid SSR issues with xterm.js DOM dependencies.
+ *
+ * V2 additions: SearchAddon, WebLinksAddon, SerializeAddon, search bar overlay.
  *
  * @param {object} props
  * @param {string} props.workspaceId - Workspace UUID
@@ -12,10 +15,19 @@ import { useEffect, useRef, useCallback } from 'react';
  * @param {string} props.ticket - Single-use auth ticket
  * @param {string} props.wsUrl - WebSocket base URL (ws:// or wss://)
  * @param {function} props.onDisconnect - Called when WebSocket closes or errors
+ * @param {function} [props.onSearchToggle] - Called when Ctrl+F / Cmd+F pressed (optional, V2)
+ * @param {boolean} [props.showSearch] - Whether to show search bar (optional, V2)
  */
-export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnect }) {
+export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnect, onSearchToggle, showSearch }) {
   const termRef = useRef(null);
   const instanceRef = useRef(null);
+
+  // Refit terminal when search bar toggles (changes available height)
+  useEffect(() => {
+    if (instanceRef.current?.fitAddon) {
+      setTimeout(() => instanceRef.current.fitAddon.fit(), 50);
+    }
+  }, [showSearch]);
 
   useEffect(() => {
     if (!termRef.current || !ticket) return;
@@ -30,6 +42,9 @@ export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnec
       // Dynamic imports to avoid SSR
       const { Terminal } = await import('@xterm/xterm');
       const { FitAddon } = await import('@xterm/addon-fit');
+      const { SearchAddon } = await import('@xterm/addon-search');
+      const { WebLinksAddon } = await import('@xterm/addon-web-links');
+      const { SerializeAddon } = await import('@xterm/addon-serialize');
 
       // Import xterm CSS
       await import('@xterm/xterm/css/xterm.css');
@@ -48,9 +63,27 @@ export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnec
       });
 
       fitAddon = new FitAddon();
+      const searchAddon = new SearchAddon();
+      const webLinksAddon = new WebLinksAddon((event, uri) => window.open(uri, '_blank'));
+      const serializeAddon = new SerializeAddon();
+
       term.loadAddon(fitAddon);
+      term.loadAddon(searchAddon);
+      term.loadAddon(webLinksAddon);
+      term.loadAddon(serializeAddon);
+
       term.open(termRef.current);
       fitAddon.fit();
+
+      // Intercept Ctrl+F / Cmd+F to open search bar instead of browser find
+      term.attachCustomKeyEventHandler((event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+          event.preventDefault();
+          if (onSearchToggle) onSearchToggle();
+          return false;
+        }
+        return true;
+      });
 
       // Connect WebSocket
       const fullUrl = `${wsUrl}?ticket=${ticket}`;
@@ -126,7 +159,7 @@ export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnec
       };
       window.addEventListener('resize', resizeHandler);
 
-      instanceRef.current = { term, ws, fitAddon };
+      instanceRef.current = { term, ws, fitAddon, searchAddon, serializeAddon };
     }
 
     init();
@@ -141,9 +174,14 @@ export default function Terminal({ workspaceId, port, ticket, wsUrl, onDisconnec
   }, [ticket, wsUrl, onDisconnect]);
 
   return (
-    <div
-      ref={termRef}
-      style={{ width: '100%', height: '100%' }}
-    />
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {showSearch && instanceRef.current?.searchAddon && (
+        <SearchBar
+          searchAddon={instanceRef.current.searchAddon}
+          onClose={() => onSearchToggle?.()}
+        />
+      )}
+      <div ref={termRef} style={{ flex: 1 }} />
+    </div>
   );
 }
