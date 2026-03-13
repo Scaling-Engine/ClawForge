@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
-status: Phase 37 shipped — Cluster Detail Views with overview, console, logs, role pages
-stopped_at: Completed 37-01-PLAN.md
-last_updated: "2026-03-13T08:00:00.000Z"
-last_activity: 2026-03-13 — Phase 37 executed and verified
+status: Phase 38 shipped — Developer Experience with web_search tool and CLI commands. v2.1 COMPLETE.
+stopped_at: Completed 38-01-PLAN.md
+last_updated: "2026-03-13T07:50:18.440Z"
+last_activity: 2026-03-13 — Phase 38 executed and verified, v2.1 milestone complete
 progress:
   total_phases: 10
   completed_phases: 10
-  total_plans: 13
-  completed_plans: 12
-  percent: 98
+  total_plans: 12
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 37 of 38 (Cluster Detail Views) — COMPLETE
+Phase: 38 of 38 (Developer Experience) — COMPLETE
 Plan: 1/1 plans executed and verified
-Status: Phase 37 shipped — Cluster Detail Views with overview, console, logs, role pages
-Last activity: 2026-03-13 — Phase 37 executed and verified
+Status: Phase 38 shipped — Developer Experience with web_search tool and CLI commands. v2.1 COMPLETE.
+Last activity: 2026-03-13 — Phase 38 executed and verified, v2.1 milestone complete
 
-Progress: [██████████] 98% of v2.1 phases (10/10 phases, 12/13 plans)
+Progress: [██████████] 100% of v2.1 phases (10/10 phases, 13/13 plans)
 
 ## Accumulated Context
 
@@ -72,6 +72,8 @@ Recent decisions affecting current work:
 - [Phase 37]: agentRunId used as SSE stream key so console connects to correct container stream
 - [Phase 37]: Persisted logs truncated to 200KB to prevent SQLite bloat
 - [Phase 37]: Role page handles missing config gracefully with warning message
+- [Phase 38]: web_search tool in separate file, conditional registration via env check
+- [Phase 38]: CLI commands use loadEnvToProcess() before dynamic lib/ imports
 
 ### Pending Todos
 
@@ -84,6 +86,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T08:00:00.000Z
-Stopped at: Completed 37-01-PLAN.md
+Last session: 2026-03-13T07:50:18.438Z
+Stopped at: Completed 38-01-PLAN.md
 Resume file: None

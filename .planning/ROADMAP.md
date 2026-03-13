@@ -109,7 +109,7 @@
 - [x] **Phase 35: Voice Input** — AssemblyAI real-time streaming, AudioWorklet microphone capture, volume bars, chat input integration (completed 2026-03-13)
 - [x] **Phase 36: Code Workspaces V2** — DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar (chokidar) (completed 2026-03-13)
 - [x] **Phase 37: Cluster Detail Views** — /cluster/[id] single view, /cluster/[id]/console live console, /cluster/[id]/logs viewer, /cluster/[id]/role/[roleId] per-role view (completed 2026-03-13)
-- [ ] **Phase 38: Developer Experience** — Setup wizard (bin/setup), CLI tools (bin/cli.js, bin/sync.js), web search tool (Brave API)
+- [x] **Phase 38: Developer Experience** — Setup wizard (bin/setup), CLI tools (bin/cli.js, bin/sync.js), web search tool (Brave API) (completed 2026-03-13)
 
 ## Phase Details
 
@@ -251,7 +251,7 @@ Plans:
 **Goal**: Make ClawForge easier to set up and develop against with CLI tools, setup wizard, and web search integration
 **Depends on**: Phase 29 (config system)
 **Requirements**: DX-01, DX-02, DX-03
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 38-01-PLAN.md — Web search LangGraph tool + CLI commands (create-instance, run-job, check-status)
@@ -307,7 +307,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 35. Voice Input | 1/1 | Complete   | 2026-03-13 | — |
 | 36. Code Workspaces V2 | 1/1 | Complete   | 2026-03-13 | — |
 | 37. Cluster Detail Views | 1/1 | Complete   | 2026-03-13 | — |
-| 38. Developer Experience | v2.1 | 0/1 | Planned | — |
+| 38. Developer Experience | 1/1 | Complete   | 2026-03-13 | — |
 
 ---
 

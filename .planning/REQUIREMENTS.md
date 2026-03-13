@@ -122,9 +122,9 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Developer Experience (Phase 38)
 
-- [ ] **DX-01**: `bin/setup` interactive wizard for first-time setup (env vars, Docker, GitHub token)
-- [ ] **DX-02**: `bin/cli.js` CLI commands for common operations (create instance, run job, check status)
-- [ ] **DX-03**: `web_search` LangGraph tool queries Brave Search API and returns structured results
+- [x] **DX-01**: `bin/setup` interactive wizard for first-time setup (env vars, Docker, GitHub token)
+- [x] **DX-02**: `bin/cli.js` CLI commands for common operations (create instance, run job, check status)
+- [x] **DX-03**: `web_search` LangGraph tool queries Brave Search API and returns structured results
 
 ## Future Requirements
 
