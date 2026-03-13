@@ -117,6 +117,12 @@
 **Goal**: Establish shared infrastructure components that Phases 30-38 depend on — DB config helper, UI primitives, and utility modules
 **Depends on**: Phase 28 (v2.0 complete)
 **Requirements**: CONFIG-01, CONFIG-02, CONFIG-03, CONFIG-04
+**Plans:** 2 plans
+
+Plans:
+- [ ] 29-01-PLAN.md — DB config system (crypto, config CRUD, LLM providers, config facade)
+- [ ] 29-02-PLAN.md — UI combobox component and tool display names
+
 **Success Criteria** (what must be TRUE):
   1. `lib/config.js` provides `getConfig(key)` / `setConfig(key, value)` backed by SQLite config table
   2. `lib/chat/components/ui/combobox.jsx` renders a searchable dropdown used by at least one other component
@@ -248,7 +254,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 26. Web UI Auth + Repo Selector | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
-| 29. Foundation & Config System | v2.1 | 0/? | Planned | — |
+| 29. Foundation & Config System | v2.1 | 0/2 | Planned | — |
 | 30. New Pages | v2.1 | 0/? | Planned | — |
 | 31. Chat Enhancements | v2.1 | 0/? | Planned | — |
 | 32. Auth Roles | v2.1 | 0/? | Planned | — |
