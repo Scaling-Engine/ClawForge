@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
 status: completed
-stopped_at: "Checkpoint: 31-01 Task 3 human-verify — tasks 1+2 committed, awaiting verification"
-last_updated: "2026-03-13T05:49:18.598Z"
-last_activity: 2026-03-13 — Phase 30 executed and verified
+stopped_at: Completed 31-01-PLAN.md
+last_updated: "2026-03-13T05:53:12.014Z"
+last_activity: 2026-03-13 — Phase 31 executed and verified
 progress:
   total_phases: 10
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 20
+  total_plans: 6
+  completed_plans: 6
+  percent: 30
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 30 of 38 (New Pages) — COMPLETE
-Plan: 2/2 plans executed and verified
-Status: Phase 30 shipped — Runners, Profile, Pull Requests pages + sidebar navigation complete
-Last activity: 2026-03-13 — Phase 30 executed and verified
+Phase: 31 of 38 (Chat Enhancements) — COMPLETE
+Plan: 1/1 plans executed and verified
+Status: Phase 31 shipped — Shiki syntax highlighting + interactive mode routing wired end-to-end
+Last activity: 2026-03-13 — Phase 31 executed and verified
 
-Progress: [██░░░░░░░░] 20% of v2.1 phases (2/10)
+Progress: [███░░░░░░░] 30% of v2.1 phases (3/10)
 
 ## Accumulated Context
 
@@ -51,8 +51,9 @@ Recent decisions affecting current work:
 - [Phase 30-new-pages]: updatePassword imports auth() via dynamic import to avoid circular dependency
 - [Phase 30-new-pages]: Runners empty state message specifically calls out admin:org scope requirement to explain 403 gracefully
 - [Phase 30-new-pages]: PR badge uses identical pattern to Notifications badge (collapsed absolute + expanded inline)
-- [Phase 31-chat-enhancements]: @streamdown/code exports pre-built code instance (not factory) — imported directly, no code() call needed
+- [Phase 31-chat-enhancements]: @streamdown/code exports a pre-built code instance (not a factory) — imported directly, no code() call needed
 - [Phase 31-chat-enhancements]: interactiveMode hint injected after repo context so [INTERACTIVE_MODE: true] is first token agent sees in prompt
+- [Phase 31-chat-enhancements]: controls prop set to false during streaming to prevent copy/collapse button jitter mid-stream
 
 ### Pending Todos
 
@@ -65,6 +66,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T05:49:07.797Z
-Stopped at: Checkpoint: 31-01 Task 3 human-verify — tasks 1+2 committed, awaiting verification
+Last session: 2026-03-13T05:53:12.011Z
+Stopped at: Completed 31-01-PLAN.md
 Resume file: None

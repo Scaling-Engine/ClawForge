@@ -45,7 +45,7 @@ patterns-established:
   - "Streaming-aware controls: controls={isLoading ? false : { code: true }} on streaming instances"
   - "Static-only instance: always passes controls={{ code: true }} unconditionally"
 
-requirements-completed: [CHAT-02, CHAT-03]
+requirements-completed: [CHAT-01, CHAT-02, CHAT-03]
 
 # Metrics
 duration: 12min
@@ -61,7 +61,7 @@ completed: 2026-03-13
 - **Duration:** ~12 min
 - **Started:** 2026-03-13T05:30:00Z
 - **Completed:** 2026-03-13T05:42:00Z
-- **Tasks:** 2/3 (Task 3 is human-verify checkpoint — awaiting verification)
+- **Tasks:** 3/3 (all complete — Task 3 human-verify checkpoint approved)
 - **Files modified:** 7
 
 ## Accomplishments
@@ -77,7 +77,7 @@ Each task was committed atomically:
 
 1. **Task 1: Install @streamdown/code and wire Shiki syntax highlighting** - `1e32b56` (feat)
 2. **Task 2: Add interactive mode routing for code mode toggle** - `7d3d0fd` (feat)
-3. **Task 3: Human verify checkpoint** - pending
+3. **Task 3: Human verify all three chat enhancements end-to-end** - approved by user (no code commit — verification only)
 
 ## Files Created/Modified
 - `lib/chat/components/message.jsx` - Added @streamdown/code import; updated all three Streamdown instances with plugins/shikiTheme/controls
@@ -103,9 +103,9 @@ None — build passed cleanly after both tasks.
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Tasks 1 and 2 are committed and build-verified
-- Task 3 (human-verify checkpoint) requires developer to visually confirm syntax highlighting, file upload regression, and interactive mode routing in live dev server at http://localhost:3000/chat
-- Once verified, plan 31-01 is fully complete
+- All three CHAT requirements (CHAT-01, CHAT-02, CHAT-03) fully verified end-to-end in dev server
+- Interactive mode routing is wired but `start_coding` tool itself is a future phase deliverable — EVENT_HANDLER.md is ready to activate once the tool is built
+- Ready for Phase 32 (interactive workspace) or any remaining Wave 1 phases
 
 ---
 *Phase: 31-chat-enhancements*

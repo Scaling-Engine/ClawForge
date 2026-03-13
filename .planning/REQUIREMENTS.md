@@ -74,9 +74,9 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Chat Enhancements (Phase 31)
 
-- [ ] **CHAT-01**: File upload via drag-and-drop or paperclip button supports images, PDFs, and code files
-- [ ] **CHAT-02**: Code mode toggle switches between headless job dispatch and interactive workspace coding
-- [ ] **CHAT-03**: Enhanced message rendering with syntax highlighting, collapsible code blocks, and image previews
+- [x] **CHAT-01**: File upload via drag-and-drop or paperclip button supports images, PDFs, and code files
+- [x] **CHAT-02**: Code mode toggle switches between headless job dispatch and interactive workspace coding
+- [x] **CHAT-03**: Enhanced message rendering with syntax highlighting, collapsible code blocks, and image previews
 
 ### Auth Roles (Phase 32)
 

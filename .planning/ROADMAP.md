@@ -96,7 +96,7 @@
 
 - [x] **Phase 29: Foundation & Config System** — DB-backed config helper, combobox component, tool display names, LLM provider listing (completed 2026-03-13)
 - [x] **Phase 30: New Pages** — PR approvals page, Runners page, Profile page, sidebar navigation updates (completed 2026-03-13)
-- [ ] **Phase 31: Chat Enhancements** — File upload (drag-and-drop with paperclip), enhanced code mode toggle (headless/interactive), improved message rendering
+- [x] **Phase 31: Chat Enhancements** — File upload (drag-and-drop with paperclip), enhanced code mode toggle (headless/interactive), improved message rendering (completed 2026-03-13)
 
 #### Wave 2: Medium Risk (Phases 32-34)
 
@@ -153,7 +153,7 @@ Plans:
   1. Operator can drag-and-drop files (images, PDFs, code) onto chat or click paperclip button to attach files to messages
   2. Code mode toggle switches between headless job dispatch and interactive workspace coding within the same chat
   3. Chat messages render with enhanced formatting (syntax highlighting, collapsible code blocks, image previews)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 31-01-PLAN.md — Streamdown code plugin, interactive mode routing, end-to-end verification
@@ -267,7 +267,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 29. Foundation & Config System | 2/2 | Complete   | 2026-03-13 | — |
 | 30. New Pages | 2/2 | Complete    | 2026-03-13 | — |
-| 31. Chat Enhancements | v2.1 | 0/1 | Planned | — |
+| 31. Chat Enhancements | 1/1 | Complete   | 2026-03-13 | — |
 | 32. Auth Roles | v2.1 | 0/? | Planned | — |
 | 33. Admin Panel | v2.1 | 0/? | Planned | — |
 | 34. GitHub Secrets Management | v2.1 | 0/? | Planned | — |
