@@ -212,6 +212,10 @@ Plans:
   2. Audio streamed to AssemblyAI in real-time; interim and final transcriptions appear in chat input
   3. Graceful handling of microphone permission denial (toast notification, no crash)
   4. No audio data stored server-side — purely client-to-AssemblyAI streaming
+**Plans:** 1 plan
+
+Plans:
+- [ ] 35-01-PLAN.md — Voice module (AudioWorklet + AssemblyAI v3) and chat input integration
 
 ### Phase 36: Code Workspaces V2
 **Goal**: Upgrade workspace terminal with DnD tabs, enhanced xterm addons, and file tree navigation
@@ -285,7 +289,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 32. Auth Roles | v2.1 | 1/1 | Complete | 2026-03-13 |
 | 33. Admin Panel | v2.1 | 1/1 | Complete | 2026-03-13 |
 | 34. GitHub Secrets Management | 1/1 | Complete   | 2026-03-13 | — |
-| 35. Voice Input | v2.1 | 0/? | Planned | — |
+| 35. Voice Input | v2.1 | 0/1 | Planned | — |
 | 36. Code Workspaces V2 | v2.1 | 0/? | Planned | — |
 | 37. Cluster Detail Views | v2.1 | 0/? | Planned | — |
 | 38. Developer Experience | v2.1 | 0/? | Planned | — |
