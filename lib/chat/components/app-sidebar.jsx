@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CirclePlusIcon, PanelLeftIcon, MessageIcon, BellIcon, SwarmIcon, ClusterIcon, ArrowUpCircleIcon, LifeBuoyIcon } from './icons.js';
-import { getUnreadNotificationCount, getAppVersion } from '../actions.js';
+import { CirclePlusIcon, PanelLeftIcon, MessageIcon, BellIcon, SwarmIcon, ClusterIcon, ArrowUpCircleIcon, LifeBuoyIcon, GitPullRequestIcon, ServerIcon, UserIcon } from './icons.js';
+import { getUnreadNotificationCount, getAppVersion, getPendingPRCount } from '../actions.js';
 import { SidebarHistory } from './sidebar-history.js';
 import { SidebarUserNav } from './sidebar-user-nav.js';
 import { UpgradeDialog } from './upgrade-dialog.js';
@@ -26,6 +26,7 @@ export function AppSidebar({ user }) {
   const { state, open, setOpenMobile, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingPRCount, setPendingPRCount] = useState(0);
   const [version, setVersion] = useState('');
   const [updateAvailable, setUpdateAvailable] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -39,6 +40,9 @@ export function AppSidebar({ user }) {
         setVersion(version);
         setUpdateAvailable(updateAvailable);
       })
+      .catch(() => {});
+    getPendingPRCount()
+      .then((count) => setPendingPRCount(count))
       .catch(() => {});
   }, []);
 
@@ -144,6 +148,83 @@ export function AppSidebar({ user }) {
               </TooltipTrigger>
               {collapsed && (
                 <TooltipContent side="right">Clusters</TooltipContent>
+              )}
+            </Tooltip>
+          </SidebarMenuItem>
+
+          {/* Pull Requests */}
+          <SidebarMenuItem>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarMenuButton
+                  className={collapsed ? 'justify-center' : ''}
+                  onClick={() => {
+                    setOpenMobile(false);
+                    window.location.href = '/pull-requests';
+                  }}
+                >
+                  <GitPullRequestIcon size={16} />
+                  {!collapsed && (
+                    <span className="flex items-center gap-2">
+                      Pull Requests
+                      {pendingPRCount > 0 && (
+                        <span className="inline-flex items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-medium leading-none text-destructive-foreground">
+                          {pendingPRCount}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {collapsed && pendingPRCount > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
+                      {pendingPRCount}
+                    </span>
+                  )}
+                </SidebarMenuButton>
+              </TooltipTrigger>
+              {collapsed && (
+                <TooltipContent side="right">Pull Requests</TooltipContent>
+              )}
+            </Tooltip>
+          </SidebarMenuItem>
+
+          {/* Runners */}
+          <SidebarMenuItem>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarMenuButton
+                  className={collapsed ? 'justify-center' : ''}
+                  onClick={() => {
+                    setOpenMobile(false);
+                    window.location.href = '/runners';
+                  }}
+                >
+                  <ServerIcon size={16} />
+                  {!collapsed && <span>Runners</span>}
+                </SidebarMenuButton>
+              </TooltipTrigger>
+              {collapsed && (
+                <TooltipContent side="right">Runners</TooltipContent>
+              )}
+            </Tooltip>
+          </SidebarMenuItem>
+
+          {/* Profile */}
+          <SidebarMenuItem>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarMenuButton
+                  className={collapsed ? 'justify-center' : ''}
+                  onClick={() => {
+                    setOpenMobile(false);
+                    window.location.href = '/profile';
+                  }}
+                >
+                  <UserIcon size={16} />
+                  {!collapsed && <span>Profile</span>}
+                </SidebarMenuButton>
+              </TooltipTrigger>
+              {collapsed && (
+                <TooltipContent side="right">Profile</TooltipContent>
               )}
             </Tooltip>
           </SidebarMenuItem>
