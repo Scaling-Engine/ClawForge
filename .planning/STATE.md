@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
 status: completed
-stopped_at: Completed 30-02-PLAN.md
-last_updated: "2026-03-13T05:17:51.436Z"
+stopped_at: "Checkpoint: 31-01 Task 3 human-verify — tasks 1+2 committed, awaiting verification"
+last_updated: "2026-03-13T05:49:18.598Z"
 last_activity: 2026-03-13 — Phase 30 executed and verified
 progress:
   total_phases: 10
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 20
 ---
 
@@ -51,6 +51,8 @@ Recent decisions affecting current work:
 - [Phase 30-new-pages]: updatePassword imports auth() via dynamic import to avoid circular dependency
 - [Phase 30-new-pages]: Runners empty state message specifically calls out admin:org scope requirement to explain 403 gracefully
 - [Phase 30-new-pages]: PR badge uses identical pattern to Notifications badge (collapsed absolute + expanded inline)
+- [Phase 31-chat-enhancements]: @streamdown/code exports pre-built code instance (not factory) — imported directly, no code() call needed
+- [Phase 31-chat-enhancements]: interactiveMode hint injected after repo context so [INTERACTIVE_MODE: true] is first token agent sees in prompt
 
 ### Pending Todos
 
@@ -63,6 +65,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T05:01:01.278Z
-Stopped at: Completed 30-02-PLAN.md
+Last session: 2026-03-13T05:49:07.797Z
+Stopped at: Checkpoint: 31-01 Task 3 human-verify — tasks 1+2 committed, awaiting verification
 Resume file: None
