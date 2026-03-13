@@ -153,6 +153,11 @@ Plans:
   1. Operator can drag-and-drop files (images, PDFs, code) onto chat or click paperclip button to attach files to messages
   2. Code mode toggle switches between headless job dispatch and interactive workspace coding within the same chat
   3. Chat messages render with enhanced formatting (syntax highlighting, collapsible code blocks, image previews)
+**Plans:** 1 plan
+
+Plans:
+- [ ] 31-01-PLAN.md — Streamdown code plugin, interactive mode routing, end-to-end verification
+
 
 ### Phase 32: Auth Roles
 **Goal**: Add role-based access control so admin features are restricted to admin users
@@ -262,7 +267,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 29. Foundation & Config System | 2/2 | Complete   | 2026-03-13 | — |
 | 30. New Pages | 2/2 | Complete    | 2026-03-13 | — |
-| 31. Chat Enhancements | v2.1 | 0/? | Planned | — |
+| 31. Chat Enhancements | v2.1 | 0/1 | Planned | — |
 | 32. Auth Roles | v2.1 | 0/? | Planned | — |
 | 33. Admin Panel | v2.1 | 0/? | Planned | — |
 | 34. GitHub Secrets Management | v2.1 | 0/? | Planned | — |
