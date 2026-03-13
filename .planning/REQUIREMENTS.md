@@ -108,10 +108,10 @@ Requirements for v2.1 Upstream Feature Sync milestone. Cherry-picked from PopeBo
 
 ### Code Workspaces V2 (Phase 36)
 
-- [ ] **CWSV2-01**: Workspace tabs are drag-reorderable via @dnd-kit; new tabs spawn tmux sessions
-- [ ] **CWSV2-02**: Terminal supports in-terminal search (addon-search) and clickable URLs (addon-web-links)
-- [ ] **CWSV2-03**: File tree sidebar shows workspace directory contents, auto-refreshes via chokidar
-- [ ] **CWSV2-04**: Existing v1.5 workspaces continue working — V2 features are additive
+- [x] **CWSV2-01**: Workspace tabs are drag-reorderable via @dnd-kit; new tabs spawn tmux sessions
+- [x] **CWSV2-02**: Terminal supports in-terminal search (addon-search) and clickable URLs (addon-web-links)
+- [x] **CWSV2-03**: File tree sidebar shows workspace directory contents, auto-refreshes via chokidar
+- [x] **CWSV2-04**: Existing v1.5 workspaces continue working — V2 features are additive
 
 ### Cluster Detail Views (Phase 37)
 

@@ -107,7 +107,7 @@
 #### Wave 3: Higher Effort (Phases 35-38)
 
 - [x] **Phase 35: Voice Input** — AssemblyAI real-time streaming, AudioWorklet microphone capture, volume bars, chat input integration (completed 2026-03-13)
-- [ ] **Phase 36: Code Workspaces V2** — DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar (chokidar)
+- [x] **Phase 36: Code Workspaces V2** — DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar (chokidar) (completed 2026-03-13)
 - [ ] **Phase 37: Cluster Detail Views** — /cluster/[id] single view, /cluster/[id]/console live console, /cluster/[id]/logs viewer, /cluster/[id]/role/[roleId] per-role view
 - [ ] **Phase 38: Developer Experience** — Setup wizard (bin/setup), CLI tools (bin/cli.js, bin/sync.js), web search tool (Brave API)
 
@@ -226,7 +226,7 @@ Plans:
   2. Terminal supports in-terminal search (addon-search) and clickable URLs (addon-web-links)
   3. File tree sidebar shows workspace directory contents, auto-refreshes on file changes (chokidar)
   4. Existing v1.5 workspaces continue working without migration — V2 features are additive
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 36-01-PLAN.md — DnD tabs, xterm addons (search/web-links/serialize), file tree sidebar
@@ -295,7 +295,7 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 33. Admin Panel | v2.1 | 1/1 | Complete | 2026-03-13 |
 | 34. GitHub Secrets Management | 1/1 | Complete   | 2026-03-13 | — |
 | 35. Voice Input | 1/1 | Complete   | 2026-03-13 | — |
-| 36. Code Workspaces V2 | v2.1 | 0/1 | Planned | — |
+| 36. Code Workspaces V2 | 1/1 | Complete   | 2026-03-13 | — |
 | 37. Cluster Detail Views | v2.1 | 0/? | Planned | — |
 | 38. Developer Experience | v2.1 | 0/? | Planned | — |
 

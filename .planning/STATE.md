@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
-status: Phase 35 shipped — Voice-to-text input via AssemblyAI real-time streaming
-stopped_at: Completed 35-01-PLAN.md
-last_updated: "2026-03-13T07:10:05Z"
-last_activity: 2026-03-13 — Phase 35 executed and verified
+status: Phase 36 shipped — Code Workspaces V2 with DnD tabs, xterm addons, file tree sidebar
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-03-13T07:27:10.017Z"
+last_activity: 2026-03-13 — Phase 36 executed and verified
 progress:
   total_phases: 10
   completed_phases: 8
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 35 of 38 (Voice Input) — COMPLETE
+Phase: 36 of 38 (Code Workspaces V2) — COMPLETE
 Plan: 1/1 plans executed and verified
-Status: Phase 35 shipped — Voice-to-text input via AssemblyAI real-time streaming
-Last activity: 2026-03-13 — Phase 35 executed and verified
+Status: Phase 36 shipped — Code Workspaces V2 with DnD tabs, xterm addons, file tree sidebar
+Last activity: 2026-03-13 — Phase 36 executed and verified
 
-Progress: [████████░░] 80% of v2.1 phases (8/10)
+Progress: [█████████░] 90% of v2.1 phases (9/10)
 
 ## Accumulated Context
 
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - [Phase 35-voice-input]: AudioWorklet processor as static file in public/ (cannot be bundled)
 - [Phase 35-voice-input]: Token generated on-click (not pre-fetched) to avoid stale 60s tokens
 - [Phase 35-voice-input]: Audio never touches server — browser streams directly to AssemblyAI
+- [Phase 36]: SearchBar managed inside Terminal via showSearch prop to avoid forwardRef complexity
+- [Phase 36]: activeTabIndex replaced with activeTabId (string) so tab identity survives DnD reorders
 
 ### Pending Todos
 
@@ -78,6 +80,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T07:10:05Z
-Stopped at: Completed 35-01-PLAN.md
+Last session: 2026-03-13T07:27:06.895Z
+Stopped at: Completed 36-01-PLAN.md
 Resume file: None
