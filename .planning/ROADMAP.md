@@ -192,6 +192,11 @@ Plans:
 **Goal**: Operators can manage GitHub secrets and variables from the admin panel without leaving ClawForge
 **Depends on**: Phase 33 (admin panel must exist)
 **Requirements**: GHSEC-01, GHSEC-02, GHSEC-03, GHSEC-04
+**Plans:** 1 plan
+
+Plans:
+- [ ] 34-01-PLAN.md — GitHub secrets/variables CRUD wrapper, server actions, and admin UI sections
+
 **Success Criteria** (what must be TRUE):
   1. `lib/github-api.js` provides CRUD operations for GitHub repo secrets and variables
   2. `/admin/secrets` page lists secrets with masked values (last 4 chars) and supports create/update/delete
@@ -274,12 +279,12 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 | 26. Web UI Auth + Repo Selector | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 27. MCP Tool Layer | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 28. Multi-Agent Clusters | v2.0 | 5/5 | Complete | 2026-03-12 |
-| 29. Foundation & Config System | 2/2 | Complete   | 2026-03-13 | — |
-| 30. New Pages | 2/2 | Complete    | 2026-03-13 | — |
-| 31. Chat Enhancements | 1/1 | Complete    | 2026-03-13 | — |
-| 32. Auth Roles | 1/1 | Complete   | 2026-03-13 | — |
-| 33. Admin Panel | 1/1 | Complete   | 2026-03-13 | — |
-| 34. GitHub Secrets Management | v2.1 | 0/? | Planned | — |
+| 29. Foundation & Config System | v2.1 | 2/2 | Complete | 2026-03-13 |
+| 30. New Pages | v2.1 | 2/2 | Complete | 2026-03-13 |
+| 31. Chat Enhancements | v2.1 | 1/1 | Complete | 2026-03-13 |
+| 32. Auth Roles | v2.1 | 1/1 | Complete | 2026-03-13 |
+| 33. Admin Panel | v2.1 | 1/1 | Complete | 2026-03-13 |
+| 34. GitHub Secrets Management | v2.1 | 0/1 | Planned | — |
 | 35. Voice Input | v2.1 | 0/? | Planned | — |
 | 36. Code Workspaces V2 | v2.1 | 0/? | Planned | — |
 | 37. Cluster Detail Views | v2.1 | 0/? | Planned | — |
@@ -287,4 +292,4 @@ Phases execute in numeric order: 29 → 30 → 31 → 32 → 33 → 34 → 35 �
 
 ---
 
-*Last updated: 2026-03-12 -- v2.1 milestone planned (10 phases, 3 waves)*
+*Last updated: 2026-03-13 -- v2.1 milestone planned (10 phases, 3 waves)*
