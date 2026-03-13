@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Upstream Feature Sync
-status: completed
+status: Phase 31 shipped — Shiki syntax highlighting + interactive mode routing wired end-to-end
 stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-03-13T05:53:12.014Z"
+last_updated: "2026-03-13T05:57:52.836Z"
 last_activity: 2026-03-13 — Phase 31 executed and verified
 progress:
   total_phases: 10
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 5
+  completed_plans: 5
   percent: 30
 ---
 
