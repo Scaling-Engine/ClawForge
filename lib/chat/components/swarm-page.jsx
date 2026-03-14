@@ -159,7 +159,12 @@ export function SwarmPage({ session }) {
     <PageLayout session={session}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Swarm</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Swarm</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            All jobs dispatched to Claude Code containers — one row per task sent to an agent.
+          </p>
+        </div>
         {!loading && (
           <button
             onClick={() => { setRefreshing(true); fetchPage(1); }}

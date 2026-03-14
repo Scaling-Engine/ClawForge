@@ -56,14 +56,17 @@ function RunnerCard({ runner }) {
         {/* Labels */}
         {runner.labels && runner.labels.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {runner.labels.map((label) => (
-              <span
-                key={label}
-                className="inline-flex items-center rounded-full bg-blue-500/10 text-blue-500 px-2 py-0.5 text-[10px] font-mono"
-              >
-                {label}
-              </span>
-            ))}
+            {runner.labels.map((label) => {
+              const name = typeof label === 'string' ? label : label.name;
+              return (
+                <span
+                  key={name}
+                  className="inline-flex items-center rounded-full bg-blue-500/10 text-blue-500 px-2 py-0.5 text-[10px] font-mono"
+                >
+                  {name}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
@@ -138,6 +141,9 @@ export function RunnersPage({ session }) {
         <div>
           <h1 className="text-2xl font-semibold">Runners</h1>
           <p className="text-sm text-muted-foreground mt-1">
+            GitHub Actions runners that execute agent jobs — shows which machines are available.
+          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {loading
               ? 'Loading runners...'
               : `${runners.length} runner${runners.length !== 1 ? 's' : ''} (${onlineCount} online)`}
