@@ -140,7 +140,15 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 
 ### Active
 
-(No active milestone — v2.1 complete, next milestone TBD)
+## Current Milestone: v2.2 Smart Operations
+
+**Goal:** Transform ClawForge into a fully self-service platform with embedded Claude Code terminal mode, superadmin instance switching, complete UI-driven operations, and smart execution policies.
+
+**Target features:**
+- Real Claude Code chat mode (embedded terminal UX with streaming tool calls, file edits, interrupt/resume)
+- Superadmin portal with instance switcher (single login across all instances)
+- Full UI operations parity (repo CRUD, job cancel/retry/logs, config editing, instance management)
+- Smart execution (pre-CI quality gates, test feedback loops, merge policies)
 
 ## Previous Milestones
 
@@ -181,7 +189,7 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - **v1.5 Persistent Workspaces** — shipped 2026-03-11
 - **v2.0 Full Platform** — shipped 2026-03-12 (Web UI, Clusters, Headless Streaming, MCP Tool Layer)
 - **v2.1 Upstream Feature Sync** — shipped 2026-03-13 (UI pages, admin panel, voice, workspaces V2, clusters UI, DX tools)
-- **v2.2 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
+- **v2.2 Smart Operations** — Claude Code chat mode, superadmin portal, UI operations parity, smart execution policies
 
 **Sources:** Stripe minions blog (stripe.dev/blog/minions), thepopebot upstream (stephengpope/thepopebot), analyzed 2026-03-04
 
@@ -270,4 +278,4 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
 ---
-*Last updated: 2026-03-16 after v2.1 milestone*
+*Last updated: 2026-03-16 after v2.2 milestone started*

@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: Completed quick-3 (agent name visibility)
-last_updated: "2026-03-16T16:00:00.000Z"
-last_activity: 2026-03-16 — quick task 3: agent name displayed in sidebar, header, greeting, tab title
+milestone: v2.2
+milestone_name: Smart Operations
+status: active
+stopped_at: null
+last_updated: "2026-03-16T18:00:00.000Z"
+last_activity: 2026-03-16 — Milestone v2.2 started
 progress:
-  total_phases: 29
-  completed_phases: 29
-  total_plans: 54
-  completed_plans: 54
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -20,15 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Between milestones — v2.1 shipped, next milestone TBD
+**Current focus:** v2.2 Smart Operations — Claude Code chat mode, superadmin portal, UI ops parity, smart execution
 
 ## Current Position
 
-Phase: None active
-Status: v2.1 Upstream Feature Sync archived. 38 phases, 73 plans across 8 milestones (v1.0–v2.1) complete.
-Last activity: 2026-03-16 - Completed quick task 2: Update package.json version to 2.1.0
-
-Progress: No active milestone
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-16 — Milestone v2.2 started
 
 ## Accumulated Context
 
