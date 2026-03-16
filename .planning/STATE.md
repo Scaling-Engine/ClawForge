@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Smart Operations
 status: planning
-stopped_at: Completed 39-smart-execution/39-01-PLAN.md
-last_updated: "2026-03-16T22:35:34.412Z"
+stopped_at: Completed 39-smart-execution/39-02-PLAN.md
+last_updated: "2026-03-16T22:39:23.573Z"
 last_activity: 2026-03-16 — v2.2 roadmap created (4 phases, 22 requirements mapped)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -50,6 +50,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 39-01]: Gate state stored in /tmp/gate_pass file to avoid bash subshell scope loss
 - [Phase 39-01]: Gate execution runs after main git commit (after HAS_NEW_COMMIT detection) not immediately after claude -p
 - [Phase 39-01]: GATE_ATTEMPT counter hard-limits self-correction to exactly 1 retry (EXEC-02)
+- [Phase 39-02]: JOB_ID passed to node script via env var to avoid shell quoting issues in inline GitHub Actions script
+- [Phase 39-02]: Merge policy reads first non-auto policy from REPOS.json — acceptable since jobs target one repo per instance
+- [Phase 39-02]: Docker path uses stdout scanning ([GATE] FAILED marker) for gate failure detection since container filesystem not accessible post-exit
 
 ### v2.2 Key Architecture Notes
 
@@ -87,6 +90,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-16T22:35:34.411Z
-Stopped at: Completed 39-smart-execution/39-01-PLAN.md
+Last session: 2026-03-16T22:39:23.571Z
+Stopped at: Completed 39-smart-execution/39-02-PLAN.md
 Resume file: None

@@ -104,7 +104,7 @@
 
 ### v2.2 Smart Operations (Phases 39-42)
 
-- [ ] **Phase 39: Smart Execution** - Quality gates, self-correction loop, and merge policies in job containers
+- [x] **Phase 39: Smart Execution** - Quality gates, self-correction loop, and merge policies in job containers (completed 2026-03-16)
 - [ ] **Phase 40: Job Control UI** - Cancel and retry running jobs from the web UI
 - [ ] **Phase 41: Claude Code Terminal Chat** - Embedded interactive Claude Code sessions with live streaming
 - [ ] **Phase 42: Admin Operations and Superadmin** - Repo CRUD, config editing, instance management, and cross-instance superadmin portal
@@ -120,7 +120,7 @@
   2. When gates fail, Claude Code sees the failure output, attempts one correction pass, and the PR records whether the final state passed gates
   3. Operator sees gate failure excerpts in their chat notification, not just a generic "job failed" message
   4. Each repo in REPOS.json can specify auto, gate-required, or manual merge policy and the auto-merge workflow respects it
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 39-01-PLAN.md — Quality gate config schema, JS helpers, Docker env passthrough, entrypoint.sh gate execution + self-correction
 - [ ] 39-02-PLAN.md — Auto-merge merge policy enforcement, notification enrichment with gate failure excerpts
@@ -173,7 +173,7 @@ Plans:
 | 22-24 | v1.5 | 7/7 | Complete | 2026-03-11 |
 | 25-28 | v2.0 | 14/14 | Complete | 2026-03-12 |
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
-| 39. Smart Execution | 1/2 | In Progress|  | - |
+| 39. Smart Execution | 2/2 | Complete   | 2026-03-16 | - |
 | 40. Job Control UI | v2.2 | 0/TBD | Not started | - |
 | 41. Terminal Chat | v2.2 | 0/TBD | Not started | - |
 | 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
