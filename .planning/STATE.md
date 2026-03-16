@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed quick-2 (version bump to 2.1.0)
-last_updated: "2026-03-16T15:42:05.398Z"
-last_activity: 2026-03-16 — v2.1 milestone archived
+stopped_at: Completed quick-3 (agent name visibility)
+last_updated: "2026-03-16T16:00:00.000Z"
+last_activity: 2026-03-16 — quick task 3: agent name displayed in sidebar, header, greeting, tab title
 progress:
   total_phases: 29
   completed_phases: 29
@@ -39,6 +39,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 ### Pending Todos
 
 1. **Set up OpenAI key for Epic audio transcription** (infra, carried from v1.4)
+2. **Superadmin portal / instance switcher** — A portal layer above instances that lets an operator switch between instances (e.g., Archie ↔ Epic) from a single login, instead of separate URLs with separate auth (future milestone feature)
 
 ### Blockers/Concerns
 
@@ -50,9 +51,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 2 | Update package.json version from 0.1.0 to 2.1.0 | 2026-03-16 | c7e1ca0 | [2-make-sure-the-version-on-the-web-app-mat](./quick/2-make-sure-the-version-on-the-web-app-mat/) |
+| 3 | Display agent name from SOUL.md in sidebar, chat header, greeting, and browser tab | 2026-03-16 | 0c4e473 | [3-make-instance-agent-name-prominently-vis](./quick/3-make-instance-agent-name-prominently-vis/) |
 
 ## Session Continuity
 
-Last session: 2026-03-16T15:42:05.387Z
-Stopped at: Completed quick-2 (version bump to 2.1.0)
+Last session: 2026-03-16T16:00:00.000Z
+Stopped at: Completed quick-3 (agent name visibility)
 Resume file: None
