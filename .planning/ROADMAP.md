@@ -120,7 +120,10 @@
   2. When gates fail, Claude Code sees the failure output, attempts one correction pass, and the PR records whether the final state passed gates
   3. Operator sees gate failure excerpts in their chat notification, not just a generic "job failed" message
   4. Each repo in REPOS.json can specify auto, gate-required, or manual merge policy and the auto-merge workflow respects it
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 39-01-PLAN.md — Quality gate config schema, JS helpers, Docker env passthrough, entrypoint.sh gate execution + self-correction
+- [ ] 39-02-PLAN.md — Auto-merge merge policy enforcement, notification enrichment with gate failure excerpts
 
 ### Phase 40: Job Control UI
 **Goal**: Operators can cancel running jobs and retry failed jobs directly from the web UI without SSH access
@@ -170,14 +173,14 @@
 | 22-24 | v1.5 | 7/7 | Complete | 2026-03-11 |
 | 25-28 | v2.0 | 14/14 | Complete | 2026-03-12 |
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
-| 39. Smart Execution | v2.2 | 0/TBD | Not started | - |
+| 39. Smart Execution | v2.2 | 0/2 | Planned | - |
 | 40. Job Control UI | v2.2 | 0/TBD | Not started | - |
 | 41. Terminal Chat | v2.2 | 0/TBD | Not started | - |
 | 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
 
 **Total shipped:** 38 phases, 73 plans — all complete through v2.1
-**v2.2 active:** 4 phases, plans TBD
+**v2.2 active:** 4 phases, Phase 39 planned (2 plans)
 
 ---
 
-*Last updated: 2026-03-16 -- v2.2 roadmap defined*
+*Last updated: 2026-03-16 -- Phase 39 plans created*
