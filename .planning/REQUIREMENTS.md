@@ -36,10 +36,10 @@ Requirements for v2.2 Smart Operations. Each maps to roadmap phases.
 
 ### Smart Execution (EXEC)
 
-- [ ] **EXEC-01**: Job container runs configurable quality gates (lint, typecheck, test) after Claude Code completes and before PR creation
-- [ ] **EXEC-02**: When quality gates fail, the agent automatically sees the failure output and attempts one self-correction pass before creating the PR
+- [x] **EXEC-01**: Job container runs configurable quality gates (lint, typecheck, test) after Claude Code completes and before PR creation
+- [x] **EXEC-02**: When quality gates fail, the agent automatically sees the failure output and attempts one self-correction pass before creating the PR
 - [ ] **EXEC-03**: Each repo in REPOS.json can specify a merge policy (auto, gate-required, manual) enforced by the auto-merge workflow
-- [ ] **EXEC-04**: Gate failures are surfaced in the operator's chat notification with failure excerpts, not just a PR label
+- [x] **EXEC-04**: Gate failures are surfaced in the operator's chat notification with failure excerpts, not just a PR label
 
 ## Future Requirements
 
@@ -90,10 +90,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXEC-01 | Phase 39 | Pending |
-| EXEC-02 | Phase 39 | Pending |
+| EXEC-01 | Phase 39 | Complete |
+| EXEC-02 | Phase 39 | Complete |
 | EXEC-03 | Phase 39 | Pending |
-| EXEC-04 | Phase 39 | Pending |
+| EXEC-04 | Phase 39 | Complete |
 | OPS-01 | Phase 40 | Pending |
 | OPS-02 | Phase 40 | Pending |
 | TERM-01 | Phase 41 | Pending |
