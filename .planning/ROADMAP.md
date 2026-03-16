@@ -10,6 +10,7 @@
 - ✅ v1.5 Persistent Workspaces -- Phases 22-24 (shipped 2026-03-11)
 - ✅ v2.0 Full Platform -- Phases 25-28 (shipped 2026-03-12)
 - ✅ v2.1 Upstream Feature Sync -- Phases 29-38 (shipped 2026-03-13)
+- 🔄 v2.2 Smart Operations -- Phases 39-42 (active)
 
 ## Phases
 
@@ -75,7 +76,6 @@
 
 </details>
 
-
 <details>
 <summary>✅ v2.0 Full Platform (Phases 25-28) -- SHIPPED 2026-03-12</summary>
 
@@ -85,7 +85,6 @@
 - [x] Phase 28: Multi-Agent Clusters (5/5 plans) -- completed 2026-03-12
 
 </details>
-
 
 <details>
 <summary>✅ v2.1 Upstream Feature Sync (Phases 29-38) -- SHIPPED 2026-03-13</summary>
@@ -103,6 +102,62 @@
 
 </details>
 
+### v2.2 Smart Operations (Phases 39-42)
+
+- [ ] **Phase 39: Smart Execution** - Quality gates, self-correction loop, and merge policies in job containers
+- [ ] **Phase 40: Job Control UI** - Cancel and retry running jobs from the web UI
+- [ ] **Phase 41: Claude Code Terminal Chat** - Embedded interactive Claude Code sessions with live streaming
+- [ ] **Phase 42: Admin Operations and Superadmin** - Repo CRUD, config editing, instance management, and cross-instance superadmin portal
+
+## Phase Details
+
+### Phase 39: Smart Execution
+**Goal**: Jobs automatically run quality checks and self-correct before creating PRs, with per-repo merge policies
+**Depends on**: Nothing (fully independent of all other v2.2 work)
+**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04
+**Success Criteria** (what must be TRUE):
+  1. After Claude Code completes, the job runs configured quality gates (lint/typecheck/test) and the PR is not created until gates pass or the self-correction attempt completes
+  2. When gates fail, Claude Code sees the failure output, attempts one correction pass, and the PR records whether the final state passed gates
+  3. Operator sees gate failure excerpts in their chat notification, not just a generic "job failed" message
+  4. Each repo in REPOS.json can specify auto, gate-required, or manual merge policy and the auto-merge workflow respects it
+**Plans**: TBD
+
+### Phase 40: Job Control UI
+**Goal**: Operators can cancel running jobs and retry failed jobs directly from the web UI without SSH access
+**Depends on**: Phase 39
+**Requirements**: OPS-01, OPS-02
+**Success Criteria** (what must be TRUE):
+  1. A running job shows a Cancel button in the web UI; clicking it stops the Docker container and the job status updates to cancelled
+  2. A failed job shows a Retry button in the web UI; clicking it re-dispatches the job with the original prompt and target repo without the operator re-typing anything
+  3. Both cancel and retry are guarded by admin role check — non-admin users do not see the controls
+**Plans**: TBD
+
+### Phase 41: Claude Code Terminal Chat
+**Goal**: Operators can run an interactive Claude Code session in the chat UI with live streaming of tool calls, file edits, and cost tracking
+**Depends on**: Phase 40
+**Requirements**: TERM-01, TERM-02, TERM-03, TERM-04, TERM-05, TERM-06, TERM-07, TERM-08
+**Success Criteria** (what must be TRUE):
+  1. Operator starts a Claude Code chat session and sees streaming text output appear in real time in the chat message area without page reload
+  2. Each tool call (file edit, bash command, MCP tool) appears inline as a structured card as it executes, not after the session ends
+  3. File edits are displayed as unified diffs with syntax-highlighted red/green lines in the message stream
+  4. Operator can send a follow-up message to a running session to redirect the agent; the agent receives it and continues or changes course
+  5. Operator sees token usage and estimated USD cost per turn displayed in the message stream, and the data is persisted in the database
+  6. Operator can toggle the session to shell mode for direct bash command execution within the same session context
+**Plans**: TBD
+
+### Phase 42: Admin Operations and Superadmin
+**Goal**: All remaining SSH-required operations are available via the web UI, and a superadmin can manage all instances from a single login
+**Depends on**: Phase 41
+**Requirements**: OPS-03, OPS-04, OPS-05, SUPER-01, SUPER-02, SUPER-03, SUPER-04, SUPER-05
+**Success Criteria** (what must be TRUE):
+  1. Operator can add, edit, and delete repos via an admin UI form without touching REPOS.json over SSH; changes are validated before saving
+  2. Operator can edit all platform configuration keys (LLM provider, models, timeouts, merge settings) from the admin general page without SSH access
+  3. Operator can view all instances with their status, configured repos, and active jobs from a single admin page
+  4. A superadmin user can log in once and switch between instances via an instance switcher without re-authenticating
+  5. Superadmin landing page shows each instance's active job count, runner status, and last job timestamp
+  6. Superadmin can search jobs across all instances by repo, status, or keyword and see results from all instances in one view
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -115,9 +170,14 @@
 | 22-24 | v1.5 | 7/7 | Complete | 2026-03-11 |
 | 25-28 | v2.0 | 14/14 | Complete | 2026-03-12 |
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
+| 39. Smart Execution | v2.2 | 0/TBD | Not started | - |
+| 40. Job Control UI | v2.2 | 0/TBD | Not started | - |
+| 41. Terminal Chat | v2.2 | 0/TBD | Not started | - |
+| 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
 
-**Total:** 38 phases, 73 plans — all complete
+**Total shipped:** 38 phases, 73 plans — all complete through v2.1
+**v2.2 active:** 4 phases, plans TBD
 
 ---
 
-*Last updated: 2026-03-16 -- v2.1 milestone archived*
+*Last updated: 2026-03-16 -- v2.2 roadmap defined*

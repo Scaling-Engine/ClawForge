@@ -90,13 +90,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| EXEC-01 | Phase 39 | Pending |
+| EXEC-02 | Phase 39 | Pending |
+| EXEC-03 | Phase 39 | Pending |
+| EXEC-04 | Phase 39 | Pending |
+| OPS-01 | Phase 40 | Pending |
+| OPS-02 | Phase 40 | Pending |
+| TERM-01 | Phase 41 | Pending |
+| TERM-02 | Phase 41 | Pending |
+| TERM-03 | Phase 41 | Pending |
+| TERM-04 | Phase 41 | Pending |
+| TERM-05 | Phase 41 | Pending |
+| TERM-06 | Phase 41 | Pending |
+| TERM-07 | Phase 41 | Pending |
+| TERM-08 | Phase 41 | Pending |
+| OPS-03 | Phase 42 | Pending |
+| OPS-04 | Phase 42 | Pending |
+| OPS-05 | Phase 42 | Pending |
+| SUPER-01 | Phase 42 | Pending |
+| SUPER-02 | Phase 42 | Pending |
+| SUPER-03 | Phase 42 | Pending |
+| SUPER-04 | Phase 42 | Pending |
+| SUPER-05 | Phase 42 | Pending |
 
 **Coverage:**
 - v2.2 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after initial definition*
+*Last updated: 2026-03-16 after roadmap creation — traceability complete*
