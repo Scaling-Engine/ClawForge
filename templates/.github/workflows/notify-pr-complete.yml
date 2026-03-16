@@ -125,6 +125,17 @@ jobs:
             fi
           fi
 
+          # Read gate-failures.md if present (quality gate output from entrypoint.sh)
+          GATE_FAILURES=""
+          if [ -f "logs/${JOB_ID}/gate-failures.md" ]; then
+            GATE_FAILURES=$(head -c 4000 "logs/${JOB_ID}/gate-failures.md")
+          fi
+
+          # Append gate failure excerpts to log content
+          if [ -n "$GATE_FAILURES" ]; then
+            LOG_CONTENT="${LOG_CONTENT}\n\n--- QUALITY GATE FAILURES ---\n${GATE_FAILURES}"
+          fi
+
           # Determine status based on merge result and PR state
           if [ "$MERGE_RESULT" = "merged" ]; then
             STATUS="completed"
@@ -188,6 +199,17 @@ jobs:
             if [ -n "$LOG_FILE" ]; then
               LOG_CONTENT=$(cat "$LOG_FILE")
             fi
+          fi
+
+          # Read gate-failures.md if present (quality gate output from entrypoint.sh)
+          GATE_FAILURES=""
+          if [ -f "logs/${JOB_ID}/gate-failures.md" ]; then
+            GATE_FAILURES=$(head -c 4000 "logs/${JOB_ID}/gate-failures.md")
+          fi
+
+          # Append gate failure excerpts to log content
+          if [ -n "$GATE_FAILURES" ]; then
+            LOG_CONTENT="${LOG_CONTENT}\n\n--- QUALITY GATE FAILURES ---\n${GATE_FAILURES}"
           fi
 
           # Build cross-repo notification payload
