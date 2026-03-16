@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { CirclePlusIcon, PanelLeftIcon, MessageIcon, BellIcon, SwarmIcon, ClusterIcon, ArrowUpCircleIcon, LifeBuoyIcon, GitPullRequestIcon, ServerIcon, UserIcon, ShieldIcon } from './icons.js';
-import { getUnreadNotificationCount, getAppVersion, getPendingPRCount } from '../actions.js';
+import { getUnreadNotificationCount, getAppVersion, getPendingPRCount, getAgentName } from '../actions.js';
 import { SidebarHistory } from './sidebar-history.js';
 import { SidebarUserNav } from './sidebar-user-nav.js';
 import { UpgradeDialog } from './upgrade-dialog.js';
@@ -30,6 +30,7 @@ export function AppSidebar({ user }) {
   const [version, setVersion] = useState('');
   const [updateAvailable, setUpdateAvailable] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [agentName, setAgentName] = useState('ClawForge');
 
   useEffect(() => {
     getUnreadNotificationCount()
@@ -44,6 +45,7 @@ export function AppSidebar({ user }) {
     getPendingPRCount()
       .then((count) => setPendingPRCount(count))
       .catch(() => {});
+    getAgentName().then(setAgentName).catch(() => {});
   }, []);
 
   return (
@@ -53,7 +55,7 @@ export function AppSidebar({ user }) {
         {/* Top row: brand name + toggle icon (open) or just toggle icon (collapsed) */}
         <div className={collapsed ? 'flex justify-center' : 'flex items-center justify-between'}>
           {!collapsed && (
-            <span className="px-2 font-semibold text-lg">ClawForge{version && <span className="text-[11px] font-normal text-muted-foreground"> v{version}</span>}</span>
+            <span className="px-2 font-semibold text-lg">{agentName}{version && <span className="text-[11px] font-normal text-muted-foreground"> v{version}</span>}</span>
           )}
           <Tooltip>
             <TooltipTrigger asChild>

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { SidebarTrigger } from './ui/sidebar.js';
 import { useRepoChat } from '../repo-chat-context.js';
-import { getRepos, getBranches } from '../actions.js';
+import { getRepos, getBranches, getAgentName } from '../actions.js';
 
 export function ChatHeader({ chatId }) {
   const { selectedRepo, setSelectedRepo, selectedBranch, setSelectedBranch } = useRepoChat();
@@ -11,9 +11,11 @@ export function ChatHeader({ chatId }) {
   const [branches, setBranches] = useState([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const branchLoadingForRepo = useRef(null);
+  const [agentName, setAgentName] = useState('');
 
   useEffect(() => {
     getRepos().then(setRepos).catch(() => setRepos([]));
+    getAgentName().then(setAgentName).catch(() => {});
   }, []);
 
   const handleRepoChange = async (e) => {
@@ -48,6 +50,9 @@ export function ChatHeader({ chatId }) {
       <div className="md:hidden">
         <SidebarTrigger />
       </div>
+      {agentName && (
+        <span className="hidden md:inline text-sm font-medium text-foreground">{agentName}</span>
+      )}
       <div className="flex flex-1 items-center gap-2">
         <select
           value={selectedRepo?.slug || ''}
