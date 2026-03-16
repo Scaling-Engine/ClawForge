@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 Phase: None active
 Status: v2.1 Upstream Feature Sync archived. 38 phases, 73 plans across 8 milestones (v1.0–v2.1) complete.
-Last activity: 2026-03-16 — v2.1 milestone archived
+Last activity: 2026-03-16 - Completed quick task 2: Update package.json version to 2.1.0
 
 Progress: No active milestone
 
@@ -44,6 +44,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 - StrategyES instance REPOS.json content needs operator confirmation (carried from v1.2)
 - Fine-grained PAT scope update is an operator action -- must be documented in .env.example before cross-repo jobs run (carried from v1.2)
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 2 | Update package.json version from 0.1.0 to 2.1.0 | 2026-03-16 | c7e1ca0 | [2-make-sure-the-version-on-the-web-app-mat](./quick/2-make-sure-the-version-on-the-web-app-mat/) |
 
 ## Session Continuity
 
