@@ -1,256 +1,282 @@
-# Feature Landscape: v2.0 Full Platform
+# Feature Research: v2.2 Smart Operations
 
-**Domain:** AI agent platform — Web UI, Multi-Agent Clusters, Headless Streaming, MCP Tool Layer
-**Researched:** 2026-03-12
-**Scope:** NEW features only for v2.0. Everything in v1.0–v1.5 (job pipeline, Docker dispatch, workspaces, channels, cross-repo, instance generation) is shipped and not re-researched.
+**Domain:** AI agent platform — Claude Code chat mode, superadmin portal, UI operations parity, smart execution
+**Researched:** 2026-03-16
+**Confidence:** HIGH (codebase inspection + official docs + WebSearch verified)
+**Scope:** NEW features only for v2.2. Everything through v2.1 is shipped and not re-researched.
 
 ---
 
 ## Context: What Is Being Built
 
-v2.0 cherry-picks four capability areas while preserving ClawForge's multi-tenant architecture. These are additive to the existing two-layer system:
+v2.2 adds four capability areas to the existing ClawForge platform. These are additive to the complete v2.1 system:
 
-- **Web UI**: Enhanced chat interface with code mode, repo/branch selector — the terminal workspace UI is complete; what remains is the chat-side improvements
-- **Multi-Agent Clusters**: Role-based agent teams coordinating via shared filesystem and label-based state machine
-- **Headless Job Streaming**: Live log output from running Docker containers piped to chat UI
-- **MCP Tool Layer**: Per-instance MCP server configs with curated tool subsets
+- **Real Claude Code chat mode**: Interactive embedded terminal UX with streaming tool calls, file edits, thinking steps, interrupt/resume — runs via Agent SDK, not the existing LangGraph headless job pipeline
+- **Superadmin portal**: Single login across all instances with an instance switcher — a new auth layer above the per-instance admin panel
+- **UI operations parity**: All operations currently requiring SSH/CLI are available through the web UI — repo CRUD, job cancel/retry/logs, config editing, instance management
+- **Smart execution**: Pre-CI quality gates, test feedback loops, configurable merge policies — execution guardrails that reduce bad merges
 
-**What's already built that these features touch (confirmed by direct codebase inspection):**
-- Docker Engine API dispatch with dockerode — `lib/tools/docker.js` (headless streaming extends `collectLogs()`)
-- LangGraph ReAct agent with SQLite checkpointing — `lib/ai/tools.js` (tools expand this; 7 tools currently exported)
-- xterm.js browser terminal with WebSocket proxy — `lib/ws/` (ws proxy, ticket auth, actions all shipped)
-- Per-instance `REPOS.json` and isolation model — `instances/noah/config/`, `instances/strategyES/config/` (MCP configs extend this pattern)
-- Chat streaming via AI SDK v5 with `createUIMessageStream` — `lib/chat/api.js`
-- Full chat UI with 22+ components — `lib/chat/components/` (all key pages: chat, swarm, notifications, settings, chats, crons, triggers)
-- `closeWorkspace` tool shipped in v1.5 — `lib/tools/docker.js:991`
-- `startCodingTool` and `listWorkspacesTool` shipped in v1.5 — `lib/ai/tools.js`
-- `code_workspaces` DB table with full lifecycle tracking — `lib/db/schema.js:77`
+**What is confirmed shipped (v2.1 — do not rebuild):**
 
-**PopeBot analysis source:** Direct codebase inspection of `lib/chat/components/` (18 components), `lib/triggers.js`, `lib/cron.js`, `lib/actions.js`, plus `lib/ws/`, `lib/tools/docker.js`, and `lib/ai/tools.js`. The upstream components are already fully ported. What remains is building what PopeBot stubs or omits in the context of ClawForge's multi-tenant design.
-
----
-
-## Area 1: Web UI
-
-### What Is Already Shipped (v1.5 — Do Not Rebuild)
-
-| Component | Location | Status |
-|-----------|----------|--------|
-| Chat page with streaming | `lib/chat/components/chat-page.jsx` | Shipped |
-| Chat input with file upload, DnD | `lib/chat/components/chat-input.jsx` | Shipped |
-| Message rendering with tool calls | `lib/chat/components/message.jsx`, `tool-call.jsx` | Shipped |
-| Sidebar history with starred chats | `lib/chat/components/sidebar-history.jsx` | Shipped |
-| Notifications page | `lib/chat/components/notifications-page.jsx` | Shipped |
-| Swarm page (job status) | `lib/chat/components/swarm-page.jsx` | Shipped |
-| Settings + API key management | `lib/chat/components/settings-secrets-page.jsx` | Shipped |
-| Crons + triggers pages | `lib/chat/components/crons-page.jsx`, `triggers-page.jsx` | Shipped |
-| Workspace terminal (xterm.js) | `lib/ws/` + terminal component | Shipped |
-
-### Table Stakes (New for v2.0)
-
-| Feature | Why Expected | Complexity | Implementation Notes |
-|---------|--------------|------------|----------------------|
-| **Code mode toggle** | Operators sending code snippets need syntax highlighting and monospace rendering. Without mode switching, code-heavy conversations are illegible. | LOW | Toolbar button that wraps input in triple backtick blocks and renders as `<pre>`. Add to `chat-input.jsx`. Detect code block parts in `message.jsx` and render with `<pre>` instead of prose. |
-| **Repo/branch selector in chat input** | Operators repeat "run this against repo X" in every message. A persistent selector replaces the natural language repo resolution round-trip. The selected repo becomes the default for `create_job` dispatches. | MEDIUM | Select component populated from `loadAllowedRepos()` via Server Action. Stored in chatId-scoped state, serialized into `body` of the `/stream/chat` POST. Agent reads pre-selected repo from request metadata. `lib/tools/repos.js:loadAllowedRepos()` and `lib/chat/api.js` body metadata both already exist. |
-
-### Differentiators
-
-| Feature | Value Proposition | Complexity | Implementation Notes |
-|---------|-------------------|------------|----------------------|
-| **Feature flags system (FeaturesContext)** | Enable/disable in-development v2.0 features without code deploys. Operators can toggle clusters UI, streaming view, or MCP settings per instance. | LOW | React context following PopeBot pattern: `FeaturesContext` with boolean flags per feature. Read from environment variable or instance config. Wrap new pages/components in `<FeatureFlag name="clusters">`. |
-| **DnD tab interface for multi-workspace** | Operators with multiple workspaces open benefit from a drag-reorderable tab bar rather than navigating separate URLs. | HIGH | Requires a tab management layer over the existing `WorkspacePage` — each tab proxies a separate WebSocket to a different container. Each tab needs its own xterm.js instance and WebSocket connection. High complexity for low operator count. Defer to v2.1. |
-| **Live job streaming output in chat view** | Instead of "Job dispatched, waiting...", operators see real-time log output from running containers directly in the chat message stream. | HIGH | Depends on Area 3 (Headless Streaming) being built first. The streaming output feeds into the AI SDK v5 `createUIMessageStream` pattern already used by chat. |
-
-### Anti-Features
-
-| Anti-Feature | Why Avoid | Alternative |
-|--------------|-----------|-------------|
-| **Code editor (Monaco, CodeMirror) in chat UI** | The workspace terminal with Claude Code already provides a full editing environment. Adds confusing dual-environment. Operators are supervisors, not editors. | Keep chat as conversation surface. Code artifacts visible in tool call outputs and PR diffs. |
-| **Custom theme/color picker** | CSS variables handle light/dark via Tailwind. Zero platform value. | Tailwind's `prefers-color-scheme` handles this automatically. |
-| **Chat export to PDF/markdown** | Export infrastructure adds a new code path with minimal operational value for a 2-instance platform. | The `messages` table is directly queryable. Export is a one-liner SQLite query if needed. |
+| Capability | Location |
+|-----------|----------|
+| Web chat with AI SDK v5 streaming, tool call visibility | `lib/chat/api.js`, `lib/chat/components/chat.jsx` |
+| Terminal workspaces with xterm.js + ttyd + tmux | `lib/ws/`, workspace Docker image |
+| Job dispatch (Docker Engine API ~9s), SSE streaming, JobStreamViewer | `lib/tools/create-job.js`, `lib/chat/components/job-stream-viewer.jsx` |
+| Multi-agent clusters with coordinator, shared volumes | `lib/cluster/` |
+| MCP tool layer with per-instance config | `instances/*/config/MCP_SERVERS.json` |
+| Admin panel: general, github, users, secrets, voice, chat, webhooks | `lib/chat/components/admin-*.jsx`, `app/admin/` |
+| Auth RBAC: admin/user roles, /forbidden page | `lib/auth/middleware.js`, `lib/auth/actions.js` |
+| GitHub secrets CRUD, runners page, PR page | Admin panel sub-pages |
+| Job semantic event streaming: file-change, bash-output, decision, progress | `lib/chat/components/job-stream-viewer.jsx` |
+| Interactive mode toggle (headless vs workspace) | `codeMode` state in `chat.jsx` |
 
 ---
 
-## Area 2: Multi-Agent Clusters
+## Area 1: Real Claude Code Chat Mode
+
+### What This Is
+
+The existing chat sends messages to a LangGraph ReAct agent (Layer 1), which may dispatch headless jobs (Layer 2). Claude Code chat mode is different: it runs `claude` interactively in a persistent container, streams every tool call, file edit, and thinking step directly into the chat UI in real time, and allows the operator to interrupt and send follow-up instructions while it is working — matching the interactive mode behavior Claude Code has in a native terminal.
+
+This is modeled after the Claude Agent SDK's streaming model: `claude -p` with `--output-format stream-json --include-partial-messages` emits newline-delimited JSON events (message_start, content_block_start/delta/stop, tool calls, message_stop). These map directly to UI elements: text delta = streaming prose, tool_use content_block = tool call panel, file write/edit events = file change rows.
+
+**Official streaming events (HIGH confidence — Claude Agent SDK docs):**
+
+| Event | Type | UI Mapping |
+|-------|------|------------|
+| `content_block_delta` with `text_delta` | Text chunk | Stream into message bubble |
+| `content_block_start` with `tool_use` | Tool invocation starts | Open tool call panel with tool name |
+| `content_block_delta` with `input_json_delta` | Tool input streaming | Update tool call panel with partial JSON |
+| `content_block_stop` (after tool_use) | Tool invocation complete | Close tool call panel, show result |
+| `ResultMessage` | Final output | Mark turn complete |
 
 ### Table Stakes
 
-| Feature | Why Expected | Complexity | PopeBot Pattern | ClawForge Dependencies |
-|---------|--------------|------------|-----------------|------------------------|
-| **Cluster config schema (CLUSTER.json)** | A cluster is a named group of agents with defined roles. Without a config schema, there is no way to define what a cluster does. Schema must express: cluster name, list of agents (each with role, prompt template, trigger type), routing rules (what label causes which agent to run next). | MEDIUM | PopeBot's trigger model uses `TRIGGERS.json` (ported: `lib/triggers.js`) and `CRONS.json` (ported: `lib/cron.js`). A cluster config extends this with role definitions and label-based routing. CLUSTER.json structure: `{ name, agents: [{ role, systemPrompt, triggerType, triggerCondition, mcpServers }], routing: [{ label, nextAgent }] }`. | `lib/triggers.js` and `lib/cron.js` are direct precedents — same `executeAction()` dispatch path. `lib/tools/create-job.js` creates the job branch. `lib/ai/tools.js:createJobTool` is the entry point. Cluster runtime wraps these. |
-| **Role-based agent dispatch** | Different agents in a cluster should have different system prompts, tool access, and responsibilities. A CTO agent reviews architecture; a Security agent audits credentials; a Developer agent writes code. | HIGH | PopeBot defines roles as named config objects with associated system prompt templates (SOUL.md equivalent per role). Each role maps to a SOUL.md override injected at dispatch time. ClawForge's existing `target.json` sidecar on job branches carries target metadata — extend to carry `{ role, clusterJobId }`. | `templates/docker/job/entrypoint.sh` reads `target.json` at runtime. Add `role` field: entrypoint selects `/defaults/{role}-SOUL.md` if present, else falls back to `/defaults/SOUL.md`. `lib/tools/create-job.js` writes `target.json`. |
-| **Shared filesystem communication (inbox/outbox)** | Agents in a cluster communicate by writing to a shared directory on a named volume. Agent A writes `outbox/result.md`; Agent B reads `inbox/result.md` as its prompt context. Without shared state, agents cannot coordinate. | HIGH | PopeBot uses a named Docker volume (shared across all containers in the cluster) mounted at `/cluster/{clusterId}/`. Agents write structured output to `outbox/` and read from `inbox/`. The cluster runtime copies outbox to next agent's inbox before dispatch. | `lib/tools/docker.js:ensureVolume()` and volume binding already work. Cluster coordinator: (1) create cluster volume, (2) mount it on each container at `/cluster/`, (3) after each agent completes, read outbox and write to next agent's inbox on the same volume. |
-| **Label-based state machine routing** | The coordinator must know which agent to run next. Labels emitted by an agent (e.g., "needs-security-review", "ready-to-implement") trigger routing to the next agent in the pipeline. | HIGH | PopeBot stubs this in the DB schema (cluster/worker/role tables) but has no runtime. Pattern from LangGraph: each agent appends a `label:` line to its output; the coordinator reads the last label and matches it to the `routing` config to determine next dispatch. Job containers output to `claude-output.jsonl` — coordinator extracts the final label from the assistant's last message. | `templates/docker/job/entrypoint.sh` saves `claude-output.jsonl`. Coordinator `collectLogs()` then parses JSONL to extract the final label. No changes to job containers — label protocol is a convention imposed by agent prompts. |
-| **Cluster run DB tracking** | Cluster runs must be persisted so operators can inspect what happened, which agents ran, in what order, and what each produced. | MEDIUM | New SQLite tables: `cluster_runs` (id, clusterId, status, startedAt, completedAt), `cluster_agent_runs` (id, clusterRunId, agentRole, jobId, status, label, prUrl, startedAt, completedAt). Drizzle ORM schema addition following existing patterns. | Extends `lib/db/schema.js` following the `jobOutcomes` and `codeWorkspaces` table patterns. New `lib/db/cluster-runs.js` CRUD module. |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Streaming text output in real time** | Without real-time streaming, operators see nothing until Claude finishes a multi-minute task. The existing LangGraph chat already streams, so streaming-by-default is the baseline expectation. | MEDIUM | Claude Agent SDK: `claude -p --output-format stream-json --include-partial-messages`. Server reads STDOUT via child_process/spawn, parses newline-delimited JSON events, forwards to client via SSE or AI SDK v5 data stream. Different from existing LangGraph streaming — new server-side stream handler needed. |
+| **Live tool call visualization** | Every file edit, bash command, and MCP tool call must appear in the chat UI as it happens. "Claude is editing `lib/auth/index.js`..." is required feedback. Existing `JobStreamViewer` shows filtered semantic events from headless jobs — chat mode shows every tool call inline as message parts. | HIGH | Map Agent SDK `content_block_start` (tool_use) events to AI SDK v5 `tool-call` message parts. Tool name + partial input renders progressively. On completion, attach tool result. Reuses existing `tool-call.jsx` component structure but at message-part granularity, not job-level. |
+| **File edit visibility with diff-style display** | When Claude edits a file, operators need to see what changed — not just "edited `lib/auth.js`" but the actual diff. Without this, operators can't supervise the agent's work. | HIGH | Parse tool results for `Edit` and `Write` tool completions. Extract before/after content. Render as a unified diff (removed lines red, added lines green) using existing Shiki syntax highlighting. Inline in the message stream, not in a separate panel. |
+| **Interrupt / send follow-up while running** | Operators need to redirect the agent mid-task: "actually, skip the tests and just fix the import". Without interrupt, operators must wait for the full task to complete or kill it. The Claude Agent SDK supports session-based `--resume`, enabling follow-up turns. | HIGH | Track `session_id` from `ResultMessage` or initial JSON output. Send follow-up prompts by spawning a new `claude -p --resume {session_id}` process. The running process must be stoppable (SIGINT or stdin pipe). UI shows "Send instruction to running agent" input when chat mode is active. |
+| **Working directory and repo context** | Claude Code chat mode needs to know which repo it's working in. Without a repo context, it operates on the ClawForge repo itself rather than a target repo. | MEDIUM | When operator starts a chat mode session, inject the target repo path (checked-out named volume from existing `clawforge-{instance}-{slug}` volumes) as the working directory. Reuse existing repo volume warm-start pattern. Agent SDK receives `--cwd /workspace/{repoSlug}`. |
+| **Token usage and cost visibility** | `ResultMessage` from the Agent SDK includes `usage` (input tokens, output tokens). Operators need visibility into cost per conversation. | LOW | Parse `usage` from final `ResultMessage`. Append a small cost summary line after each Claude Code turn. Store in DB alongside message content. |
 
 ### Differentiators
 
-| Feature | Value Proposition | Complexity | PopeBot Pattern | ClawForge Dependencies |
-|---------|-------------------|------------|-----------------|------------------------|
-| **Cluster trigger types: manual, webhook, cron** | Clusters useful beyond manual dispatch. A webhook trigger fires a review cluster when a PR is opened; a cron trigger runs a daily health-check cluster. | MEDIUM | `lib/triggers.js` and `lib/cron.js` already support `agent` action type via `executeAction()`. Extend `executeAction()` to recognize a `cluster` action type: read `CLUSTER.json`, find cluster by name, dispatch first agent. | `lib/actions.js:executeAction()` — add `case 'cluster':` that calls `dispatchCluster(action.clusterId, context)`. No changes needed to `lib/triggers.js` or `lib/cron.js`. |
-| **`create_cluster_job` LangGraph tool** | Operators can start a cluster through conversation: "run a code review cluster on the neurostory PR." Without a tool, operators must use the API directly. | MEDIUM | New LangGraph tool following `createJobTool` pattern in `lib/ai/tools.js`. Accepts `cluster_name` and `context` (e.g., PR URL, description). Creates a cluster run record, dispatches the first agent, returns `clusterRunId`. | `lib/ai/tools.js` — add `createClusterJobTool`. Reuses `createJob()` and `waitAndNotify()` for the first agent. Cluster coordinator takes over after first completion. |
-| **Cluster management UI page** | Operators need to see cluster definitions, running cluster jobs, and completion history. | MEDIUM | PopeBot has no cluster UI (DB/runtime only). New page at `/clusters` listing clusters from CLUSTER.json, recent runs with timeline, agent status per run. Follows swarm-page pattern. | New `lib/chat/components/clusters-page.jsx` following `swarm-page.jsx` skeleton. `getClusterStatus()` Server Action reads from `cluster_runs` + `cluster_agent_runs` tables. |
-| **Parallel agent dispatch within cluster** | Some cluster workflows allow parallel agents (Security and Performance audits simultaneously). Coordinator dispatches both, waits for both to complete, then routes to a synthesis agent. | HIGH | Not present in PopeBot. Requires `Promise.all()` over agent dispatches with a join point in the coordinator. Complex interaction with label routing model. | Builds on `waitAndNotify()` fire-and-forget pattern. Coordinator tracks pending agents; only routes to next stage when all complete. High complexity — defer to v2.1. |
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Shell mode alongside chat mode** | The native Claude Code terminal supports two input modes: chat (natural language requests) and bash (direct shell commands with conversation context). Offering both in the web UI gives operators the full native terminal experience without SSH. | HIGH | Shell mode: input is sent directly as a bash command to the container, output streamed back. Chat mode: input sent as Claude prompt. Toggle in chat input bar (existing `codeMode` toggle can be repurposed). Claude Agent SDK does not support mixed modes in one session — shell mode requires separate container exec. |
+| **Thinking steps display (when extended thinking is enabled)** | Extended thinking produces `thinking` content blocks before the response. Surfacing these as a collapsible "Claude's reasoning" panel gives operators insight into why a decision was made. | MEDIUM | Note: Agent SDK docs state extended thinking (`maxThinkingTokens`) disables `StreamEvent` streaming — you only get complete messages per turn. Decide: thinking steps with turn-level streaming, or real-time text streaming without thinking. Given streaming is the core value, default to streaming. Offer thinking-mode as a toggle that slows down feedback. |
+| **Tool call approval mode (ask before running)** | Instead of auto-approving all tools via `--allowedTools`, pause before each destructive operation (file write, bash execution) and show the operator what will happen with approve/deny. | HIGH | Agent SDK does not have a built-in prompt-before-tool callback in CLI mode — this requires the TypeScript/Python SDK with `onBeforeToolCall` callback. Switching from CLI to SDK package is an architecture change. Lower priority: existing `--allowedTools` whitelist provides adequate safety. |
 
 ### Anti-Features
 
 | Anti-Feature | Why Avoid | Alternative |
 |--------------|-----------|-------------|
-| **Cross-instance cluster coordination** | Noah's cluster dispatching jobs to StrategyES's containers breaks the isolation model that is a core ClawForge security guarantee. | Each instance runs its own clusters. Cluster config lives in `instances/{name}/config/CLUSTER.json`. Coordinator respects instance Docker network boundaries. |
-| **Visual cluster builder (drag-and-drop workflow editor)** | A 2-instance platform with 1-2 operators does not need a visual editor. CLUSTER.json is readable and operator-editable. Building a workflow editor is 2-4 weeks of UI work for zero operational value at current scale. | CLUSTER.json + documentation. If this becomes a product, add it in v3. |
-| **Agent-to-agent direct messaging** | Direct API calls between agents creates tight coupling and defeats the sniper agent model. | Shared named volume for inter-agent state. Each agent is stateless; the volume is the state. |
+| **Replacing the existing LangGraph chat with Agent SDK** | LangGraph provides persistent SQLite memory, multi-tool orchestration (create_job, get_job_status, web_search), and the headless job dispatch model. Agent SDK is single-session, stateless across turns. Replacing LangGraph loses all of these. | Keep LangGraph as the default event handler. Claude Code chat mode is an additive mode — a separate code path invoked when the operator toggles to "Claude Code" mode. |
+| **Running Agent SDK on the Event Handler server process** | Running `claude -p` as a child process inside the Next.js Event Handler creates resource contention, PID accumulation, and cross-instance interference. | Run Agent SDK in a dedicated container per session, using the same workspace Docker image that ttyd/tmux uses. The Event Handler spawns the container; streams flow through the existing WebSocket/SSE proxy. |
+| **Unfiltered tool call streaming (every partial JSON chunk)** | Tool input streams as partial JSON deltas (e.g., `{"path": "/li`, then `b/auth`, then `...`). Rendering every fragment in the UI creates visual jitter. | Buffer tool input until `content_block_stop`, then render the complete call. Show "Claude is using Edit..." with a spinner while buffering, render the full call on completion. |
 
 ---
 
-## Area 3: Headless Job Streaming
+## Area 2: Superadmin Portal with Instance Switcher
+
+### What This Is
+
+Currently, ClawForge has one web UI deployment per instance (or a shared deployment with per-instance middleware). Operators with access to multiple instances must maintain separate sessions or separate browser tabs. The superadmin portal is a single login point that shows all instances, lets an operator switch context, and provides a cross-instance control plane — all within one authenticated session.
+
+**Multi-tenant SaaS standard pattern (MEDIUM confidence — WebSearch verified):** A superadmin account at the top of the auth hierarchy sees every tenant. A tenant switcher (like Microsoft 365 admin center's "All tenants" page) allows jumping between tenants while maintaining a single session. Instance-scoped data remains isolated; only the auth layer is shared.
 
 ### Table Stakes
 
-| Feature | Why Expected | Complexity | Implementation Notes |
-|---------|--------------|------------|----------------------|
-| **Container log streaming via Docker API** | When a job runs (~2-15 minutes), operators stare at "Job dispatched, waiting..." with no feedback. Streaming live logs tells them what Claude Code is actually doing. | HIGH | `lib/tools/docker.js:collectLogs()` already collects stdout/stderr via dockerode's `container.logs()` post-hoc. Streaming requires switching to `container.attach({stream:true, stdout:true, stderr:true})` which returns a live stream. The dockerode event demuxer handles stdout/stderr multiplexing. New `attachStream()` function alongside existing `collectLogs()`. |
-| **Log forwarding to originating channel** | Log chunks must reach the operator: Slack thread replies, Telegram messages, or web chat SSE events. Without a forwarding path, streaming is captured but not delivered. | HIGH | Web: emit log chunks via `addToThread()` as streaming `AIMessage` parts — AI SDK v5 supports partial streaming. Slack: buffer 5s of log and post a single update, edit the previous message when new content arrives (chat.update API). Telegram: same buffering approach. `lib/ai/index.js:addToThread()` is the injection point for web channel. |
-| **Progress indicators in chat UI** | Operators need to know a job is still running, not frozen. A "Job running... (2m 15s elapsed)" indicator prevents premature cancellation. | LOW | `lib/chat/components/message.jsx` already renders `SpinnerIcon` + "Working..." for in-progress LangGraph tool calls. The same component renders job-status messages if log chunks are injected as streaming tool output. No new component needed — just the streaming injection path. |
-| **Log filtering and truncation** | Claude Code JSONL output is verbose (every tool call is logged). Raw streaming would flood the chat with noise. Filter should surface: file modifications, bash command outputs, key decisions, final summary — suppressing internal reasoning and redundant tool calls. | MEDIUM | `lib/tools/github.js:summarizeJob()` already does post-hoc log parsing. A streaming filter applies the same rules incrementally: accumulate JSONL lines, emit a summary every 5s covering what changed. Full log still available in the PR / GitHub Actions run. |
-| **Stream cancellation / job abort** | If an operator sees Claude Code going in the wrong direction, they should be able to cancel without waiting for the 30-minute timeout. Cancellation must stop the container and leave a clean state. | MEDIUM | `lib/tools/docker.js` has `removeContainer()`. A `cancelJob()` function: (1) find the container by job ID via `inspectJob()`, (2) call `container.stop({t:10})` then `container.remove()`, (3) notify the thread "Job cancelled by operator." New `cancel_job` LangGraph tool. |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Single login across all instances** | Operators managing multiple instances today need separate sessions. This is friction — two browser tabs, two login flows. A shared auth layer behind one URL eliminates this. | HIGH | Options: (a) single Next.js deployment with per-instance routing (`/i/noah/`, `/i/strategyES/`), instance determined from URL prefix; (b) separate deployments sharing a common auth DB. Option (a) is the right approach given the existing single-codebase model: add a top-level `superadmin` role to the users table, add an instance context to the session, route all admin actions through the instance context. |
+| **Instance switcher UI** | After login, the operator sees a list of all instances. Selecting one sets the active instance context for all subsequent operations. | MEDIUM | A top-level route (`/`) that only superadmins see: lists instances from `instances/*/config/` directories or a DB table. Selecting an instance stores `activeInstance` in the session cookie. All existing admin pages (`/admin/*`) route their Server Actions through the active instance context. |
+| **Instance-scoped data isolation in the shared DB** | Currently, the SQLite DB has no `instanceId` column on most tables. For a superadmin portal, jobs, chats, and configs must be queryable by instance without cross-contamination. | HIGH | Most tables need `instanceId` column added (nullable initially for backward compat, then backfilled). `instanceId` added to: `chats`, `job_outcomes`, `cluster_runs`, `code_workspaces`, `notifications`. The `users` table already has enough granularity through `role`. All queries in `lib/db/*.js` updated to filter by `instanceId` when an instance context is set. |
+| **Per-instance admin access (not just superadmin)** | Instance operators should be able to manage their own instance without needing superadmin access. The existing `admin` role is per-deployment. In the superadmin model, `admin` means "admin of a specific instance." | MEDIUM | Extend users table: add `instanceId` column to users (which instance this admin manages). `admin` role = admin of `instanceId`. `superadmin` role = admin of all instances. Middleware reads `session.user.role` and `session.user.instanceId` to scope access. |
+| **Instance health overview** | The superadmin landing page shows the status of each instance — runners online/offline, active jobs, recent errors. Without this, the superadmin portal is just an instance list with no operational value. | MEDIUM | New `/superadmin` page with a card per instance. Each card shows: active job count (from `job_outcomes` where `status = 'running'`), runner status (existing `getRunners()` per instance), last job timestamp. Data fetched via Server Actions scoped to each instance. |
 
 ### Differentiators
 
-| Feature | Value Proposition | Complexity | Implementation Notes |
-|---------|-------------------|------------|----------------------|
-| **Log diff highlighting** | Instead of raw log lines, show only files that changed since the last update. "Modified: src/api/index.js" every 10s is more useful than a wall of JSONL. | MEDIUM | Parse `claude-output.jsonl` for `tool_result` entries where tool is `Write` or `Edit`. Extract filename from input. Deduplicate and emit as "Modified: {file}" messages. No new infrastructure — streaming filter identifies these events. `lib/tools/github.js:collectChangedFiles()` already extracts changed files from GitHub PR API for post-hoc use. |
-| **GSD phase progress in stream** | If the job uses GSD skills (`/gsd:execute-phase`), surface the current phase and sub-task in the stream. "Phase 3: Building authentication → Writing lib/auth/index.js" turns raw logs into a readable narrative. | HIGH | Requires parsing GSD's progress output from `claude-output.jsonl`. GSD writes `## Phase {N}: {name}` headers to stdout. Stream filter detects these and emits them as structured progress events. Tight coupling to GSD output format — fragile if GSD changes. |
-| **Streaming to Slack with message editing** | Rather than spamming a Slack thread with 50 log messages, maintain a single "in-progress" message and edit it every 10s with the latest status. | MEDIUM | Slack `chat.update()` API. Requires tracking the `ts` of the in-progress message. `waitAndNotify()` in `lib/ai/tools.js` posts to Slack — extend with `updateMessage()` during the job. `@slack/web-api` already imported. |
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Cross-instance job search** | Find a job across all instances without knowing which one ran it. "Show me all jobs that touched neurostory repo" searches across instances. | MEDIUM | `job_outcomes` with `instanceId` column enables `SELECT * FROM job_outcomes WHERE target_repo LIKE '%neurostory%'`. New search page or filter in the superadmin portal. |
+| **Instance comparison view** | See config differences between instances side-by-side: which repos, which MCP servers, which secrets are configured for each. Useful for managing configuration drift. | LOW | Config diff: read `REPOS.json` and `MCP_SERVERS.json` for each instance, render as a comparison table. Read-only. No new infrastructure beyond the config loaders that already exist. |
+| **Impersonation (superadmin acts as instance admin)** | Superadmin can temporarily take on an instance admin's session to debug issues without needing that user's credentials. | HIGH | Requires session token swap: generate a short-lived session for the target instance admin, store the original session for revert. Standard SaaS pattern (MakerKit, Auth.js) but non-trivial to implement securely. LOW priority for 2-instance setup. |
 
 ### Anti-Features
 
 | Anti-Feature | Why Avoid | Alternative |
 |--------------|-----------|-------------|
-| **Full unfiltered JSONL stream to chat** | A typical Claude Code job produces 200-500KB of JSONL. Streaming all of it into a Slack thread or web chat is illegible and potentially rate-limit-triggering. | Filter to semantic events: file writes, bash outputs, key decisions. Full logs available in GitHub Actions or as PR artifact. |
-| **Persistent log storage beyond PR** | Logs are already captured in GitHub Actions artifacts and the job Docker container output. Storing them again in SQLite or a separate file doubles storage with no added value. | Reference the GitHub PR URL for full logs. SQLite stores only the final `logSummary` (short summary, not raw JSONL). This already exists in `jobOutcomes` table. |
-| **Log replay / seek** | Allowing operators to scrub backward through a job's log stream is video-player complexity for a linear text log. | Show last N lines or the filtered summary. Historical access via GitHub PR. |
+| **Separate auth service (Auth0, Okta, Entra ID)** | An external auth service for 2 instances and 1-2 operators is massively over-engineered. 3rd party dependency, cost, and complexity for zero scale benefit. | Extend the existing NextAuth v5 + SQLite users table. Add `superadmin` role. Total change: one new column, one new middleware guard, one new page. |
+| **Per-instance deployments with shared OAuth** | Maintaining a separate Vercel/VPS deployment per instance with shared OAuth redirects creates deployment complexity and race conditions on the shared auth DB. | Single deployment, URL-prefix routing. `/i/{instanceName}/*` scopes all routes to an instance. Existing `instances/*` directory structure already provides the config hierarchy. |
+| **Real-time cross-instance activity feed** | A live feed of every job, message, and event across all instances is interesting but not operational. It requires a pub/sub layer that does not exist. | Show aggregate stats on the superadmin dashboard (counts, last-seen timestamps). Drill into a specific instance for live views. |
 
 ---
 
-## Area 4: MCP Tool Layer
+## Area 3: UI Operations Parity
+
+### What This Is
+
+"Operations parity" means: any action currently performed via SSH, direct SQLite query, or manual file edit is available through the web UI. Today's gaps include: no way to cancel a running job via the UI, no way to retry a failed job, no way to view the full job log, no repo CRUD, no instance management beyond what the admin panel exposes. This area closes those gaps.
+
+**Industry pattern (MEDIUM confidence — Dockhand/Portainer/Dozzle comparison):** Modern Docker management dashboards expose start/stop/restart, live log streaming, file editing, and container terminal access all through the UI. The principle is "no SSH needed for routine operations."
 
 ### Table Stakes
 
-| Feature | Why Expected | Complexity | Implementation Notes |
-|---------|--------------|------------|----------------------|
-| **Per-instance MCP_SERVERS.json config** | Different instances need different tool access. Noah's instance might have Brave Search, GitHub, and a custom BI MCP server. StrategyES should only have tools scoped to its repos. | MEDIUM | No MCP config exists anywhere in codebase currently (confirmed: `instances/noah/config/` has AGENT.md, AGENT_QUICK.md, EVENT_HANDLER.md, REPOS.json, SOUL.md — no MCP_SERVERS.json). Pattern modeled after `REPOS.json`: `instances/{name}/config/MCP_SERVERS.json` defines `{ name, command, args, env, toolSubset }[]`. New `loadMcpServers()` in `lib/tools/repos.js` alongside `loadAllowedRepos()`. |
-| **MCP server lifecycle in job containers** | MCP servers must be started before `claude -p` is called, and their connection info passed via `--mcp-config`. Without lifecycle management, MCP tools are configured but unavailable. | HIGH | `templates/docker/job/entrypoint.sh` is the integration point. Entrypoint startup: (1) read `MCP_CONFIG` env var (JSON array of server specs), (2) for stdio-based servers, mark the command in the config, (3) write a temp `mcp-config.json`, (4) pass `--mcp-config /tmp/mcp-config.json` to `claude -p`. MCP servers that need env vars receive them via `AGENT_LLM_*` secrets. `MCP_CONFIG` env var injected by `dispatchDockerJob()` from loaded `MCP_SERVERS.json`. |
-| **Tool subset curation per instance** | An instance that can reach every tool on every MCP server is a security risk. StrategyES should only access tools relevant to its repos. `toolSubset` in `MCP_SERVERS.json` specifies which tool names are included in the Claude Code `--allowedTools` flag. | MEDIUM | MCP tool names follow the format `mcp:{serverName}:{toolName}`. Extend the existing `--allowedTools` construction in `entrypoint.sh` to include MCP tool names from the `toolSubset` arrays. `ALLOWED_TOOLS` env var already exists — inject the MCP tool subset into it at dispatch time. |
-| **Template variable resolution in MCP configs** | MCP server configs may reference runtime values: `{{workspace}}` for the working directory, `{{self.roleName}}` for cluster agent identity, `{{instance}}` for the instance name. Static configs cannot adapt to context. | LOW | `lib/triggers.js:resolveTemplate()` already implements `{{source.field}}` template resolution for trigger/cron actions. Reuse directly. `loadMcpServers()` returns raw config; caller resolves templates before use. Context object: `{ self: { roleName, instanceName }, workspace: '/job', env: process.env }`. |
-| **MCP tool exposure to workspace containers** | MCP servers configured for an instance should also be available in workspace (interactive) containers, not just headless job containers. | MEDIUM | `templates/docker/claude-code-workspace/entrypoint.sh` needs the same MCP startup block as the job entrypoint. `ensureWorkspaceContainer()` in `lib/tools/docker.js` injects `MCP_CONFIG` alongside other env vars. Same `loadMcpServers()` + template resolution path as for job dispatch. |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Job cancel via UI** | Operators see a job going wrong (via JobStreamViewer) but cannot cancel it. They must SSH in, find the container, run `docker stop`. The 30-minute timeout is the only escape hatch. Job cancel is table stakes for any job management UI. | MEDIUM | Existing `lib/tools/docker.js` has `removeContainer()`. New Server Action `cancelJob(jobId)`: find running container for jobId (container label `clawforge.job_id={jobId}`), call `container.stop({t:10})`, `container.remove()`, update `job_outcomes` status. UI: cancel button in `JobStreamViewer` when status is `streaming`. Existing `stop` function in `chat.jsx` stops the LangGraph stream — this is for the Docker container itself. |
+| **Job retry via UI** | When a job fails (clone failure, OOM, tool timeout), operators must re-type the original request to retry. The job's original prompt is stored in `job_outcomes.logSummary` (partial) but the full original request is not surfaced. A retry button re-dispatches the job with the same parameters. | MEDIUM | Store the original job prompt in `job_outcomes` as a new `originalPrompt TEXT` column (add in migration). `retryJob(jobId)` Server Action: read original prompt + target repo from `job_outcomes`, call existing `createJob()` with same params. UI: retry button on failed job entries in the Swarm page and inline in chat messages. |
+| **Full job log viewer** | The existing `JobStreamViewer` shows filtered semantic events (last 25). Operators investigating a failure need the full raw log. "View full log" should show all JSONL output from the job, with syntax highlighting. | MEDIUM | The full log is in GitHub Actions artifacts or stored in the container before removal. Best approach: store `rawLogSummary` (first 50KB of JSONL) in `job_outcomes` alongside existing `logSummary`. New log viewer page `/jobs/[jobId]/logs` renders JSONL line-by-line with type-based coloring. Alternatively, link to the GitHub Actions run URL (already stored in `prUrl`). Linking to GitHub is the 2-hour path; full embedded viewer is the 2-day path. |
+| **Repo CRUD in admin panel** | Operators add a new target repo by editing `instances/{name}/config/REPOS.json` on the server. No web UI exists. Adding a repo mid-session requires SSH + file edit + restart. | HIGH | New admin sub-page `/admin/repos`. Reads `REPOS.json` via `loadAllowedRepos()`. Form to add/edit/delete repo entries (slug, name, alias, dispatchMethod, defaultBranch). Saves by writing the updated JSON back to the config file via a Server Action. Same pattern as the GitHub secrets page: read from storage, CRUD in UI, write back. Validation: slug uniqueness, URL format check. |
+| **Config editing in admin panel** | DB-backed config (`lib/db/config.js` key-value store) is only editable by operators who know the DB schema. Core settings (LLM provider, model names, default branch) should be editable from the admin panel. | MEDIUM | Extend the existing General settings page (`/admin/general`) with form fields for all `getConfig()`/`setConfig()` keys. Already exists for some keys (LLM provider, auth settings); audit for missing keys (job timeout, max concurrent jobs, auto-merge settings). Save via existing `setConfig()` Server Action. |
+| **Instance management page** | Operators create new instances via conversation (the `createInstanceJob` tool), but there is no page showing all instances, their status, or allowing basic management (enable/disable, view config). | MEDIUM | New admin page `/admin/instances` (or `/superadmin/instances`). Lists all directories under `instances/`. Per-instance card: name, configured repos count, active jobs, last job timestamp. Links to per-instance config (REPOS.json viewer, MCP_SERVERS.json viewer). No destructive operations — instance deletion is out of scope. |
 
 ### Differentiators
 
-| Feature | Value Proposition | Complexity | Implementation Notes |
-|---------|-------------------|------------|----------------------|
-| **MCP server health checks at startup** | If an MCP server fails to start (bad config, missing API key), the job should fail fast with a clear error rather than silently proceeding without tools. | MEDIUM | Entrypoint extension: after starting MCP servers, call `mcp list-tools` (or equivalent) for each server. If any fail, log a clear error and exit with code 1 (triggering existing failure_stage detection in `collectLogs()`). New failure stage: `mcp_startup`. |
-| **MCP config UI in settings** | Operators need to see which MCP servers are configured per instance without reading JSON files. A read-only view in the settings page shows active servers and their tool subsets. | LOW | Simple addition to `lib/chat/components/settings-secrets-page.jsx` — a new section that reads from a `getMcpServers()` Server Action and displays server names, commands, and tool counts. Read-only (editing via JSON file remains the operator interface). |
-| **Pre-run MCP context hydration** | Before Claude Code starts, execute specific MCP tools to inject current context: fetch latest PR comments, run a database schema introspection, pull the current Slack thread. Enriches the job prompt beyond what `FULL_PROMPT` currently provides. | HIGH | Entrypoint extension: for each MCP server with `preRun: [toolName]` in config, call the tool and append the output to the job prompt file. Requires MCP client in entrypoint script. Defer to v2.1 unless a specific use case demands it. |
-| **Shared MCP servers across cluster agents** | All agents in a cluster can share a single MCP server instance rather than each starting its own. Reduces startup overhead and API rate limits. | HIGH | Requires a sidecar container pattern: MCP server runs in a dedicated container on the cluster network; agent containers connect to it via TCP instead of stdio. Significant architectural change. Defer to v2.1. |
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Job pause / resume** | Pause a running job, review its current state, then resume or redirect it. More surgical than cancel. | HIGH | Claude Code does not support pause/resume of a running `claude -p` process. Container `pause()` (SIGSTOP) freezes the container but Claude Code's internal state is not checkpointed. Effective pause requires Agent SDK `--resume` session model (Area 1 feature). Defer until Claude Code chat mode (Area 1) is built. |
+| **Bulk job operations** | Select multiple failed jobs, retry all at once. Select all jobs older than 7 days, archive. | MEDIUM | UI complexity is higher than implementation complexity. Checkbox selection on the Swarm page, bulk action toolbar. Implementation: `Promise.all()` over individual `retryJob()` / archive calls. Low priority for 2-instance operator count. |
+| **Live container resource metrics** | Show CPU%, memory usage, and network I/O for running job containers in the Runners page or job detail view. | MEDIUM | `dockerode` exposes `container.stats()` streaming endpoint. New Server Action `getContainerStats(containerId)`. Renders as a small sparkline in the Runners page. Value: operators can identify runaway jobs before timeout. |
 
 ### Anti-Features
 
 | Anti-Feature | Why Avoid | Alternative |
 |--------------|-----------|-------------|
-| **Org-wide MCP access (no per-instance scoping)** | A single MCP config shared across all instances defeats the isolation model. StrategyES should not access Noah's Brave Search API key or GitHub token. | `instances/{name}/config/MCP_SERVERS.json` with separate API keys per instance stored in respective `.env` files. The `AGENT_LLM_*` secret prefix handles key injection without cross-instance exposure. |
-| **Dynamic MCP server installation (npm install in container)** | Installing MCP servers at container startup is slow (npm install can take 30-60s) and creates reproducibility problems. | Bake commonly needed MCP server packages into the Docker image at build time. Dynamic config specifies the command and args; the binary is already installed. |
-| **MCP servers with persistent state inside containers** | Containers are ephemeral. An MCP server that writes state to the container filesystem loses that state when the container is removed. | MCP servers should be stateless. If persistence is needed, the MCP server should write to the named volume (`/job/`) or an external service (the DB, the GitHub API). |
+| **Instance deletion via UI** | Deleting an instance removes Docker volumes, DB records, and config files. Accidental deletion is catastrophic and not recoverable. | Manual deletion via SSH with explicit volume pruning. UI shows a warning: "Instance deletion requires SSH access." |
+| **Real-time log streaming to a full log viewer page** | A dedicated log streaming page per job is duplicate functionality: `JobStreamViewer` already shows live events inline in chat. A separate full-page log view adds navigation overhead. | Inline streaming in chat (existing). "View raw log" links to GitHub Actions. Reserve the log viewer page for historical/completed jobs only. |
+| **Direct file editing in the admin UI** | A file editor for `REPOS.json`, `MCP_SERVERS.json`, or entrypoint scripts in the admin panel creates a footgun — one bad save can break job dispatch. | Form-based CRUD with validation. Operators who need raw JSON access can use the workspace terminal. |
+
+---
+
+## Area 4: Smart Execution
+
+### What This Is
+
+"Smart execution" means the platform makes decisions about code quality before and after jobs complete: running tests before auto-merging, blocking merges when tests fail, collecting test output to feed back into the agent for self-correction, and configuring merge policies per repo.
+
+**Industry pattern (HIGH confidence — standard CI/CD quality gate pattern):** A quality gate is an enforced check in the pipeline that code must pass before proceeding. Standard gates: linting, unit tests, type checking. Smart execution adds: (a) run these gates before merge, (b) if they fail, capture the output and re-dispatch the agent with the failure context as a correction prompt, (c) configurable per-repo merge policy (auto-merge on green, require human review, block on failing tests).
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Pre-CI quality gates in job container** | Claude Code jobs can create PRs that break the build. Without quality gates, bad code merges silently or requires manual review. Gates should run inside the job container before the PR is created: `npm test`, `tsc --noEmit`, `npm run lint`. | MEDIUM | Extend `templates/docker/job/entrypoint.sh`: after Claude Code completes, run a configurable gate script. Gate config in `REPOS.json` per repo: `"qualityGates": ["npm run lint", "tsc --noEmit", "npm test"]`. If any gate fails, capture stderr output in a `gate-failures.md` artifact on the job branch. PR is still created but labeled `needs-fixes`. |
+| **Test failure feedback loop** | When quality gates fail, the agent should see the failure output and attempt a fix before creating the PR. One iteration of self-correction catches the majority of simple failures (type errors, lint warnings). | HIGH | After quality gates fail: (1) read `gate-failures.md`, (2) re-invoke `claude -p` with a correction prompt: "The following tests/checks failed after your changes. Fix them: {gate output}". (3) Re-run gates. (4) If second pass passes, continue to PR. If second pass fails, create PR with `needs-fixes` label and include gate output in PR description. Max 1 correction iteration to avoid infinite loops. |
+| **Merge policy config per repo** | Different repos need different merge policies. A "sandbox" repo can auto-merge anything. A "production" repo requires passing all gates + human review. Policy is per-repo, stored in `REPOS.json`. | MEDIUM | Extend `REPOS.json` per-repo entry: `"mergePolicy": "auto" | "gate-required" | "manual"`. `auto-merge.yml` GitHub Actions workflow already exists — it checks `ALLOWED_PATHS`. Extend it to also check for `gate-required` label: if present and `gate-failures.md` artifact exists, block merge until label is removed. `manual` policy: never auto-merge, always require PR review. |
+| **Gate result visibility in chat** | When a job completes with gate failures, the operator should see which gates failed and what the output was, directly in the chat thread — not just a notification link. | LOW | Gate output is stored in `gate-failures.md` on the job branch. The existing `summarizeJob()` in `lib/tools/github.js` reads PR artifacts. Extend `summarizeJob()` to detect `gate-failures.md` and include gate failure excerpts in the notification message back to the operator. |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Staged gate execution (fast gates first)** | Lint (seconds) runs before unit tests (minutes). Running tests before lint wastes time when lint would have caught the same issues. Ordered execution stops at first failure. | LOW | Entrypoint executes gates in array order. `break` on first failure. Log which gate failed and its position in the pipeline. Operators configure gate order in `REPOS.json` `qualityGates` array. |
+| **Gate timeout and resource limits** | A runaway test suite can block the job container indefinitely. Each gate needs a configurable timeout (default: 5 minutes per gate, total job timeout 30 minutes as before). | LOW | Wrap gate execution in `timeout {N}s {command}`. Capture timeout as a special failure reason: "Gate timed out after 5 minutes." Include in `gate-failures.md`. |
+| **Branch protection rule sync** | Automatically set branch protection rules on GitHub to require status checks matching the configured quality gates. Operators no longer need to configure branch protection manually when adding a new repo. | HIGH | GitHub API: `PUT /repos/{owner}/{repo}/branches/{branch}/protection`. Requires `repo` admin scope on the PAT. Triggered when a new repo is added via the repos admin page. Complex: different repos may have different workflows. Defer — branch protection is manageable manually at 2-instance scale. |
+| **Flaky test detection and retry** | If a test fails, re-run it once to distinguish flaky from genuinely broken. Only fail the gate if it fails twice. | MEDIUM | Wrap each gate command in a retry function: run once, if non-zero exit re-run, if non-zero again mark as failed. Two-run overhead acceptable for test reliability. |
+
+### Anti-Features
+
+| Anti-Feature | Why Avoid | Alternative |
+|--------------|-----------|-------------|
+| **Unlimited correction iterations** | "Self-correcting" agents can enter infinite loops when a failure is caused by a dependency issue, environment problem, or architectural constraint the agent cannot resolve. | Max 1 correction iteration (2 total attempts). If second attempt fails, human review is required. Gate failure output is always surfaced to the operator. |
+| **Security scanning gates (SAST)** | Static analysis tools (Snyk, Semgrep) have high false-positive rates, slow execution, and require separate API keys. Adding them as required gates blocks legitimate PRs for non-security-critical codebases. | Add as an optional gate type in `REPOS.json` config: `"type": "security"`. Not included in default gates. |
+| **Parallel gate execution** | Running lint, typecheck, and tests simultaneously sounds faster but creates race conditions on shared test state and makes failure attribution ambiguous ("did lint fail or did tests fail?"). | Sequential execution. Each gate's result is individually attributed. Total overhead is acceptable: lint (~3s), typecheck (~10s), tests (~60s). |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Existing v1.5 Infrastructure — All Shipped]
+[Shipped v2.1 Infrastructure]
 ├── Docker Engine API + dockerode (lib/tools/docker.js)
-├── LangGraph ReAct agent + 7 tools (lib/ai/tools.js)
+├── LangGraph ReAct agent + tools (lib/ai/tools.js)
 ├── WebSocket proxy + xterm.js terminal (lib/ws/)
 ├── SQLite via Drizzle ORM (lib/db/schema.js)
 ├── AI SDK v5 chat streaming (lib/chat/api.js)
-├── REPOS.json per-instance config (instances/*/config/)
-├── TRIGGERS.json + CRONS.json + executeAction() (lib/triggers.js, lib/cron.js, lib/actions.js)
-├── startCodingTool + listWorkspacesTool + closeWorkspace (shipped v1.5)
-└── Full chat UI with 22+ components (lib/chat/components/)
+├── MCP tool layer (instances/*/config/MCP_SERVERS.json)
+├── Admin panel with auth roles (lib/chat/components/admin-*.jsx)
+├── JobStreamViewer SSE streaming (lib/chat/components/job-stream-viewer.jsx)
+├── cluster_runs, cluster_agent_runs tables in DB
+└── Named workspace volumes (clawforge-ws-{instance}-{id})
 
-[Area 1: Web UI]
-├── Code mode toggle ──modifies──> chat-input.jsx + message.jsx
-├── Repo/branch selector ──uses──> loadAllowedRepos() + chat-input.jsx body metadata
-├── Feature flags (FeaturesContext) ──new-pattern──> React context wrapping new pages
-└── Live streaming in chat ──depends-on──> Area 3 streaming being built first
+[Area 1: Claude Code Chat Mode] ──NEW──
+├── Agent SDK session container ──reuses──> workspace Docker image
+├── Streaming event parser ──new-path──> separate from LangGraph streaming
+├── Tool call message parts ──extends──> tool-call.jsx rendering
+├── Interrupt/resume ──uses──> Agent SDK --resume flag + session_id
+└── Working directory ──reuses──> named job volumes (warm-start pattern)
 
-[Area 4: MCP Tool Layer] (Build First — Others Depend on It)
-├── MCP_SERVERS.json ──follows-pattern-of──> REPOS.json
-├── loadMcpServers() ──mirrors──> loadAllowedRepos()
-├── Template resolution ──reuses──> resolveTemplate() from triggers.js
-├── Job container MCP ──modifies──> entrypoint.sh (job)
-│       └──requires──> MCP_CONFIG env var injection in dispatchDockerJob()
-└── Workspace container MCP ──modifies──> entrypoint.sh (workspace)
-        └──requires──> MCP_CONFIG injection in ensureWorkspaceContainer()
+[Area 2: Superadmin Portal] ──NEW──
+├── superadmin role ──extends──> users table role column (admin/user/superadmin)
+├── instanceId scoping ──requires──> DB migration (instanceId on chats, job_outcomes, etc.)
+├── Instance switcher ──reads──> instances/* directory listing
+├── Session context ──extends──> NextAuth v5 session with activeInstance
+└── Per-instance admin access ──extends──> existing admin middleware
 
-[Area 3: Headless Streaming]
-├── Container log streaming ──extends──> collectLogs() with docker.attach()
-├── Log forwarding ──uses──> addToThread() + existing Slack/Telegram clients
-├── Progress indicators ──uses-existing──> ToolCall rendering in message.jsx
-└── Cancel job ──uses-existing──> removeContainer() in docker.js
+[Area 3: UI Operations Parity] ──NEW──
+├── Job cancel ──uses-existing──> removeContainer() + docker.js
+├── Job retry ──requires──> originalPrompt column on job_outcomes
+├── Full log viewer ──requires──> rawLogSummary column on job_outcomes
+├── Repo CRUD ──extends──> REPOS.json + loadAllowedRepos()
+├── Config editing ──extends──> existing /admin/general page + getConfig/setConfig
+└── Instance management ──reads──> instances/* directory + job_outcomes
 
-[Area 2: Clusters] (Largest Build — Needs MCP First for Role Tool Access)
-├── Cluster config ──follows-pattern-of──> TRIGGERS.json + CRONS.json
-├── Role dispatch ──extends──> create_job + target.json sidecar
-├── Shared filesystem ──extends──> named volumes from v1.4
-├── Label routing ──reads-from──> claude-output.jsonl (job output)
-├── Cluster DB ──extends──> schema.js (jobOutcomes pattern)
-└── create_cluster_job tool ──follows──> createJobTool pattern
+[Area 4: Smart Execution] ──NEW──
+├── Quality gates ──extends──> entrypoint.sh (job container)
+├── Feedback loop ──reuses──> claude -p re-invocation in entrypoint
+├── Merge policy ──extends──> REPOS.json + auto-merge.yml workflow
+└── Gate visibility ──extends──> summarizeJob() in lib/tools/github.js
 
 [Cross-Area Dependencies]
-├── Area 2 Clusters ──benefits-from──> Area 4 MCP (per-role tool access)
-├── Area 2 Clusters ──benefits-from──> Area 3 Streaming (cluster agent progress)
-└── Area 1 Streaming view ──requires──> Area 3 Streaming (infrastructure first)
+├── Area 1 (Chat Mode) ──benefits-from──> Area 3 cancel/retry (interrupt = cancel + restart)
+├── Area 2 (Superadmin) ──requires──> DB instanceId migration before meaningful cross-instance views
+├── Area 4 (Smart Execution) ──independent of──> Areas 1, 2, 3 (can be built in parallel)
+└── Area 3 (UI Ops) ──blocks──> Area 2 (instance management page is part of UI parity)
 ```
 
-### Critical Dependency: MCP Before Clusters
+### Dependency Notes
 
-MCP must be built before clusters because cluster role definitions reference `mcpServers` in their config. A Security agent role might require a security-scanner MCP tool. Building clusters without MCP means role definitions are incomplete and all roles get the same default tool access.
-
-### No Dependency: Web UI vs Infrastructure
-
-The Web UI features in Area 1 are almost entirely already shipped in v1.5. The remaining pieces (code mode toggle, repo selector) are isolated UI additions with no dependency on Areas 2, 3, or 4.
+- **Area 4 is the most independent**: Smart execution is entirely in the job container entrypoint and GitHub Actions workflow. Zero dependency on UI changes, DB migrations, or auth changes. Can be built in parallel with everything else.
+- **Area 2 requires a DB migration**: Adding `instanceId` to core tables is a breaking change if not handled carefully. Must be backward-compatible (nullable column, default to `'noah'` for existing rows). Sequence: migration first, then UI.
+- **Area 1 is the largest new build**: No existing code path handles Agent SDK subprocess management, session tracking, or streaming at tool-call granularity in the chat UI. Dedicated container + new streaming pipeline.
+- **Area 3 job cancel/retry are quick wins**: Both can be built without dependencies on other v2.2 areas. `cancelJob()` reuses `removeContainer()`. `retryJob()` reuses `createJob()`. UI additions to existing pages.
 
 ---
 
 ## MVP Recommendation
 
-### Build First (v2.0 launch)
+### Build First (v2.2 launch)
 
-- **MCP_SERVERS.json config + loadMcpServers()** — config schema and loader. Fast to build, unblocks cluster role definitions.
-- **MCP lifecycle in job entrypoint** — inject MCP servers into job containers. Primary MCP deliverable — enables Brave Search, GitHub API, custom tools.
-- **MCP lifecycle in workspace entrypoint** — identical pattern; operators in workspaces get the same tool access as jobs.
-- **Container log streaming (web channel)** — attach Docker log stream, forward chunks to originating web chat thread. Highest operator impact: replaces "waiting..." with live feedback.
-- **Code mode toggle** — 2-hour UI addition; immediate quality-of-life improvement for code-heavy operators.
-- **Repo/branch selector** — removes repetitive "run this on repo X" prefix from every message. 4-hour UI addition.
-- **Cluster config schema + coordinator runtime** — CLUSTER.json, first-agent dispatch, label routing, shared volume. Core cluster capability.
-- **`create_cluster_job` LangGraph tool** — conversational cluster launch.
-- **Cluster run DB tracking** — required to support the cluster coordinator; follows existing schema patterns.
+Priority order based on operator value vs. implementation complexity:
 
-### Add After Validation (v2.x)
+- **Quality gates (Area 4)** — Highest ROI: protects all existing and future jobs from bad merges. Entirely in entrypoint.sh. Estimated 1-2 days. Build first because it requires no UI work.
+- **Feedback loop: one self-correction iteration (Area 4)** — Extends the quality gates pattern. Agent sees its own test failures and fixes them. Estimated 1 day on top of quality gates.
+- **Job cancel via UI (Area 3)** — Missing for any serious ops platform. Cancel button in `JobStreamViewer`. Server Action calls `removeContainer()`. Estimated 4 hours.
+- **Job retry via UI (Area 3)** — Retry button on failed jobs. DB migration for `originalPrompt` column + `retryJob()` Server Action. Estimated 1 day.
+- **Repo CRUD in admin panel (Area 3)** — Operators adding repos today need SSH. Form-based editor for `REPOS.json`. Estimated 1-2 days.
+- **Superadmin role + instance switcher (Area 2)** — Core of the superadmin feature. New role, session context, instance list page. Estimated 2-3 days.
+- **Claude Code chat mode — streaming text + tool calls (Area 1)** — Core of the new chat mode. Agent SDK subprocess, event parser, stream to UI. Estimated 3-4 days.
 
-- **Streaming to Slack with message editing** — operators have Slack notifications from v1.x; this upgrades the format, not adds capability.
-- **Cancel job tool** — nice-to-have; 30-minute timeout handles most cases.
-- **Cluster management UI page** — operators can inspect cluster runs via DB queries initially.
-- **MCP health checks at startup** — add when misconfigured MCP becomes a real support issue.
-- **MCP config UI** — read-only JSON is sufficient for 2-instance operator count.
-- **Feature flags system (FeaturesContext)** — helpful but can be added incrementally.
+### Add After Validation (v2.2.x)
 
-### Defer (v3+)
+- **File edit diff display (Area 1)** — Requires diff rendering component. Valuable but not blocking for initial chat mode release.
+- **Interrupt/resume (Area 1)** — Complex session management. Initial release can use cancel + restart.
+- **instanceId DB migration (Area 2)** — Required for cross-instance queries. Can ship superadmin with instance-per-URL routing first, add DB migration in a follow-up.
+- **Full job log viewer (Area 3)** — Link to GitHub Actions for initial release; embedded viewer in follow-up.
+- **Merge policy config (Area 4)** — `auto-merge.yml` already works. Add policy config field in REPOS.json and update the workflow.
 
-- **DnD tab interface** — complex, low operator count, workspaces are already usable via single URL.
-- **Parallel agent dispatch within clusters** — sequential clusters cover most use cases; parallelism adds coordinator complexity.
-- **Pre-run MCP context hydration** — powerful but requires MCP client in entrypoint script; defer until a specific use case demands it.
-- **Shared MCP servers across cluster agents** — sidecar container pattern; too complex for initial cluster implementation.
+### Defer (v2.3+)
+
+- **Tool call approval mode (Area 1)** — Requires switching from CLI to SDK package. Architecture change.
+- **Shell mode in chat (Area 1)** — Separate from Claude Code chat mode. Complex dual-mode session handling.
+- **Branch protection rule sync (Area 4)** — Manual setup is fine at 2-instance scale.
+- **Bulk job operations (Area 3)** — Nice-to-have for high-volume operations; not needed at current scale.
+- **Superadmin impersonation (Area 2)** — Security-sensitive, complex. Not needed with 2 instances.
 
 ---
 
@@ -258,64 +284,49 @@ The Web UI features in Area 1 are almost entirely already shipped in v1.5. The r
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| MCP_SERVERS.json + loadMcpServers() | HIGH | LOW | P1 |
-| MCP lifecycle in job containers | HIGH | MEDIUM | P1 |
-| Container log streaming (web) | HIGH | HIGH | P1 |
-| Cluster config + coordinator | HIGH | HIGH | P1 |
-| `create_cluster_job` tool | HIGH | MEDIUM | P1 |
-| Cluster DB tracking | MEDIUM | LOW | P1 (required for clusters) |
-| Code mode toggle | MEDIUM | LOW | P1 |
-| Repo/branch selector | MEDIUM | LOW | P1 |
-| MCP lifecycle in workspace containers | MEDIUM | LOW | P1 (piggyback on job MCP) |
-| Cancel job tool | MEDIUM | LOW | P2 |
-| Streaming to Slack (edited messages) | MEDIUM | MEDIUM | P2 |
-| Cluster management UI | LOW | MEDIUM | P2 |
-| MCP health checks | MEDIUM | LOW | P2 |
-| MCP config UI | LOW | LOW | P2 |
-| Feature flags (FeaturesContext) | LOW | LOW | P2 |
-| Log diff highlighting | LOW | MEDIUM | P3 |
-| DnD tab interface | LOW | HIGH | P3 |
-| Parallel cluster agents | MEDIUM | HIGH | P3 |
-| Pre-run MCP hydration | MEDIUM | HIGH | P3 |
+| Quality gates in entrypoint | HIGH | LOW | P1 |
+| Self-correction feedback loop | HIGH | LOW | P1 |
+| Job cancel via UI | HIGH | LOW | P1 |
+| Job retry via UI | HIGH | MEDIUM | P1 |
+| Repo CRUD in admin panel | HIGH | MEDIUM | P1 |
+| Claude Code chat mode (streaming) | HIGH | HIGH | P1 |
+| Superadmin role + instance switcher | MEDIUM | MEDIUM | P1 |
+| Merge policy per repo | MEDIUM | LOW | P2 |
+| File edit diff display | MEDIUM | MEDIUM | P2 |
+| Interrupt/resume in chat mode | HIGH | HIGH | P2 |
+| Gate result visibility in chat | MEDIUM | LOW | P2 |
+| Full job log viewer page | MEDIUM | MEDIUM | P2 |
+| Config editing in admin panel | MEDIUM | LOW | P2 |
+| Instance management page | LOW | MEDIUM | P2 |
+| instanceId DB migration | HIGH | HIGH | P2 (dependency) |
+| Branch protection sync | LOW | HIGH | P3 |
+| Bulk job operations | LOW | MEDIUM | P3 |
+| Tool call approval mode | MEDIUM | HIGH | P3 |
+| Shell mode alongside chat mode | MEDIUM | HIGH | P3 |
+| Superadmin impersonation | LOW | HIGH | P3 |
 
----
-
-## PopeBot Implementation Pattern Reference
-
-| Feature Area | PopeBot Status | ClawForge Approach |
-|--------------|---------------|---------------------|
-| Chat UI components (all pages) | Production — fully ported to ClawForge v1.5 | Use as-is; minor extensions (code mode, repo selector) |
-| Swarm page (job status view) | Production — ported | Use as-is |
-| Triggers (webhook-triggered actions) | Production — `lib/triggers.js` ported | Extend `executeAction()` with cluster action type |
-| Crons (scheduled actions) | Production — `lib/cron.js` ported | Extend `executeAction()` with cluster action type |
-| Cluster DB schema | Stub — tables defined, no runtime | Build coordinator runtime ourselves |
-| Cluster runtime | Not built in PopeBot | Build from scratch following existing job dispatch patterns |
-| Headless log streaming | Not present in PopeBot | Build from scratch using dockerode `attach()` API |
-| MCP server configs | Not present in PopeBot | Build from scratch following REPOS.json pattern |
-| Code mode toggle | Not present | Build from scratch (2-hour UI change) |
-| Repo/branch selector | Not present | Build from scratch using `loadAllowedRepos()` |
-| FeaturesContext | Present in PopeBot | Port pattern; adapt to per-instance config |
+**Priority key:**
+- P1: Must have for v2.2 launch
+- P2: Should have, add when possible — v2.2 follow-on phases
+- P3: Nice to have, defer to v2.3+
 
 ---
 
 ## Sources
 
-- ClawForge `lib/chat/components/` (22 files) — direct inspection of all UI components; HIGH confidence
-- ClawForge `lib/ai/tools.js` — 7 LangGraph tools confirmed (createJob, getJobStatus, getSystemTechnicalSpecs, createInstanceJob, getProjectState, startCoding, listWorkspaces); HIGH confidence
-- ClawForge `lib/tools/docker.js:collectLogs()` and `closeWorkspace` — Docker log collection and workspace close; HIGH confidence
-- ClawForge `lib/db/schema.js` — All tables confirmed (users, chats, messages, notifications, jobOrigins, jobOutcomes, settings, codeWorkspaces); HIGH confidence
-- ClawForge `lib/triggers.js` — trigger loading and template resolution; HIGH confidence
-- ClawForge `lib/cron.js` — cron scheduling and action dispatch; HIGH confidence
-- ClawForge `lib/actions.js` — `executeAction()` dispatch for agent/command/webhook; HIGH confidence
-- ClawForge `instances/noah/config/` and `instances/strategyES/config/` — confirmed no MCP_SERVERS.json exists; HIGH confidence
-- ClawForge `lib/chat/api.js` — `/stream/chat` handler with AI SDK v5; HIGH confidence
-- ClawForge `.planning/VISION.md` — gap analysis vs Stripe and PopeBot; HIGH confidence
-- [dockerode API docs](https://github.com/apocas/dockerode) — `container.attach()` streaming API; HIGH confidence
-- PopeBot upstream analysis from `.planning/VISION.md` — cluster DB schema stubs, trigger model, container patterns; HIGH confidence (direct codebase read documented in VISION.md)
-- [Anthropic Claude Code MCP docs](https://docs.anthropic.com/claude-code/mcp) — `--mcp-config` flag, server spec format; MEDIUM confidence (need to verify current format during implementation)
+- ClawForge `lib/chat/components/chat.jsx`, `chat-input.jsx`, `job-stream-viewer.jsx` — direct inspection of existing chat mode toggle (`codeMode`), transport config, JobStreamViewer event types; HIGH confidence
+- ClawForge `lib/tools/docker.js` — `removeContainer()`, `collectLogs()`, `ensureWorkspaceContainer()` confirmed; HIGH confidence
+- ClawForge `lib/db/schema.js` — existing table columns confirmed (no `instanceId`, no `originalPrompt`); HIGH confidence
+- ClawForge `lib/auth/middleware.js`, `lib/auth/actions.js` — existing role system (`admin`/`user`); HIGH confidence
+- ClawForge `.planning/PROJECT.md` — v2.2 target features, architecture constraints; HIGH confidence
+- [Claude Agent SDK streaming docs](https://platform.claude.com/docs/en/agent-sdk/streaming-output) — streaming event types (`content_block_start`, `content_block_delta`, `content_block_stop`, `ResultMessage`), tool call streaming pattern, extended thinking limitation; HIGH confidence (official docs)
+- [Claude Code headless docs](https://code.claude.com/docs/en/headless) — `--output-format stream-json`, `--include-partial-messages`, `--resume` session continuity, `--continue` flag; HIGH confidence (official docs)
+- WebSearch: multi-tenant superadmin patterns — instance switcher, impersonation, single login; MEDIUM confidence (verified against MakerKit and Microsoft 365 implementations)
+- WebSearch: CI/CD quality gates — pre-merge test gates, feedback loops, merge policy patterns; MEDIUM confidence (multiple sources agree on sequential gate model)
+- WebSearch: Docker container management UI patterns — cancel/retry/logs in modern dashboards (Dockhand, Portainer, Dozzle); MEDIUM confidence
 
 ---
 
-*Feature research for: ClawForge v2.0 — Web UI, Clusters, Headless Streaming, MCP Tool Layer*
-*Researched: 2026-03-12*
-*Verified against codebase: 2026-03-12*
+*Feature research for: ClawForge v2.2 — Claude Code chat mode, superadmin portal, UI operations parity, smart execution*
+*Researched: 2026-03-16*
+*Verified against codebase: 2026-03-16*

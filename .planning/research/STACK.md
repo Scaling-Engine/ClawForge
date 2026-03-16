@@ -1,296 +1,329 @@
 # Technology Stack
 
-**Project:** ClawForge v2.0 Full Platform
-**Milestone:** v2.0 — Web UI (chat + code mode), Multi-Agent Clusters, Headless Job Streaming, Per-Instance MCP Tool Configs
-**Researched:** 2026-03-12
-**Confidence:** HIGH for UI and DnD (PopeBot upstream verified); HIGH for cluster/headless (full source analysis); MEDIUM for MCP config storage (no upstream precedent — build-new required)
+**Project:** ClawForge v2.2 Smart Operations
+**Milestone:** v2.2 — Claude Code terminal chat mode, superadmin portal with instance switching, full UI operational control, smart execution policies
+**Researched:** 2026-03-16
+**Confidence:** HIGH for Agent SDK (official docs verified); HIGH for auth patterns (codebase analysis); MEDIUM for smart execution (patterns research, no upstream reference)
 
 ---
 
 ## Scope
 
-This document covers **additions and changes** needed for v2.0 only. The validated stack from v1.0–v1.5 is NOT re-researched:
+This document covers **additions and changes needed for v2.2 only**.
 
-**Already in the stack (do not re-add or change):**
-- Next.js 15 + React 19 (peer deps in package.json)
-- LangGraph ReAct agent with SQLite checkpointing
+**Already in the stack — do NOT re-add or change:**
+- Next.js 15 + React 19 (peer deps)
+- LangGraph ReAct agent, SqliteSaver checkpointing
 - Drizzle ORM + better-sqlite3
-- dockerode ^4.0.9 for Docker Engine API
-- ws ^8.19.0 for WebSocket proxy
-- @xterm/xterm ^6.0.0 + @xterm/addon-fit + @xterm/addon-attach (v1.5)
-- next-auth ^5.0.0-beta.30
-- @ai-sdk/react ^2.0.0 + ai ^5.0.0 (Vercel AI SDK v5)
-- grammy, @slack/web-api, @slack/bolt
-- lucide-react, tailwindcss ^4, class-variance-authority, clsx, tailwind-merge
-- streamdown ^2.2.0
+- dockerode ^4.0.9 (Docker Engine API)
+- ws ^8.19.0 (WebSocket proxy for ttyd)
+- @xterm/xterm ^6.0.0 + addon-fit + addon-attach + addon-search + addon-serialize + addon-web-links
+- @dnd-kit/core ^6.3.1 + @dnd-kit/sortable ^10.0.0
+- next-auth ^5.0.0-beta.30 (NextAuth v5, Credentials provider, admin/user RBAC)
+- @ai-sdk/react ^2.0.0 + ai ^5.0.0 (Vercel AI SDK v5 — useChat, createUIMessageStream)
+- Node.js built-in `crypto` (AES-256-GCM for secrets)
+- tweetnacl + tweetnacl-sealedbox-js (GitHub sealed-box encryption)
+- bcrypt-ts (password hashing)
+- chokidar ^5.0.0 (cluster file-watch triggers)
+- node-cron ^3.0.3 (scheduled triggers)
+- streamdown ^2.2.0 + @streamdown/code ^1.1.0 (Shiki markdown rendering)
+- AssemblyAI v3 WebSocket (voice input — already integrated)
+- All lucide-react, tailwindcss v4, clsx, tailwind-merge, class-variance-authority UI primitives
+- SSE via native ReadableStream (headless job log streaming already working)
+- streamManager pub/sub (lib/tools/stream-manager.js — already in production)
 
-Four new capability areas for v2.0:
+Four new capability areas for v2.2:
 
-1. **Web UI** — chat page with code mode toggle, repo/branch selector, DnD tab management
-2. **Multi-Agent Clusters** — role-based teams with cron/file-watch/webhook triggers
-3. **Headless Job Streaming** — live Docker log output piped to chat UI during jobs
-4. **MCP Tool Layer** — per-instance MCP server configs injected into cluster worker containers
+1. **Claude Code terminal mode in chat** — embedded Claude Agent SDK session, streaming tool calls / file edits / thinking steps, interrupt/cancel
+2. **Superadmin portal with instance switching** — single login across all instances, `superadmin` role, instance context in session
+3. **Full UI operations parity** — repo CRUD, job cancel/retry/logs, config editing, instance management from browser
+4. **Smart execution policies** — pre-CI quality gates, test feedback loops, merge policy enforcement
 
 ---
 
-## PopeBot Upstream Evaluation
+## Critical Rename: @anthropic-ai/claude-code SDK → @anthropic-ai/claude-agent-sdk
 
-PopeBot v1.2.73 (`stephengpope/thepopebot`) is the reference implementation. It shares the same base stack as ClawForge (forked origin). The evaluation approach:
+The programmatic SDK previously known as `@anthropic-ai/claude-code` (the importable library, NOT the CLI tool) has been renamed to `@anthropic-ai/claude-agent-sdk`. The CLI tool (`claude` binary, `@anthropic-ai/claude-code` CLI package) is unaffected.
 
-**Full source analysis via GitHub raw API — not guesswork.**
+**Current versions (verified 2026-03-16 via npm registry):**
+- `@anthropic-ai/claude-code` (CLI) — `2.1.76`
+- `@anthropic-ai/claude-agent-sdk` (programmatic SDK) — `0.2.76`
 
-### What PopeBot Has That We Don't
+The two packages serve different purposes:
+- `@anthropic-ai/claude-code` — the `claude` CLI binary, installed globally, used by job containers
+- `@anthropic-ai/claude-agent-sdk` — TypeScript/JS library, imported in Node.js code, exposes `query()` async generator
 
-| Feature | PopeBot Implementation | Our Status |
-|---------|----------------------|------------|
-| DnD tabs in code mode | `@dnd-kit/core` + `@dnd-kit/sortable` | Missing — need to add |
-| xterm.js search/serialize addons | `@xterm/addon-search`, `@xterm/addon-serialize`, `@xterm/addon-web-links` | Missing — only have attach+fit |
-| File watching for cluster triggers | `chokidar` | Missing — need for cluster runtime |
-| Encrypted DB config | `libsodium-wrappers` (AES-256-GCM via PBKDF2) | We have `settings` table but no encryption |
-| Voice input | AssemblyAI `wss://streaming.assemblyai.com/v3/ws` | Out of scope for v2.0 |
-| LLM provider registry | `llm-providers.js` static object | We have multi-provider model.js already |
-| Headless streaming | `lib/ai/headless-stream.js` (Docker frame parser + JSONL mapper) | Missing — need to build |
-| Cluster system | `lib/cluster/` (actions, execute, runtime, stream) | Missing — need to build |
-| Feature flags context | `FeaturesContext` React context | Optional — simple to add |
-| `@xterm/addon-attach` | Missing in PopeBot — they use custom WS wiring | We have it already from v1.5 |
-
-### What We Have That PopeBot Doesn't
-
-| Capability | Our Implementation | PopeBot |
-|------------|-------------------|---------|
-| Multi-tenant architecture | Per-instance Docker networks + scoped REPOS.json | Single-tenant |
-| Named volumes with flock mutex | Warm starts across jobs | Not present |
-| Cross-repo job targeting | Two-phase clone with target.json sidecar | Not present |
-| Ticket-based WS auth (single-use, 30s TTL) | In-memory Map | Simpler cookie-based auth |
-| Instance generator conversation | Multi-turn intake → PR with 7 artifacts | Not present |
+ClawForge currently uses the CLI (`claude -p`) inside Docker job containers. For v2.2 terminal chat mode, we need the **SDK** (`@anthropic-ai/claude-agent-sdk`) running in the Event Handler Node.js process, not inside Docker.
 
 ---
 
 ## Recommended Stack — New Additions Only
 
-### Web UI: DnD Tab Management
+### Feature 1: Claude Code Terminal Chat Mode
 
-| Library | Version | Purpose | Why | Action |
-|---------|---------|---------|-----|--------|
-| `@dnd-kit/core` | `^6.3.1` | DnD context provider + sensors | The PopeBot upstream uses this exact library for code-mode tab reordering. `@dnd-kit` is the successor to `react-beautiful-dnd` (now unmaintained). Headless, accessible, works correctly with React 19. No DOM manipulation — pure React. | FORK from PopeBot `lib/code/code-page.jsx` |
-| `@dnd-kit/sortable` | `^10.0.0` | `SortableContext` + `horizontalListSortingStrategy` | Companion to core — provides the sortable primitives (`useSortable`) and strategy for horizontal tab lists. The tab reorder handler in PopeBot's code page uses `arrayMove` from this package. | FORK from PopeBot `lib/code/code-page.jsx` |
+#### The Core Library
 
-**PopeBot fork vs adapt vs build-new:** FORK the DnD tab logic from `lib/code/code-page.jsx`. It's a self-contained `handleDragEnd` callback that calls `arrayMove` on dynamic tabs. Our `CodePage` equivalent will need minor adaptation: we use workspace IDs instead of PopeBot's session IDs, and our tab state structure is different.
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `@anthropic-ai/claude-agent-sdk` | `^0.2.76` | Programmatic Claude Code execution with streaming | The official Anthropic SDK for running Claude Code as an async generator. Exposes `query()` which yields `SDKMessage` objects: assistant messages, tool calls, tool results, system init, result. Supports `interrupt()`, `close()`, `AbortController` cancellation. This is the only correct way to embed Claude Code execution in a Node.js server process — the CLI (-p) produces unstructured stdout unsuitable for real-time UI. | ADD (new) |
 
-### Web UI: Additional xterm.js Addons
+#### What query() Streams (SDKMessage union type, HIGH confidence — official docs)
 
-| Library | Version | Purpose | Why | Action |
-|---------|---------|---------|-----|--------|
-| `@xterm/addon-search` | `^0.16.0` | In-terminal text search | PopeBot uses this for workspace terminals. Confirmed latest stable via npm. Not in our current install. Low complexity to add. | ADD (new) |
-| `@xterm/addon-serialize` | `^0.14.0` | Terminal content serialization | Used by PopeBot for state save. Enables capturing terminal buffer for context injection back into chat. Relevant for our bidirectional context bridging. | ADD (new) |
-| `@xterm/addon-web-links` | `^0.12.0` | Clickable URLs in terminal output | PopeBot uses this. Makes URLs in Claude's terminal output clickable. Low effort, high quality-of-life. | ADD (new) |
+The `query()` function returns a `Query` object (AsyncGenerator) that yields these message types relevant to the terminal chat UI:
 
-**xterm.js version compatibility (verified):** All three stable addon versions declare "requires xterm.js v4+" with no strict npm peer dependency range. Verified via `npm view @xterm/addon-search@0.16.0 --json` — peerDependencies field is absent. These addons install cleanly alongside `@xterm/xterm@6.0.0` without peer dep warnings or conflicts. The beta channel (`0.17.0-beta.xxx`) targets a future xterm 7.x and is not needed.
+| Message Type | When emitted | UI rendering |
+|-------------|--------------|--------------|
+| `SDKSystemMessage` (subtype: `init`) | Session start | Shows model, tools available, session ID |
+| `SDKAssistantMessage` | Each assistant turn | Text content + any tool_use blocks |
+| `SDKPartialAssistantMessage` | When `includePartialMessages: true` | Token-by-token streaming (opt-in) |
+| `SDKUserMessage` | Tool results fed back | Tool result display |
+| `SDKResultMessage` | Final answer | Shows cost, duration, num_turns |
+| `SDKToolProgressMessage` | Mid-tool progress | Shows what Claude is doing inside a tool |
+| `SDKStatusMessage` | Status updates | Thinking/working indicators |
 
-Note: `@xterm/addon-canvas` was present in older xterm.js and is absent in the v6 addon set — do not add it. The default renderer in xterm 6.x is sufficient.
+The `SDKAssistantMessage.message` field is a `BetaMessage` from the Anthropic SDK — its `.content` array contains `TextBlock` and `ToolUseBlock` items. Tool calls include the tool name and full input JSON. This is far richer than the JSONL parsing done by `lib/tools/log-parser.js` for headless jobs.
 
-**PopeBot fork vs adapt vs build-new:** ADD new addons. The terminal view implementation (PopeBot's `lib/code/terminal-view.jsx`) is more sophisticated than our xterm usage (adds search UI, web links, serialize). ADAPT the terminal view component to add these addons to our existing `TerminalView`.
-
-### Cluster System: File Watching
-
-| Library | Version | Purpose | Why | Action |
-|---------|---------|---------|-----|--------|
-| `chokidar` | `^5.0.0` | File system watcher for cluster triggers | PopeBot's cluster runtime uses chokidar to watch file paths and trigger role execution on change. Chokidar v5 is the current major version (pure ESM). We already use ESM throughout. node-cron (already in our stack) handles the cron trigger path — chokidar only needed for file-watch triggers. | ADD (new) |
-
-**PopeBot fork vs adapt vs build-new:** ADAPT. The cluster runtime (`lib/cluster/runtime.js`) can be forked and adapted. Key changes needed: integrate with our per-instance architecture (PopeBot is single-tenant, we need instance scoping on all DB operations and container dispatch). The trigger logic (cron + file watch + webhook) is portable; the execution path needs to call our `dispatchDockerJob` variant.
-
-### Headless Job Streaming: No New Dependencies
-
-The headless streaming system (`lib/ai/headless-stream.js` in PopeBot) has **zero new dependencies**. It uses:
-
-- Node.js built-in `Buffer` — for Docker frame parsing
-- Existing `dockerode` — to tail container logs
-- Native `ReadableStream` API — for SSE stream to browser
-
-**PopeBot fork vs adapt vs build-new:** FORK `lib/ai/headless-stream.js` directly. It is a pure utility module: Docker multiplexed frame parser → NDJSON line splitter → Claude Code JSONL event mapper. It has no instance-specific assumptions. The `mapLine()` function maps Claude Code stream-json format to `{ type: 'text' | 'tool-call' | 'tool-result', ... }` events. This is 1:1 compatible with our job container output format.
-
-The cluster stream SSE endpoint (`lib/cluster/stream.js`) also uses no new dependencies — SSE via native `ReadableStream`, dockerode log tailing, polling every 3s, keepalive ping every 15s.
-
-**ADAPT** the cluster stream endpoint for multi-tenant: add instance scoping, validate that the requesting user can access the cluster, and gate container inspection to the correct Docker network.
-
-### Encrypted DB Config: libsodium-wrappers vs crypto
-
-| Library | Version | Purpose | Why | Action |
-|---------|---------|---------|-----|--------|
-| `libsodium-wrappers` | `^0.8.2` | AES-256-GCM encryption for sensitive config values | PopeBot uses this for encrypting LLM API keys and provider secrets stored in the `settings` table. Node.js built-in `crypto` module can do AES-256-GCM identically, but libsodium-wrappers is what PopeBot uses. **Recommendation: use Node's built-in `crypto` instead.** `crypto.createCipheriv('aes-256-gcm', key, iv)` is identical capability with zero added dependencies. PBKDF2 key derivation from `AUTH_SECRET` (same pattern) is in `crypto.pbkdf2Sync`. | BUILD-NEW using `crypto` |
-
-**Rationale for build-new with built-in crypto:** libsodium-wrappers is 1.2MB and requires WASM initialization. Node's `crypto` module is built-in, synchronous, and has no initialization delay. The encryption pattern (AES-256-GCM, PBKDF2 key derivation from `AUTH_SECRET`, IV + ciphertext + auth tag as base64 JSON) is identical. We adopt PopeBot's *algorithm and pattern* but not the library.
-
-**What to store encrypted:** MCP server configs contain API keys (e.g., Brave Search API key, GitHub PAT for MCP servers). These must be encrypted at rest. Store in the existing `settings` table with `type: 'mcp_config'`. Encrypted JSON blob per instance.
-
-### MCP Tool Layer: Per-Instance Config Storage
-
-No new libraries needed. The MCP config system is:
-
-1. **Storage:** Existing `settings` table + encrypted JSON blob via Node `crypto` (see above)
-2. **Injection:** Claude Code CLI `--mcp-config` flag accepts a JSON file path or inline JSON string. Write temp config file before container launch, inject path via env var. Use companion `--strict-mcp-config` flag to ignore any inherited MCP configs inside the container, using only the instance-configured servers.
-3. **Schema extension:** New `type: 'mcp_config'` records in `settings` — one per instance, keyed by `instanceName`.
-
-**Verified CLI flags (confirmed via `claude --help`):**
-- `--mcp-config <configs...>` — Load MCP servers from JSON files or strings (space-separated)
-- `--strict-mcp-config` — Only use MCP servers from `--mcp-config`, ignoring all other MCP configurations
-
-Use `--strict-mcp-config` in cluster worker container entrypoints to prevent container-level MCP configs (e.g., from a `~/.claude.json` baked into the image) from interfering with instance-specific configs.
-
-**MCP server transport:** When configuring MCP servers for injection, use `stdio` transport (subprocess) or `http` transport (remote). The older `sse` transport is deprecated in Claude Code as of the current CLI version — do not use `type: "sse"` in MCP config JSON.
-
-**PopeBot fork vs adapt vs build-new:** BUILD-NEW. PopeBot does not have per-instance MCP config. Their cluster roles have a `triggerConfig` JSON field that could theoretically hold MCP config, but the execute.js implementation does not pass MCP config to containers. We need to design this from scratch.
-
-**MCP Config Design (new):**
-
-```
-settings table:
-  type: 'mcp_config'
-  key:  instance name (e.g., 'noah', 'strategyES')
-  value: encrypted JSON → { mcpServers: { [serverName]: { command, args, env } } }
-```
-
-At cluster role execution, decrypt the instance's MCP config, write to `/tmp/mcp-{uuid}.json`, pass `MCP_CONFIG_PATH=/tmp/mcp-{uuid}.json` env var to container. The container entrypoint passes `--mcp-config $MCP_CONFIG_PATH --strict-mcp-config` to the `claude -p` invocation.
-
-### Feature Flags Context
-
-No new dependencies. PopeBot's `FeaturesContext` is 15 lines of React context boilerplate. We can add it trivially.
-
-**PopeBot fork vs adapt vs build-new:** FORK directly (15 lines, zero dependencies). Used to toggle voice input, code mode, cluster mode per instance config. Useful for our two-instance setup where Epic/StrategyES has different capabilities than Noah/Archie.
-
----
-
-## Fork vs Adapt vs Build-New Summary
-
-| Component | Decision | Rationale |
-|-----------|----------|-----------|
-| `lib/ai/headless-stream.js` | **FORK** | Zero instance assumptions, pure parsing utility |
-| `lib/cluster/actions.js` | **ADAPT** | Add instance scoping to all DB ops and container dispatch |
-| `lib/cluster/runtime.js` | **ADAPT** | Cron/chokidar trigger logic portable; integrate with per-instance config |
-| `lib/cluster/execute.js` | **ADAPT** | Change `runClusterWorkerContainer` to use our `dispatchDockerJob` variant; add MCP config injection |
-| `lib/cluster/stream.js` | **ADAPT** | Add instance scoping, use our dockerode patterns |
-| `lib/code/code-page.jsx` DnD logic | **FORK** | `handleDragEnd` + `@dnd-kit` usage is self-contained |
-| `lib/code/terminal-view.jsx` addons | **ADAPT** | Add search/serialize/web-links addons to our existing TerminalView |
-| `lib/chat/components/features-context.jsx` | **FORK** | 15-line context boilerplate |
-| `lib/db/crypto.js` pattern | **ADAPT** | Use same AES-256-GCM + PBKDF2 algorithm but Node built-in `crypto` instead of libsodium |
-| MCP config storage | **BUILD-NEW** | No upstream precedent; design for per-instance architecture |
-| `lib/llm-providers.js` | **SKIP** | We already have multi-provider model.js; not a gap |
-| Voice input (AssemblyAI) | **SKIP** | Out of scope for v2.0 |
-
----
-
-## DB Schema Changes Required
-
-New tables and columns for v2.0:
+#### Interrupt / Cancel Pattern
 
 ```javascript
-// clusters table (new)
-export const clusters = sqliteTable('clusters', {
-  id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull(),  // multi-tenant addition vs PopeBot
-  name: text('name').notNull(),
-  systemPrompt: text('system_prompt').notNull().default(''),
-  enabled: integer('enabled').notNull().default(1),
-  starred: integer('starred').notNull().default(0),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-
-// cluster_roles table (new)
-export const clusterRoles = sqliteTable('cluster_roles', {
-  id: text('id').primaryKey(),
-  clusterId: text('cluster_id').notNull(),
-  roleName: text('role_name').notNull(),
-  role: text('role').notNull().default(''),
-  triggerConfig: text('trigger_config').notNull().default('{}'),
-  maxConcurrency: integer('max_concurrency').notNull().default(1),
-  sortOrder: integer('sort_order').notNull().default(0),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-
-// cluster_sessions table (new — for log tracking)
-export const clusterSessions = sqliteTable('cluster_sessions', {
-  id: text('id').primaryKey(),
-  roleId: text('role_id').notNull(),
-  clusterId: text('cluster_id').notNull(),
-  containerId: text('container_id'),
-  containerName: text('container_name'),
-  status: text('status').notNull().default('running'),
-  triggerType: text('trigger_type'),  // 'cron' | 'file' | 'webhook' | 'manual'
-  logDir: text('log_dir'),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-
-// settings table already exists — add mcp_config type records (no schema change needed)
+// Query object has interrupt() and close() methods:
+const q = query({ prompt, options: { abortController: ac } });
+// ...
+await q.interrupt();  // soft interrupt (streaming input mode)
+q.close();            // hard close + process termination
+ac.abort();           // AbortController cancellation
 ```
 
-**Multi-tenant deviation from PopeBot:** PopeBot's `clusters` table has no `instanceName` column (single-tenant). We must add it. Every cluster DB operation filters by `instanceName` to enforce isolation between Noah/Archie and Epic/StrategyES.
+Use `close()` for operator-initiated "stop" (terminates underlying process immediately). Use `abortController.abort()` when the browser disconnects (SSE connection abort signal).
 
----
+#### Session Continuity
 
-## Code Mode Toggle: Chat + Code Integration
+The SDK has first-class session support:
+- `options.resume: sessionId` — continues an existing session with full context
+- `options.sessionId: uuid` — pins a session to a specific UUID (useful for thread-scoped chat)
+- `options.persistSession: true` (default) — sessions saved to disk, resumable
 
-No new dependencies. The chat page already exists (`lib/chat/components/chat-page.jsx`). Code mode is a state toggle:
+Map ClawForge `chatId` → Claude Agent SDK `sessionId` for thread continuity. This means a chat thread in ClawForge maps 1:1 to a Claude agent session, so the operator can continue where they left off across browser refreshes.
 
-- `mode: 'chat' | 'code'` — stored in state, reflected in URL (e.g., `/chat/{id}` vs `/code/{workspaceId}`)
-- Repo/branch selector — uses existing GitHub API tooling (`get_repository_details` tool)
-- DnD tabs — `@dnd-kit` (see above)
-- `FeaturesContext` gates whether code mode option appears (disabled for Epic instance if desired)
+#### Working Directory Isolation
 
-**PopeBot's code page** (`lib/code/code-page.jsx`) is the reference. ADAPT it: replace `listTerminalSessions()` with our `list_workspaces` Server Action, replace `createTerminalSession()` with our `start_coding` tool invocation, and wire `closeTerminalSession()` to our `closeWorkspace` Server Action.
+The SDK's `options.cwd` sets the working directory for the Claude Code process. For terminal chat mode:
+- Use the workspace volume mount path (`/workspace`) if a workspace is active
+- Fall back to a per-instance scratch directory (e.g., `/tmp/clawforge-{instanceName}-chat`) for stateless sessions
 
-The existing `chat-page.jsx` handles navigation; extend it with a mode toggle that renders either `<Chat>` (current) or `<CodePage>` (new).
+This is different from job containers (which clone target repos). Terminal chat mode operates on whatever directory is set in `cwd`.
 
----
+#### Key Options for Production Use
 
-## Headless Streaming Architecture
+```javascript
+import { query } from '@anthropic-ai/claude-agent-sdk';
 
-How live log output flows from a running cluster worker container to the chat UI:
+const ac = new AbortController();
+const q = query({
+  prompt: userMessage,
+  options: {
+    sessionId: chatId,                            // maps ClawForge chatId to SDK session
+    resume: existingSessionId || undefined,       // resume if continuing thread
+    cwd: workspacePath || scratchDir,
+    allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
+    permissionMode: 'acceptEdits',                // auto-accept file edits (operator-trusted)
+    systemPrompt: {
+      type: 'preset',
+      preset: 'claude_code',
+      append: instanceAgentMd,                    // inject AGENT.md content
+    },
+    settingSources: [],                           // no filesystem settings (controlled env)
+    abortController: ac,
+    includePartialMessages: false,                // full messages only (reduces noise)
+    maxTurns: 50,                                 // safety cap
+    env: { ANTHROPIC_API_KEY: instanceApiKey },
+  },
+});
+
+for await (const msg of q) {
+  // stream msg to browser via SSE
+}
+```
+
+**No new server infrastructure needed.** The SDK runs in the existing Event Handler Node.js process. SSE to the browser uses the existing `ReadableStream` pattern already used by `lib/jobs/stream-api.js`.
+
+#### What NOT to Build for Terminal Chat Mode
+
+- Do NOT spawn a Docker container — the SDK runs in-process
+- Do NOT use xterm.js for terminal chat mode — it's a text/tool-call display, not a PTY terminal. Use the existing `Messages` component with added tool-call visualization. (xterm.js stays for workspace containers where ttyd provides PTY sessions.)
+- Do NOT use the old `lib/tools/log-parser.js` JSONL parser — the SDK yields structured message objects directly
+
+### Feature 2: Superadmin Portal with Instance Switching
+
+#### No New Libraries Required
+
+The superadmin pattern is implemented entirely within existing NextAuth v5 + Drizzle ORM infrastructure. This is a schema + middleware change, not a library addition.
+
+**Pattern:** Add `superadmin` role to the `users` table. Extend the NextAuth session JWT to carry `instanceName` (which instance the user is currently "viewing"). The superadmin can switch instance context via a Server Action that updates a session variable or cookie, not by re-authenticating.
+
+**Implementation approach:**
 
 ```
-Cluster Worker Container (claude -p running)
-  → stdout JSONL → Docker log stream
-  → dockerode container.logs({ follow: true, stdout: true })
-  → headless-stream.js (frame parser + JSONL mapper)
-  → mapLine() → { type: 'text'|'tool-call'|'tool-result', ... }
-  → SSE stream via ReadableStream (lib/cluster/stream.js GET endpoint)
-  → Browser EventSource → React state update → chat message parts
+users.role: 'user' | 'admin' | 'superadmin'
+session.user.role: 'superadmin'
+session.user.instanceName: 'noah' | 'strategyES'  ← new field in JWT/session
 ```
 
-**Why SSE (not WebSocket) for log streaming:**
-- Unidirectional (container → browser) — SSE is the correct primitive
-- SSE works through Next.js API routes (unlike WebSocket which requires the custom HTTP server)
-- Browser `EventSource` auto-reconnects on disconnect
-- No additional dependencies
+The middleware already guards `/admin/*` by role. Extend it:
+- `superadmin` can access `/admin/*` on all instances
+- A `/superadmin/*` route shows the cross-instance dashboard
+- Instance switching updates `session.user.instanceName` via NextAuth `update()` (v5 supports session mutation)
 
-**Why ReadableStream (not node-streams) for SSE:**
-- Next.js 15 API routes return `Response` objects; `new Response(new ReadableStream(...))` is the standard pattern
-- Avoids the `stream.pipe(res)` pattern which is incompatible with Next.js App Router
+**NextAuth v5 session update** (HIGH confidence — official NextAuth v5 docs pattern):
+
+```javascript
+// Server Action — switch instance context
+'use server';
+import { auth, update } from '../auth/index.js';
+
+export async function switchInstance(instanceName) {
+  const session = await auth();
+  if (session?.user?.role !== 'superadmin') throw new Error('Forbidden');
+  await update({ user: { ...session.user, instanceName } });
+}
+```
+
+NextAuth v5's `update()` function mutates the live session JWT without requiring re-login. This is the correct pattern — no need for a separate session store or cookie.
+
+**No new npm packages needed for superadmin.** The entire implementation uses:
+- Drizzle ORM migration (add `superadmin` to role enum in schema)
+- NextAuth v5 `update()` (already in installed next-auth ^5.0.0-beta.30)
+- New `/superadmin` Next.js pages (UI only)
+
+#### DB Schema Change Required
+
+```javascript
+// users table: role column already allows any text value
+// No schema migration needed for the column itself — SQLite text columns accept any string
+// BUT: update createFirstUser, updateUserRole, and middleware role checks
+// to handle the new 'superadmin' value
+```
+
+The `role` column is `text('role').notNull().default('admin')` — it already accepts arbitrary strings. No Drizzle migration needed; only application-layer changes (role check logic, UI).
+
+### Feature 3: Full UI Operations Parity
+
+#### No New Libraries Required
+
+All UI operations parity features use existing stack:
+
+| Operation | Mechanism | Existing Stack Used |
+|-----------|-----------|---------------------|
+| Repo CRUD (add/edit/remove) | Server Action → writes REPOS.json file via `fs.writeFile` | Node.js `fs`, existing `lib/tools/repos.js` patterns |
+| Job cancel | Server Action → `docker.getContainer(id).stop()` | Existing dockerode (`lib/tools/docker.js`) |
+| Job retry | Server Action → calls `dispatchDockerJob()` with same params | Existing `lib/tools/docker.js` |
+| Job logs (historical) | Server Action → reads from `clusterAgentRuns.logs` or log files | Existing Drizzle ORM |
+| Config editing (UI) | Server Action → `setConfigValue()` / `setConfigSecret()` | Existing `lib/db/config.js` |
+| Instance management | Server Action → writes instance config files | Node.js `fs`, existing file structure |
+| PR approve/reject | Already implemented (`pull-requests-page.jsx`) | Existing `lib/github-api.js` |
+| MCP server config UI | Already implemented (`settings-mcp-page.jsx`) | Existing `lib/tools/mcp-servers.js` |
+
+**The gap is UI surface, not infrastructure.** Every operation has a working backend path. What's missing is the admin page that exposes it.
+
+**Exception — job stream replay:** Displaying historical logs for completed jobs requires storing structured log data. Currently `clusterAgentRuns.logs` stores raw text. For completed Agent SDK terminal sessions, store the serialized message array (JSON) in a new `terminal_sessions` table.
+
+#### New DB Table: terminal_sessions
+
+```javascript
+export const terminalSessions = sqliteTable('terminal_sessions', {
+  id: text('id').primaryKey(),          // = chatId / sessionId
+  instanceName: text('instance_name').notNull(),
+  chatId: text('chat_id').notNull(),
+  sdkSessionId: text('sdk_session_id'), // Claude Agent SDK session UUID for resume
+  cwd: text('cwd'),
+  status: text('status').notNull().default('active'), // 'active' | 'completed' | 'interrupted'
+  messages: text('messages').notNull().default('[]'), // JSON array of SDKMessage snapshots
+  totalCostUsd: real('total_cost_usd'),
+  numTurns: integer('num_turns').default(0),
+  createdAt: integer('created_at').notNull(),
+  completedAt: integer('completed_at'),
+});
+```
+
+This enables:
+1. Resuming a terminal session after browser refresh (via `sdkSessionId`)
+2. Showing historical terminal session logs in the UI
+3. Cost tracking per session
+
+### Feature 4: Smart Execution Policies
+
+#### No New Libraries Required
+
+Smart execution policies operate on existing infrastructure:
+
+| Policy | Implementation | Stack Used |
+|--------|---------------|------------|
+| Pre-CI quality gates | Run `npm test` / `npm run lint` / `npx tsc --noEmit` inside job container before PR creation | Existing job container (bash commands in entrypoint.sh) |
+| Test feedback loops | Parse test output → feed back to Claude Agent SDK session via `streamInput()` | `@anthropic-ai/claude-agent-sdk` (already adding for terminal chat) |
+| Merge policies | Check CI status via GitHub API before auto-merge; configurable per repo in REPOS.json | Existing `lib/tools/github.js` + GitHub Checks API |
+| Cost budgets | `options.maxBudgetUsd` in Agent SDK query options | `@anthropic-ai/claude-agent-sdk` |
+
+**Pre-CI gates in job containers:** The existing entrypoint.sh runs `claude -p`. Extend it with a validation step after Claude's work but before PR creation:
+
+```bash
+# In entrypoint.sh (after claude -p completes):
+if [ "$RUN_QUALITY_GATE" = "true" ]; then
+  npm test --silent 2>&1 | tail -20 > /tmp/gate-result.txt
+  if [ $? -ne 0 ]; then
+    # Feed failure back to claude for fix attempt
+    cat /tmp/gate-result.txt | claude -p --continue "Tests failed. Fix them." --allowedTools "Read,Edit,Bash"
+  fi
+fi
+```
+
+This is a shell script change to existing files, not a library addition.
+
+**REPOS.json merge policy extension:**
+
+```json
+{
+  "repos": [
+    {
+      "slug": "clawforge",
+      "mergePolicy": {
+        "requireCiPass": true,
+        "requireReview": false,
+        "allowedPaths": ["src/**", "lib/**"],
+        "blockedPaths": ["instances/**"]
+      }
+    }
+  ]
+}
+```
+
+Extend `lib/tools/repos.js` to read `mergePolicy` from REPOS.json. The auto-merge workflow checks these policies before merging.
+
+**Test feedback loops for terminal chat mode:** The Claude Agent SDK's `streamInput()` method allows multi-turn input streaming. This enables:
+
+```javascript
+const q = query({ prompt: initialPrompt, options: { ... } });
+// ... stream messages ...
+// If tests fail after a session completes:
+await q.streamInput(asyncIterableOf([{
+  type: 'user',
+  message: { role: 'user', content: 'Tests failed:\n' + testOutput }
+}]));
+```
+
+This is the "test feedback loop" pattern — the operator or automation feeds CI results back into an active session.
 
 ---
 
 ## Installation
 
 ```bash
-# DnD kit for tab reordering in code mode
-npm install @dnd-kit/core@^6.3.1 @dnd-kit/sortable@^10.0.0
-
-# Additional xterm.js addons for richer terminal UX
-# These addons declare "requires xterm.js v4+" with no strict peer dep range
-# — compatible with our @xterm/xterm@6.0.0 install
-npm install @xterm/addon-search@^0.16.0 @xterm/addon-serialize@^0.14.0 @xterm/addon-web-links@^0.12.0
-
-# File watching for cluster triggers
-npm install chokidar@^5.0.0
+# Claude Agent SDK — programmatic Claude Code execution for terminal chat mode
+npm install @anthropic-ai/claude-agent-sdk@^0.2.76
 ```
 
-No new dev dependencies.
+That is the **only new npm dependency for v2.2.**
 
-**NOT installing (from PopeBot's package.json that we skip):**
-- `libsodium-wrappers` — using Node built-in `crypto` instead
-- `assembliai` / voice libs — out of scope for v2.0
+Everything else — superadmin, UI operations, smart execution — is implemented using existing installed packages.
 
 ---
 
@@ -298,14 +331,14 @@ No new dev dependencies.
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| DnD tab management | `@dnd-kit` | `react-beautiful-dnd` | Unmaintained since 2022 (Atlassian archived it). `@dnd-kit` is the community successor. |
-| DnD tab management | `@dnd-kit` | Native HTML5 drag-and-drop | No animation, no keyboard accessibility, no touch support. |
-| Encrypted config | Node `crypto` (built-in) | `libsodium-wrappers` | libsodium is 1.2MB + WASM init. Identical AES-256-GCM capability in Node's built-in `crypto`. Zero added dependency. |
-| Cluster trigger: file watch | `chokidar` | `fs.watch` (built-in) | `fs.watch` is unreliable (missed events, incorrect event types on macOS/Linux). `chokidar` normalizes across platforms and adds debouncing. |
-| Cluster trigger: cron | `node-cron` (already installed) | `cron` package | We already have `node-cron`. No reason to add a second cron library. |
-| Headless streaming | SSE via `ReadableStream` | WebSocket | WebSocket is bidirectional; log streaming is unidirectional. SSE is simpler, auto-reconnects, works through Next.js API routes. |
-| MCP config storage | Encrypted `settings` table record | Separate `mcp_configs` table | Reuses existing table structure. `type: 'mcp_config'` follows established pattern for `type: 'config_secret'`. Fewer migrations. |
-| Voice input | SKIP for v2.0 | AssemblyAI (WebSocket streaming) | Out of scope. AssemblyAI is $0.50/hour of audio — relevant cost at scale. Add in a future milestone if operators want voice. |
+| Claude Code execution in chat | `@anthropic-ai/claude-agent-sdk` (SDK) | Spawn `claude -p` process + parse stdout | Stdout parsing is unreliable (ANSI codes, interleaving). SDK yields structured `SDKMessage` objects. Much cleaner. |
+| Claude Code execution in chat | `@anthropic-ai/claude-agent-sdk` (SDK) | Docker container per chat turn | Containers add 9s startup latency and require volume mounts. Chat mode needs sub-second response starts. SDK runs in-process. |
+| Terminal rendering for chat | Existing Messages component + tool-call renderer | xterm.js | xterm.js is a PTY terminal emulator — correct for ttyd workspaces but wrong for chat-style tool-call rendering. Text with expandable tool blocks is the right UX. |
+| Superadmin instance switching | NextAuth v5 `update()` (JWT mutation) | Separate auth per instance | Re-authenticating to switch instances is terrible UX. Session mutation is the correct NextAuth v5 pattern. |
+| Superadmin instance switching | NextAuth v5 `update()` | Server-side in-memory instance state | Stateless (JWT carries instance) is more reliable across container restarts. |
+| Pre-CI quality gates | Shell script in entrypoint.sh | Separate quality gate service | No new infrastructure needed. The job container already runs Node.js and has the repo. Shell gates are zero-overhead. |
+| Test feedback loops | Agent SDK `streamInput()` | New LangGraph tool for retrying | `streamInput()` is the correct SDK primitive for multi-turn feedback. No new tool definition needed. |
+| Session continuity | Map `chatId` → SDK `sessionId` | Separate session store | SDK handles its own session persistence. Reusing `chatId` as `sessionId` eliminates a synchronization problem. |
 
 ---
 
@@ -313,94 +346,127 @@ No new dev dependencies.
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `libsodium-wrappers` | 1.2MB WASM dependency when Node `crypto` does the same | `crypto.createCipheriv('aes-256-gcm', ...)` |
-| `react-beautiful-dnd` | Archived/unmaintained since 2022 | `@dnd-kit/core` + `@dnd-kit/sortable` |
-| `socket.io` | Overkill; SSE handles unidirectional log streaming | Native `ReadableStream` SSE |
-| `assemblyai` npm package | Out of scope for v2.0, cost implications | Skip for now |
-| PopeBot's `lib/tools/docker.js` verbatim | PopeBot auto-detects Docker network by inspecting event-handler container — single-tenant assumption. We use explicit per-instance Docker networks. | Extend our existing `lib/tools/docker.js` with cluster worker container support |
-| `dockerode` again | Already installed | Extend existing `lib/tools/docker.js` |
-| `@xterm/addon-canvas` | Removed in xterm v6; PopeBot (on v5.5) uses it but we're on v6 | Default renderer (WebGL or DOM) |
-| MCP server `type: "sse"` transport | SSE transport is deprecated in Claude Code CLI | Use `stdio` (subprocess) or `http` (remote) transport |
+| `socket.io` or `ws` for terminal chat mode | Already have SSE via ReadableStream for unidirectional streaming. Bidirectional (interrupt) handled by Server Actions. | Existing SSE + Server Action for interrupt |
+| `node-pty` | PTY needed for interactive terminals (workspaces), not for agent SDK sessions. SDK manages its own process. | Already have ttyd for workspace PTY sessions |
+| `xterm.js` for chat mode display | PTY terminal UX is wrong for agent-style chat. Tool calls should be collapsible rich UI, not raw terminal output. | Extend existing `tool-call.jsx` renderer |
+| Any session management library (redis, express-session) | NextAuth v5 JWT handles instance context natively via `update()` | NextAuth v5 built-in session mutation |
+| `@anthropic-ai/claude-code` (the SDK import) | This package has been renamed. The new name is `@anthropic-ai/claude-agent-sdk`. | `@anthropic-ai/claude-agent-sdk` |
+| New Docker container for each chat turn | 9s startup vs milliseconds. SDK runs in-process. | `@anthropic-ai/claude-agent-sdk` in-process |
+| Kubernetes or cloud job runners | Two-instance deployment doesn't need k8s. Docker Compose is sufficient. | Existing Docker Engine API dispatch |
+
+---
+
+## Architecture Integration Points
+
+### Agent SDK + Existing SSE (lib/jobs/stream-api.js pattern)
+
+The terminal chat mode SSE endpoint follows the exact same pattern as `/api/jobs/stream/[jobId]`:
+
+```
+Browser EventSource → GET /api/terminal/stream/[chatId]
+  → ReadableStream SSE
+  → subscribed to terminalStreamManager (new, mirrors streamManager)
+  → fed by async for await (const msg of query(...))
+```
+
+The `streamManager` pattern (pub/sub with `subscribe(id, handler)`) already works. Create a parallel `terminalStreamManager` for terminal sessions.
+
+### Agent SDK + Existing Auth (lib/auth/index.js)
+
+The terminal chat endpoint checks `auth()` exactly like `lib/chat/api.js` and `lib/jobs/stream-api.js`. No new auth mechanism.
+
+### Agent SDK + Existing Chat (lib/chat/api.js)
+
+When terminal mode is enabled in the chat (`terminalMode: true` flag in request body), `lib/chat/api.js` routes to the Agent SDK path instead of the LangGraph agent path. The `useChat` hook on the frontend is unchanged — it still posts to `/stream/chat` and receives AI SDK v5 UIMessage stream format. The server-side API translates SDK messages into AI SDK v5 writer events.
+
+### Superadmin + Existing Middleware (lib/auth/middleware.js)
+
+Minimal change: add `'superadmin'` to the admin role check:
+
+```javascript
+if (pathname.startsWith('/admin')) {
+  const role = req.auth.user?.role;
+  if (role !== 'admin' && role !== 'superadmin') {
+    return NextResponse.redirect(new URL('/forbidden', req.url));
+  }
+}
+// New superadmin-only routes:
+if (pathname.startsWith('/superadmin')) {
+  if (req.auth.user?.role !== 'superadmin') {
+    return NextResponse.redirect(new URL('/forbidden', req.url));
+  }
+}
+```
+
+### Repo CRUD + Existing REPOS.json (lib/tools/repos.js)
+
+REPOS.json is a static file today. Repo CRUD from the UI requires:
+1. A Server Action that reads/writes REPOS.json via `fs.readFile` / `fs.writeFile`
+2. A cache-bust mechanism after write (the existing `loadAllowedRepos()` must re-read from disk)
+3. Validation that the new repo is accessible (GitHub API ping before saving)
+
+No new dependencies. The file is JSON — native `JSON.parse` / `JSON.stringify` plus atomic write (write to temp → rename) is sufficient.
+
+---
+
+## DB Schema Changes Required
+
+```javascript
+// New table: terminal_sessions
+// Tracks Claude Agent SDK sessions for terminal chat mode
+export const terminalSessions = sqliteTable('terminal_sessions', {
+  id: text('id').primaryKey(),
+  instanceName: text('instance_name').notNull(),
+  chatId: text('chat_id').notNull(),
+  sdkSessionId: text('sdk_session_id'),   // SDK-assigned UUID for resume
+  cwd: text('cwd'),
+  status: text('status').notNull().default('active'),
+  messages: text('messages').notNull().default('[]'),  // JSON[]
+  totalCostUsd: real('total_cost_usd'),
+  numTurns: integer('num_turns').default(0),
+  createdAt: integer('created_at').notNull(),
+  completedAt: integer('completed_at'),
+});
+
+// users table: no column change needed (role is free-form text)
+// Application layer must handle 'superadmin' in role checks
+
+// settings table: no change needed
+// REPOS.json: extended in-place (mergePolicy field added, no DB migration)
+```
 
 ---
 
 ## Version Compatibility
 
 | Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `@dnd-kit/core@^6.3.1` | React 19 | Confirmed — uses standard React hooks, no deprecated APIs |
-| `@dnd-kit/sortable@^10.0.0` | `@dnd-kit/core@^6.x` | Must match major version of core |
-| `@xterm/addon-search@^0.16.0` | `@xterm/xterm@^4+` (no strict peer dep) | Verified via npm: no peerDependencies field declared; description says "v4+". Installs cleanly with xterm 6.0.0. |
-| `@xterm/addon-serialize@^0.14.0` | `@xterm/xterm@^4+` (no strict peer dep) | Same — no npm peer dep constraint. |
-| `@xterm/addon-web-links@^0.12.0` | `@xterm/xterm@^4+` (no strict peer dep) | Same — no npm peer dep constraint. |
-| `chokidar@^5.0.0` | Node >=18, pure ESM | chokidar v5 is ESM-only; compatible with our `"type": "module"` package |
-
-**Note on xterm beta channel:** `@xterm/addon-search@0.17.0-beta.xxx` targets `@xterm/xterm@^6.1.0-beta.xxx` — this is a development version for the next major xterm release. Do not use beta addon versions; the stable 0.16.0 works with xterm 6.0.0.
-
----
-
-## Integration Points with Existing Stack
-
-### dockerode (lib/tools/docker.js)
-
-Add `runClusterWorkerContainer()` function. Key difference from `dispatchDockerJob()`:
-- `AutoRemove: true` (ephemeral — exits when Claude Code job completes)
-- Mount a named role-specific volume (cluster shared directory)
-- Pass `SYSTEM_PROMPT`, `PROMPT`, cluster metadata as env vars
-- Network: existing per-instance Docker network (same as job containers)
-- No health check needed (exits on its own)
-
-### LangGraph Agent (lib/ai/tools.js)
-
-No new tools needed for v2.0 cluster features. Clusters are managed via the Web UI (Next.js Server Actions), not via the conversational agent. The agent gets a `start_headless_coding` tool that can trigger a cluster-style headless job on a specific repo/branch.
-
-### Drizzle ORM (lib/db/schema.js)
-
-Add `clusters`, `clusterRoles`, and `clusterSessions` tables. Generate new migration:
-```bash
-npm run db:generate  # after updating schema.js
-```
-
-### settings table (existing)
-
-No schema change. Add encrypted MCP configs as `type: 'mcp_config'` records. Decrypt in the cluster execute path before launching containers.
-
-### Chat UI (lib/chat/components/)
-
-Code mode toggle is a new prop/state on `ChatPage`. When `mode === 'code'`, render `CodePage` (new component). When `mode === 'chat'`, render existing `Chat`. The sidebar stays constant. `FeaturesContext` wraps both modes.
-
-### Custom HTTP Server (server.js)
-
-No changes needed for v2.0. Cluster worker containers do not need WebSocket proxying — they are headless (no browser terminal). SSE for log streaming goes through Next.js API routes natively.
+|---------|----------------|-------|
+| `@anthropic-ai/claude-agent-sdk@^0.2.76` | Node >=18, ESM | Uses ESM exports. Compatible with our `"type": "module"` package. Verified 2026-03-16. |
+| `@anthropic-ai/claude-agent-sdk@^0.2.76` | `@anthropic-ai/claude-code` CLI (2.1.76) | SDK and CLI are independent packages. SDK spawns the `claude` CLI binary internally via `pathToClaudeCodeExecutable`. Both can coexist. |
+| NextAuth v5 `update()` | next-auth ^5.0.0-beta.30 | `update()` is available in NextAuth v5 beta — confirmed in NextAuth v5 docs. JWT session mutation is a v5 feature. |
 
 ---
 
 ## Sources
 
-- PopeBot `package.json` raw — confirmed `@dnd-kit/core@^6.3.1`, `@dnd-kit/sortable@^10.0.0`, `chokidar@^5.0.0`, `libsodium-wrappers@^0.8.2`, `@xterm/addon-search/serialize/web-links` (HIGH confidence — direct source inspection)
-- PopeBot `lib/cluster/actions.js`, `runtime.js`, `execute.js`, `stream.js` — cluster architecture analysis (HIGH confidence — direct source inspection)
-- PopeBot `lib/ai/headless-stream.js` — Docker frame parser + JSONL mapper implementation (HIGH confidence — direct source inspection)
-- PopeBot `lib/code/code-page.jsx` — DnD tab management, code page structure (HIGH confidence — direct source inspection)
-- PopeBot `lib/code/terminal-view.jsx` — xterm.js addon usage (search, serialize, web-links) (HIGH confidence — direct source inspection)
-- PopeBot `lib/code/ws-proxy.js` — WebSocket proxy pattern (HIGH confidence — direct source inspection)
-- PopeBot `lib/db/crypto.js` — AES-256-GCM + PBKDF2 encryption pattern (HIGH confidence — direct source inspection)
-- PopeBot `lib/db/config.js` — encrypted settings storage pattern (HIGH confidence — direct source inspection)
-- PopeBot `lib/tools/docker.js` — cluster worker vs workspace container differences (HIGH confidence — direct source inspection)
-- PopeBot `lib/voice/use-voice-input.js` — AssemblyAI WebSocket streaming (HIGH confidence — out-of-scope for v2.0)
-- PopeBot `lib/db/schema.js` — confirmed no per-instance scoping in clusters table (HIGH confidence — direct source inspection)
-- `npm info @dnd-kit/core version` → `6.3.1` (HIGH confidence — live npm registry)
-- `npm info @dnd-kit/sortable version` → `10.0.0` (HIGH confidence — live npm registry)
-- `npm view @xterm/addon-search@0.16.0 --json` → no peerDependencies, description "requires xterm.js v4+" (HIGH confidence — live npm registry, verified)
-- `npm view @xterm/addon-serialize@0.14.0 --json` → no peerDependencies, description "requires xterm.js v4+" (HIGH confidence — live npm registry, verified)
-- `npm view @xterm/addon-web-links@0.12.0 --json` → no peerDependencies, description "requires xterm.js v4+" (HIGH confidence — live npm registry, verified)
-- `npm view @xterm/addon-search@"0.17.0-beta.192" peerDependencies` → `{ '@xterm/xterm': '^6.1.0-beta.192' }` — confirms beta track targets next xterm major, not stable 6.0 (HIGH confidence — live npm registry)
-- `npm info chokidar version` → `5.0.0` (HIGH confidence — live npm registry)
-- `claude --help` output — confirmed `--mcp-config <configs...>` and `--strict-mcp-config` flags exist (HIGH confidence — local CLI verification)
-- ClawForge `package.json` — current dependency baseline (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/db/schema.js` — existing `settings` table structure (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/chat/components/chat-page.jsx`, `chat.jsx` — existing chat UI patterns (HIGH confidence — direct codebase inspection)
+- `@anthropic-ai/claude-agent-sdk` npm registry — version 0.2.76, confirmed 2026-03-16 (HIGH confidence)
+- `@anthropic-ai/claude-code` npm registry — version 2.1.76, CLI tool, confirmed 2026-03-16 (HIGH confidence)
+- Anthropic Agent SDK TypeScript reference — `query()`, `Query` interface, `Options`, `SDKMessage` union type (HIGH confidence — official docs)
+- Anthropic Agent SDK migration guide — package rename, breaking changes in v0.1.0, `settingSources` default change (HIGH confidence — official docs)
+- Anthropic Agent SDK overview — capabilities, installation, session management patterns (HIGH confidence — official docs)
+- code.claude.com/docs/en/headless — CLI headless mode vs SDK distinction confirmed (HIGH confidence — official docs)
+- ClawForge `lib/jobs/stream-api.js` — existing SSE pattern analysis (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/chat/api.js` — AI SDK v5 createUIMessageStream pattern (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/auth/middleware.js` — existing role-based middleware (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/auth/config.js` — NextAuth v5 Credentials provider (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/db/schema.js` — full schema including `users`, `settings`, `codeWorkspaces`, `clusterAgentRuns` (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/db/config.js` — `getConfigValue`/`setConfigValue`/`getConfigSecret` patterns (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/db/users.js` — role handling, `updateUserRole` (HIGH confidence — direct codebase inspection)
+- ClawForge `package.json` — full dependency baseline v2.1.0 (HIGH confidence — direct codebase inspection)
+- ClawForge `instances/noah/config/REPOS.json` — REPOS.json structure for repo CRUD design (HIGH confidence — direct codebase inspection)
+- WebSearch: NextAuth v5 `update()` session mutation pattern — multiple sources confirm this is the v5 approach for session mutation without re-auth (MEDIUM confidence — WebSearch verified with NextAuth v5 docs pattern)
 
 ---
 
-*Stack research for: ClawForge v2.0 Full Platform (Web UI, Clusters, Headless Streaming, MCP Tool Layer)*
-*Researched: 2026-03-12*
+*Stack research for: ClawForge v2.2 Smart Operations*
+*Researched: 2026-03-16*
