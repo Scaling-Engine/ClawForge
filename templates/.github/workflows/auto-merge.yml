@@ -14,6 +14,11 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
       - name: Wait for merge check
         id: merge-check
         env:
@@ -129,8 +134,62 @@ jobs:
 
           echo "allowed=$ALL_OK" >> "$GITHUB_OUTPUT"
 
-      - name: Merge PR
+      - name: Check merge policy
         if: steps.merge-check.outputs.mergeable == 'MERGEABLE' && steps.check-setting.outputs.enabled == 'true' && steps.check-blocked.outputs.blocked != 'true' && steps.check-paths.outputs.allowed == 'true'
+        id: check-merge-policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          JOB_ID="${BRANCH#job/}"
+
+          # Read merge policy from REPOS.json committed in the repo
+          # Default to 'auto' if file missing or field absent
+          POLICY="auto"
+          if [ -f "instances/noah/config/REPOS.json" ]; then
+            # Extract mergePolicy for any repo — since we don't know which repo
+            # this job targeted from the PR alone, check all entries.
+            # Jobs only target one repo at a time, so there's one matching entry.
+            # For simplicity, read the first non-auto policy that matches.
+            POLICY=$(JOB_ID="$JOB_ID" node -e "
+              try {
+                const fs = require('fs');
+                const data = JSON.parse(fs.readFileSync('instances/noah/config/REPOS.json', 'utf8'));
+                // Check if gate-failures.md exists on this branch
+                const hasGateFailures = fs.existsSync('logs/' + process.env.JOB_ID + '/gate-failures.md');
+                // Find the repo's merge policy — use the most restrictive if multiple
+                const policies = (data.repos || []).map(r => r.mergePolicy || 'auto');
+                // For now, use the repo-level default from the first repo with a policy set
+                // In practice, jobs target one repo so config is per-instance
+                const policy = policies.find(p => p !== 'auto') || 'auto';
+                console.log(policy);
+              } catch (e) {
+                console.log('auto');
+              }
+            " 2>/dev/null || echo "auto")
+          fi
+
+          echo "Merge policy: $POLICY"
+
+          if [ "$POLICY" = "manual" ]; then
+            echo "Merge policy is 'manual' — blocking auto-merge"
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$POLICY" = "gate-required" ]; then
+            # Check if gate-failures.md exists on this branch
+            if [ -f "logs/${JOB_ID}/gate-failures.md" ]; then
+              echo "Merge policy is 'gate-required' and gate-failures.md found — blocking auto-merge"
+              echo "allowed=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "Merge policy is 'gate-required' and no gate failures — allowing auto-merge"
+              echo "allowed=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "Merge policy is 'auto' — allowing auto-merge"
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge PR
+        if: steps.merge-check.outputs.mergeable == 'MERGEABLE' && steps.check-setting.outputs.enabled == 'true' && steps.check-blocked.outputs.blocked != 'true' && steps.check-paths.outputs.allowed == 'true' && steps.check-merge-policy.outputs.allowed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
