@@ -5,7 +5,9 @@
       "slug": "strategyes-lab",
       "name": "StrategyES Lab",
       "aliases": ["strategyes-lab", "strategyes", "lab"],
-      "dispatch": "docker"
+      "dispatch": "docker",
+      "qualityGates": [],
+      "mergePolicy": "auto"
     }
   ]
 }

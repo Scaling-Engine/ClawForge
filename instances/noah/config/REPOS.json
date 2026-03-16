@@ -5,14 +5,18 @@
       "slug": "clawforge",
       "name": "ClawForge",
       "aliases": ["clawforge", "cf", "the bot"],
-      "dispatch": "docker"
+      "dispatch": "docker",
+      "qualityGates": ["npm run build"],
+      "mergePolicy": "gate-required"
     },
     {
       "owner": "ScalingEngine",
       "slug": "neurostory",
       "name": "NeuroStory",
       "aliases": ["neurostory", "ns", "the app"],
-      "dispatch": "docker"
+      "dispatch": "docker",
+      "qualityGates": [],
+      "mergePolicy": "auto"
     }
   ]
 }
