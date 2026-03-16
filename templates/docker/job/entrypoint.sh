@@ -264,6 +264,45 @@ echo -e "$SYSTEM_PROMPT" > /tmp/system-prompt.md
 # 10. Determine allowed tools
 ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-Read,Write,Edit,Bash,Glob,Grep,Task,Skill}"
 
+# === Quality Gate Function ===
+# Defined here so it is available before the claude invocation block.
+# Called after claude -p completes and before PR creation.
+run_quality_gates() {
+  if [ -z "$QUALITY_GATES" ]; then
+    return 0
+  fi
+
+  echo "[GATES] Running quality gates..."
+  local gate_output=""
+
+  while IFS= read -r gate_cmd; do
+    [ -z "$gate_cmd" ] && continue
+    echo "[GATE] Running: $gate_cmd"
+
+    set +e
+    local out
+    out=$(eval "$gate_cmd" 2>&1)
+    local status=$?
+    set -e
+
+    if [ $status -ne 0 ]; then
+      local truncated="${out:0:2000}"
+      gate_output="${gate_output}### Gate failed: \`${gate_cmd}\`\n\n\`\`\`\n${truncated}\n\`\`\`\n\n"
+      echo "[GATE] FAILED (exit $status): $gate_cmd"
+      echo "false" > /tmp/gate_pass
+      printf "# Quality Gate Failures\n\n**Job:** ${JOB_ID}\n**Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")\n\n%b" "$gate_output" > "$GATE_FAILURES_FILE"
+      git add "$GATE_FAILURES_FILE"
+      git commit -m "chore: record gate failures for job ${JOB_ID}" || true
+      git push origin "${BRANCH}" || true
+      return 1
+    else
+      echo "[GATE] PASSED: $gate_cmd"
+    fi
+  done <<< "$QUALITY_GATES"
+
+  return 0
+}
+
 # === MCP Health Check ===
 if [ -n "$MCP_CONFIG_JSON" ]; then
   echo "[mcp] Running MCP server health check..."
@@ -484,8 +523,58 @@ if [ "$HEAD_BEFORE" != "$HEAD_AFTER" ]; then
     HAS_NEW_COMMIT=true
 fi
 
-# Create PR only if Claude succeeded AND produced commits
+# === QUALITY GATES (EXEC-01, EXEC-02) ===
+# Runs after claude -p and initial commit, before PR creation.
+# Initialize gate state via temp file (avoids bash subshell variable scope issues)
+echo "true" > /tmp/gate_pass
+GATE_FAILURES_FILE="${LOG_DIR}/gate-failures.md"
+GATE_ATTEMPT=0
+
 if [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ]; then
+  run_quality_gates
+  GATE_RESULT=$?
+
+  # Self-correction: if gates failed on first attempt, re-invoke claude -p once (EXEC-02)
+  if [ $GATE_RESULT -ne 0 ] && [ $GATE_ATTEMPT -eq 0 ]; then
+    GATE_ATTEMPT=1
+    echo "[GATES] Self-correction attempt (1 of 1)..."
+
+    # Read the gate failures as correction context
+    CORRECTION_CONTEXT=$(cat "$GATE_FAILURES_FILE" 2>/dev/null || echo "Quality gates failed")
+
+    # Re-invoke claude with correction prompt using same flags as original
+    CORRECTION_PROMPT="Quality gates failed after your changes. Fix the issues below and try again. Do NOT explain what you're doing — just fix the code.\n\n${CORRECTION_CONTEXT}"
+    printf '%s' "$CORRECTION_PROMPT" > /tmp/correction-prompt.txt
+
+    set +e
+    claude -p \
+        --output-format json \
+        --append-system-prompt "$(cat /tmp/system-prompt.md)" \
+        --allowedTools "${ALLOWED_TOOLS}" \
+        $MCP_FLAGS \
+        < /tmp/correction-prompt.txt \
+        2>&1 | tee -a "${LOG_DIR}/claude-output.jsonl" || true
+    set -e
+
+    # Commit correction changes
+    git add -A
+    git add -f "${LOG_DIR}" || true
+    git commit -m "clawforge: self-correction for job ${JOB_ID}" || true
+    git push origin "${BRANCH}" || true
+
+    # Re-run gates after correction
+    echo "true" > /tmp/gate_pass
+    run_quality_gates
+  fi
+fi
+
+# Read final gate state
+GATE_PASS=$(cat /tmp/gate_pass 2>/dev/null || echo "true")
+
+# Create PR only if Claude succeeded AND produced commits
+# If gates passed (or no gates configured): normal PR
+# If gates failed after self-correction: PR with needs-fixes label (EXEC-04)
+if [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ] && [ "$GATE_PASS" = "true" ]; then
     if [ -f /tmp/pr-body.md ]; then
         gh pr create \
             --title "clawforge: job ${JOB_ID}" \
@@ -495,6 +584,23 @@ if [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ]; then
         gh pr create \
             --title "clawforge: job ${JOB_ID}" \
             --body "Automated job by ClawForge" \
+            --base main || true
+    fi
+elif [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ] && [ "$GATE_PASS" = "false" ]; then
+    # Gates failed — create PR with needs-fixes label
+    if [ -f /tmp/pr-body.md ]; then
+        # Append gate failure note to existing body
+        printf '\n\n---\n**Warning:** Quality gates failed after self-correction. See `logs/%s/gate-failures.md` for details.' "${JOB_ID}" >> /tmp/pr-body.md
+        gh pr create \
+            --title "clawforge: job ${JOB_ID}" \
+            --body-file /tmp/pr-body.md \
+            --label "needs-fixes" \
+            --base main || true
+    else
+        gh pr create \
+            --title "clawforge: job ${JOB_ID}" \
+            --body "$(printf 'Automated job by ClawForge\n\n**Warning:** Quality gates failed after self-correction. See `logs/%s/gate-failures.md` for details.' "${JOB_ID}")" \
+            --label "needs-fixes" \
             --base main || true
     fi
 else
