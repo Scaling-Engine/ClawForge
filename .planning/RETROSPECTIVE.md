@@ -131,6 +131,99 @@
 
 ---
 
+## Milestone: v2.0 — Full Platform
+
+**Shipped:** 2026-03-12
+**Phases:** 4 | **Plans:** 14
+
+### What Was Built
+- Headless log streaming: SSE endpoint with Docker log streaming, Slack edit-in-place status updates every 10s, semantic event filtering (file mods, bash outputs, key decisions)
+- Web UI auth + repo selector: NextAuth session auth on Server Actions, repo/branch persistent dropdown, feature flags system (FeaturesContext), live job streaming inline in chat
+- MCP tool layer: per-instance MCP_SERVERS.json, template variable resolution (`{{AGENT_LLM_*}}`), `--mcp-config` flag injection, tool subset curation, pre-run context hydration
+- Multi-agent clusters: CLUSTER.json definition, sequential Docker dispatch, shared volume communication (inbox/outbox/reports), label-based state machine, hard iteration limits (5/agent, 15/run), cluster Slack thread notifications
+
+### What Worked
+- **14 plans in 1 day**: Largest plan count per day in project history — mature GSD patterns + established codebase conventions made execution mechanical
+- **SSE over WebSocket for log streaming**: Simpler than WebSocket, auto-reconnect for free, works through proxies. The v1.5 WebSocket debugging pain informed this decision
+- **FeaturesContext pattern**: React context + Server Action toggle enables per-instance feature gating without code deploys — cleanly separated from env vars
+- **Shared volume communication for clusters**: Filesystem-based inbox/outbox avoids tight coupling between agents — each agent is still a sniper (reads inbox, writes outbox, exits)
+
+### What Was Inefficient
+- **35 requirements defined after phases were planned**: Requirements were formalized retroactively for traceability — ideally they'd exist before phase planning
+- **MCP credential handling required 2 iterations**: First approach embedded secrets in MCP_SERVERS.json, second properly used template variables resolved from env at container start
+
+### Patterns Established
+- SSE endpoint pattern for real-time streaming (reusable for any future live-update feature)
+- `executeAction()` with action type routing (job/cluster/workspace) — single dispatch point for all container operations
+- Label-based state machine for multi-agent coordination (emit label → route to next agent)
+- `--allowedTools` whitelist per cluster role — zero instances of `--dangerously-skip-permissions`
+- Cluster Slack thread: one message per run, agent updates as replies (not per-agent channels)
+
+### Key Lessons
+1. **SSE > WebSocket for one-directional streams**: Log streaming is read-only from client perspective. SSE is simpler, more reliable through infrastructure, and auto-reconnects
+2. **Multi-agent coordination needs hard limits**: Without iteration caps and cycle detection, label-based routing can loop infinitely. 5/agent + 15/run caps are cheap insurance
+3. **Shared volumes beat direct messaging**: Agents writing files to a shared volume is more debuggable and less coupled than agent-to-agent messaging
+4. **Requirements-first would have caught MCP credential issue earlier**: Writing requirements before phase planning forces you to think about security boundaries upfront
+
+### Cost Observations
+- Model mix: ~90% sonnet (executors/verifiers), ~10% opus (orchestration)
+- 14 plans in 1 day — highest throughput milestone, enabled by mature process and zero novel infrastructure patterns
+
+---
+
+## Milestone: v2.1 — Upstream Feature Sync
+
+**Shipped:** 2026-03-13
+**Phases:** 10 | **Plans:** 12
+**Files changed:** 192 (+26,282 / -520)
+
+### What Was Built
+- DB-backed config system: AES-256-GCM encryption, SQLite config table, `getConfig`/`setConfig` API, LLM provider listing
+- Three new pages: Pull Requests (approve/reject), Runners status, Profile — plus sidebar navigation with PR badge count
+- Chat enhancements: Shiki syntax highlighting via @streamdown/code, interactive mode toggle routing headless vs workspace
+- Role-based access control: admin/user roles, middleware guards on /admin/*, forbidden page, conditional sidebar navigation
+- Admin panel restructure: /settings/ → /admin/* migration with sidebar layout, users CRUD, webhooks display, backwards-compatible redirects
+- GitHub secrets management: sealed-box encryption for GitHub API, CRUD UI with masked values, AGENT_* prefix enforcement
+- Voice input: AssemblyAI v3 real-time streaming via AudioWorklet, volume bars, zero server-side audio storage
+- Code Workspaces V2: DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar with polling
+- Cluster detail views: /cluster/[id] overview + console (SSE streaming) + logs (persisted) + role detail pages
+- Developer experience: web_search LangGraph tool (Brave API), CLI commands (create-instance, run-job, check-status)
+
+### What Worked
+- **Cherry-pick strategy in 3 waves**: Wave 1 (UI additions) → Wave 2 (auth/admin) → Wave 3 (advanced features) kept dependency order clean. No phase had to reach back into a previous wave
+- **10 phases in 1 day**: Each phase was self-contained with clear boundaries — no cross-phase dependencies within the milestone
+- **Divergence decisions upfront**: Documenting where ClawForge diverges from upstream (dockerode vs raw http, Node crypto vs libsodium, xterm v6 vs v5, AssemblyAI vs Whisper) before starting prevented mid-phase confusion
+- **Relative import conversion**: Blanket rule to convert all `thepopebot/*` package imports to relative imports eliminated an entire class of build errors
+- **crypto.js reading AUTH_SECRET from process.env**: Avoided circular dependency with getConfig — simple decision that prevented a debugging session
+
+### What Was Inefficient
+- **192 files changed in 1 day**: While throughput was high, the blast radius means any subtle bug is hard to bisect. Smaller milestones with deployment gates between phases would improve debuggability
+- **Some phases had minimal adaptation**: Phases like 30 (new pages) and 31 (chat enhancements) were near-direct cherry-picks — could have been batched into fewer, larger phases
+- **Cluster UI duplicated utility functions**: StatusBadge, timeAgo, formatTs duplicated across cluster pages because the existing clusters-page doesn't export them. Should have extracted to shared utils first
+
+### Patterns Established
+- `crypto.js` reads encryption key directly from `process.env.AUTH_SECRET` (not via config layer) to break circular deps
+- `githubApiRaw` helper for PUT/DELETE 204 responses (separate from shared `githubApi` that expects JSON)
+- AdminLayout with sidebar navigation (not tabs) for scalability with 6+ sub-pages
+- AudioWorklet processor as static file in `public/` (cannot be bundled by Next.js)
+- `activeTabId` (string) over `activeTabIndex` (number) so tab identity survives DnD reorders
+- Conditional tool registration via env check (`if (process.env.BRAVE_API_KEY)`)
+- `ghsec:` prefix in config_secret table for namespaced secret storage
+
+### Key Lessons
+1. **Cherry-picking requires a divergence map**: Documenting ClawForge-specific systems before starting the cherry-pick prevented overwriting critical infrastructure (dockerode, MCP, cluster coordinator, SSE streaming)
+2. **Wave-based ordering prevents dependency tangles**: UI additions before auth before advanced features meant each wave could assume the previous wave's infrastructure
+3. **Static files for Web Workers/AudioWorklets**: Next.js bundling doesn't support Worker module imports — static files in `public/` is the correct pattern, not a workaround
+4. **Utility duplication signals missing shared module**: Three cluster pages duplicating the same 3 functions is a clear sign to extract to `lib/cluster/utils.js` in a future cleanup
+5. **Single-day milestones trade debuggability for speed**: 192 files in one day means git bisect is essentially useless within the milestone. Consider deployment checkpoints between waves
+
+### Cost Observations
+- Model mix: ~90% sonnet (executors/verifiers), ~10% opus (orchestration)
+- Highest file count (192) and LOC delta (+26,282) of any milestone — cherry-pick workflow amplifies throughput when source code already exists
+- 10 phases, 12 plans in 1 day — 2x the phase count of v2.0 but similar wall-clock time due to simpler per-phase scope
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -143,6 +236,8 @@
 | v1.3 | 7 | 9 | Instance generator — first milestone with gap closure phases |
 | v1.4 | 4 | 8 | Docker Engine Foundation — fastest milestone (3 days), mid-milestone audit |
 | v1.5 | 3 | 7 | Persistent Workspaces — first interactive feature, WebSocket protocol layer |
+| v2.0 | 4 | 14 | Full Platform — SSE streaming, MCP tools, multi-agent clusters, highest plans/day |
+| v2.1 | 10 | 12 | Upstream Feature Sync — cherry-pick from upstream, 192 files in 1 day, highest LOC delta |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -151,3 +246,6 @@
 3. **Audit early, fix early** — v1.3 lesson, v1.4 proved it: mid-milestone audit caught 3 integration gaps, Phase 21 closed them cleanly
 4. **Direct API > CI wrappers for speed** — v1.4 lesson; Docker Engine API eliminated 50s of CI queue overhead per job
 5. **Study upstream protocols before proxying** — v1.5 lesson; ttyd binary protocol required 5 debug commits to get right. Unit tests pass but protocol-level integration needs real testing
+6. **SSE > WebSocket for one-directional streams** — v2.0 lesson; simpler, auto-reconnects, works through proxies. Informed by v1.5 WebSocket debugging pain
+7. **Cherry-picking requires a divergence map** — v2.1 lesson; documenting ClawForge-specific systems before cherry-pick prevented overwriting critical infrastructure
+8. **Wave-based ordering prevents dependency tangles** — v2.1 lesson; UI → auth → advanced features meant each wave could assume previous infrastructure

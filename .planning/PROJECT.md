@@ -8,13 +8,17 @@ A multi-channel AI agent platform that connects Claude Code CLI to messaging cha
 
 Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results without operator intervention.
 
-## Current State (after v1.5)
+## Current State (after v2.1)
 
-**Shipped:** v1.0 Foundation + v1.1 Agent Intelligence + v1.2 Cross-Repo + v1.3 Instance Generator + v1.4 Docker Engine Foundation + v1.5 Persistent Workspaces
-**Codebase:** ~23,600 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode + ws + xterm.js)
+**Shipped:** v1.0 through v1.5 (Foundation → Persistent Workspaces) + v2.0 Full Platform + v2.1 Upstream Feature Sync
+**Codebase:** ~50,000 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode + ws + xterm.js + @dnd-kit + AssemblyAI + @streamdown/code)
 **Instances:** 2 (Noah/Archie — full access, StrategyES/Epic — scoped to strategyes-lab)
 
 **What works:**
+
+<details>
+<summary>v1.0-v1.5 capabilities (click to expand)</summary>
+
 - Full job pipeline via **Docker Engine API dispatch** (~9s) or GitHub Actions fallback (~60s)
 - **Layer 2 context hydration**: job containers receive STATE.md, ROADMAP.md, and recent git history in prompt
 - **Named volumes**: warm start via `git fetch` (2-3s) instead of full clone (10-15s), with flock mutex for concurrency
@@ -27,16 +31,35 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - Failure stage detection: docker_pull/auth/clone/claude surfaced in Slack/Telegram notifications
 - Zero-commit PR guard, 30-min timeout, explicit JSONL lookup
 - `job_outcomes` table: tracks completions with `target_repo` column; `getJobStatus()` DB overlay returns completed job PR URLs
-- VERIFICATION-RUNBOOK.md: operator-executable checklist for 5 regression scenarios (S1-S5)
 - All templates byte-for-byte synced with live files
 - **Instance creation via conversation**: multi-turn intake → approval → job dispatch → PR with 7 artifacts + operator setup checklist
 - **Auto-merge exclusion**: instance PRs blocked from auto-merge regardless of ALLOWED_PATHS
 - **Layer 1 context hydration**: `get_project_state` tool fetches STATE.md + ROADMAP.md from target repos via GitHub API
-- **Persistent workspaces**: workspace Docker image (ttyd 1.7.7 + tmux + Claude Code CLI), full container lifecycle (create/stop/start/destroy/auto-recover), idle timeout, max concurrent limits
-- **Browser terminal**: custom HTTP server wraps Next.js for WebSocket upgrade interception, ticket-based auth (single-use, 30s TTL), xterm.js with multi-tab tmux sessions (ports 7681-7685)
+- **Persistent workspaces**: workspace Docker image (ttyd 1.7.7 + tmux + Claude Code CLI), full container lifecycle
+- **Browser terminal**: custom HTTP server wraps Next.js for WebSocket upgrade interception, ticket-based auth, xterm.js with multi-tab tmux sessions
 - **Conversational workspace launch**: `start_coding` and `list_workspaces` LangGraph tools, chat context injected as CHAT_CONTEXT env var (20KB cap)
 - **Bidirectional context bridging**: conversation history flows into workspace on start, commits surfaced back into chat thread on close
-- **Workspace event notifications**: crash, recovery, idle-stop events routed to operator's channel via Slack/Telegram with LangGraph memory injection
+- **Workspace event notifications**: crash, recovery, idle-stop events routed to operator's channel via Slack/Telegram
+
+</details>
+
+**v2.0 Full Platform:**
+- **Headless log streaming**: SSE endpoint, Docker log streaming, Slack edit-in-place status, semantic event filtering, progress indicator
+- **Web UI**: NextAuth session auth on Server Actions, repo/branch selector, feature flags system, live job streaming inline in chat
+- **MCP tool layer**: per-instance MCP_SERVERS.json, template variables, --mcp-config flag, tool subset curation, pre-run context hydration
+- **Multi-agent clusters**: CLUSTER.json definitions, sequential Docker dispatch, shared volume communication, label-based state machine, iteration limits
+
+**v2.1 Upstream Feature Sync:**
+- **DB-backed config**: `getConfig()`/`setConfig()` with AES-256-GCM encryption, SQLite config table, LLM provider listing
+- **New pages**: Pull Requests (approve/reject), Runners status, Profile page, sidebar with PR badge count
+- **Chat enhancements**: Shiki syntax highlighting (@streamdown/code), interactive mode toggle (headless vs workspace)
+- **Auth roles**: admin/user RBAC, middleware guards on /admin/*, /forbidden page
+- **Admin panel**: /settings/ → /admin/* restructure, sidebar layout, users CRUD, webhooks display, backwards-compatible redirects
+- **GitHub secrets**: sealed-box encryption for GitHub API, CRUD UI with masked values, AGENT_* prefix enforcement
+- **Voice input**: AssemblyAI v3 real-time streaming via AudioWorklet, volume bars, zero server-side audio storage
+- **Code Workspaces V2**: DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar
+- **Cluster detail views**: /cluster/[id] overview + console (SSE) + logs (persisted) + role detail pages
+- **Developer experience**: web_search tool (Brave API), CLI commands (create-instance, run-job, check-status)
 
 ## Requirements
 
@@ -100,26 +123,38 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - ✓ Workspace records survive event handler restarts — v1.5
 - ✓ Feature branch auto-created on workspace start — v1.5
 
+- ✓ Headless log streaming (SSE, Docker log streaming, Slack edit-in-place, semantic filtering) — v2.0
+- ✓ Web UI (NextAuth session auth, repo/branch selector, feature flags, live job streaming) — v2.0
+- ✓ MCP tool layer (per-instance config, template variables, --mcp-config, tool subsets, pre-run hydration) — v2.0
+- ✓ Multi-agent clusters (CLUSTER.json, sequential dispatch, shared volumes, label routing, iteration limits) — v2.0
+- ✓ DB-backed config system (getConfig/setConfig, AES-256-GCM, LLM providers) — v2.1
+- ✓ New pages: Pull Requests, Runners, Profile + sidebar with PR badge — v2.1
+- ✓ Chat enhancements: Shiki highlighting, interactive mode toggle — v2.1
+- ✓ Auth roles: admin/user RBAC, middleware guards, /forbidden page — v2.1
+- ✓ Admin panel: /settings/ → /admin/* restructure with sidebar layout — v2.1
+- ✓ GitHub secrets management: sealed-box encryption, CRUD UI, AGENT_* prefix — v2.1
+- ✓ Voice input: AssemblyAI real-time streaming, AudioWorklet, zero server-side storage — v2.1
+- ✓ Code Workspaces V2: DnD tabs, xterm addons, file tree sidebar — v2.1
+- ✓ Cluster detail views: overview, console streaming, logs, role detail — v2.1
+- ✓ Developer experience: web_search tool, CLI commands — v2.1
+
 ### Active
 
-## Current Milestone: v2.1 Upstream Feature Sync
+(No active milestone — v2.1 complete, next milestone TBD)
 
-**Goal:** Cherry-pick all missing front-end features from PopeBot upstream (stephengpope/thepopebot) into ClawForge via 3 waves — low-risk UI additions first, then admin panel restructure, then advanced features (voice, enhanced workspaces, cluster detail views). Never overwrite ClawForge-specific systems.
+## Previous Milestones
 
-**Target features:**
-- **Wave 1 (low risk):** Foundation config system, PR approvals page, Runners page, Profile page, sidebar updates, file upload in chat, enhanced code mode toggle
-- **Wave 2 (medium risk):** Auth roles (admin/user), admin panel restructure (/settings/ → /admin/*), GitHub secrets management UI
-- **Wave 3 (higher effort):** Voice input (AssemblyAI), enhanced code workspaces (DnD tabs, file tree, xterm addons), cluster detail views (/cluster/[id]/*), developer experience (setup wizard, CLI tools, web search tool)
+### v2.1 Upstream Feature Sync (shipped 2026-03-13)
 
-**Use cases:** Noah's own products, Epic development for CCP projects
+**Goal:** Cherry-pick all missing front-end features from PopeBot upstream via 3 waves — UI additions, admin panel, advanced features. Never overwrite ClawForge-specific systems.
 
-**Cherry-pick strategy:** ~60-70% of shared code has diverged. Only upstream-only files are safe to copy directly. Heavily-diverged files (tools.js, agent.js, docker.js, schema.js, paths.js) keep ClawForge versions. All `thepopebot/*` package imports converted to relative imports on cherry-pick. See `.planning/references/cherry-pick-merge-guide.md` for file-level guidance.
+**Delivered:** 10 phases, 12 plans, 35 requirements. DB config, new pages, chat enhancements, auth roles, admin panel, GitHub secrets, voice input, workspace V2, cluster detail views, developer tools.
 
-## Previous Milestone: v2.0 Full Platform (shipped 2026-03-12)
+### v2.0 Full Platform (shipped 2026-03-12)
 
 **Goal:** Transform ClawForge from a CLI-driven agent gateway into a full-featured agent platform with web UI, multi-agent clusters, headless streaming, and per-instance MCP tool configs.
 
-**Delivered:** Headless log streaming, web UI auth + repo selector, MCP tool layer, multi-agent clusters. 35 requirements satisfied across 4 phases (25-28).
+**Delivered:** 4 phases, 14 plans, 35 requirements. Headless log streaming, web UI auth + repo selector, MCP tool layer, multi-agent clusters.
 
 ### Out of Scope
 
@@ -145,7 +180,7 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - **v1.4 Docker Engine Foundation** — shipped 2026-03-08
 - **v1.5 Persistent Workspaces** — shipped 2026-03-11
 - **v2.0 Full Platform** — shipped 2026-03-12 (Web UI, Clusters, Headless Streaming, MCP Tool Layer)
-- **v2.1 Upstream Feature Sync** — Cherry-pick all missing upstream features in 3 waves (UI pages, admin panel, advanced features)
+- **v2.1 Upstream Feature Sync** — shipped 2026-03-13 (UI pages, admin panel, voice, workspaces V2, clusters UI, DX tools)
 - **v2.2 Smart Execution** — Pre-CI quality gates, test feedback loops, merge policies (Stripe deterministic interleaving)
 
 **Sources:** Stripe minions blog (stripe.dev/blog/minions), thepopebot upstream (stephengpope/thepopebot), analyzed 2026-03-04
@@ -217,10 +252,17 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 | Chat context JSON-encoded, 20KB cap | Handles newlines/special chars in Docker env vars; prevents oversized env | ✓ Reliable injection |
 | closeWorkspace delegates to stopWorkspace | Non-running workspaces handled gracefully without duplicate status checks | ✓ Robust close path |
 | notifyWorkspaceEvent is module-local | Only closeWorkspace and reconcile/idle paths call it; not exposed to external callers | ✓ Controlled notification |
-| Cherry-pick upstream via 3 waves (v2.1) | ~60-70% code divergence makes full sync infeasible; wave approach manages risk | Planned — v2.1 |
+| Cherry-pick upstream via 3 waves (v2.1) | ~60-70% code divergence makes full sync infeasible; wave approach manages risk | ✓ v2.1 complete — all 3 waves shipped |
 | Keep dockerode, never adopt upstream raw http | dockerode is battle-tested with stream demuxing; upstream raw http is 472 lines of manual HTTP | ✓ Architecture decision |
 | Keep Node crypto, never adopt libsodium | Already using AES-256-GCM; no reason to add native dependency | ✓ Architecture decision |
-| Convert thepopebot/* imports to relative | ClawForge uses relative imports; upstream NPM package imports break in our fork model | Planned — v2.1 |
+| Convert thepopebot/* imports to relative | ClawForge uses relative imports; upstream NPM package imports break in our fork model | ✓ All imports converted in v2.1 |
+| AssemblyAI for voice (not OpenAI Whisper) | Direct browser-to-service streaming; no server-side audio storage needed | ✓ Voice input working |
+| crypto.js reads AUTH_SECRET from process.env | Avoids circular dependency with getConfig in config system | ✓ Clean module graph |
+| AdminLayout uses sidebar (not tabs) | Scales to 6+ sub-pages without horizontal overflow | ✓ Clean admin navigation |
+| githubApiRaw for 204 responses | PUT/DELETE endpoints return no body; separate helper avoids modifying shared githubApi | ✓ Secrets CRUD working |
+| AudioWorklet processor as static file in public/ | Cannot be bundled by esbuild; must be loaded as separate worker script | ✓ Voice capture working |
+| activeTabId replaces activeTabIndex | String-based tab identity survives DnD reorders without index confusion | ✓ Tab tracking stable |
+| Conditional tool registration via spread | `...(env.KEY ? [tool] : [])` keeps agent tools array clean when optional services unavailable | ✓ web_search gated on BRAVE_API_KEY |
 
 - Instance updates/deletion — define creation first, update flows are additive complexity
 - Automated deployment — security-sensitive; human review via PR is the right gate
@@ -228,4 +270,4 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
 ---
-*Last updated: 2026-03-11 after v1.5 milestone*
+*Last updated: 2026-03-16 after v2.1 milestone*

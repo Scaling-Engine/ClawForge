@@ -1,5 +1,42 @@
 # Milestones
 
+## v2.1 Upstream Feature Sync (Shipped: 2026-03-16)
+
+**Phases:** 29-38 (10 phases, 12 plans)
+**Timeline:** 1 day (2026-03-13)
+**Files changed:** 192 (+26,282 / -520)
+**Requirements:** 35/35 satisfied (CONFIG, PAGES, CHAT, ROLE, ADMIN, GHSEC, VOICE, CWSV2, CLSTUI, DX)
+**Archive:** milestones/v2.1-ROADMAP.md, milestones/v2.1-REQUIREMENTS.md
+
+**Key accomplishments:**
+- DB-backed config system (AES-256-GCM encryption, SQLite config table, LLM provider listing) as foundation for all subsequent phases
+- Three new pages (Pull Requests with approve/reject, Runners status, Profile) plus sidebar navigation with PR badge count
+- Chat enhancements: Shiki syntax highlighting via @streamdown/code, interactive mode toggle routing headless vs workspace coding
+- Role-based access control: admin/user roles, middleware guards on /admin/*, forbidden page, conditional sidebar navigation
+- Admin panel restructure: /settings/ → /admin/* migration with sidebar layout, users CRUD, webhooks display, backwards-compatible redirects
+- GitHub secrets management: sealed-box encryption for GitHub API, CRUD UI with masked values, AGENT_* prefix enforcement
+- Voice input: AssemblyAI v3 real-time streaming via AudioWorklet, volume bars, zero server-side audio storage
+- Code Workspaces V2: DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar with polling
+- Cluster detail views: /cluster/[id] overview + console (SSE streaming) + logs (persisted) + role detail pages
+- Developer experience: web_search LangGraph tool (Brave API), CLI commands (create-instance, run-job, check-status)
+
+---
+
+## v2.0 Full Platform (Shipped: 2026-03-12)
+
+**Phases:** 25-28 (4 phases, 14 plans)
+**Timeline:** 1 day (2026-03-12)
+**Requirements:** 35/35 satisfied (STRM, WEBUI, MCP, CLST)
+**Archive:** milestones/v2.1-ROADMAP.md (v2.0 phases included in v2.1 archive)
+
+**Key accomplishments:**
+- Headless log streaming: SSE endpoint, Docker log streaming, Slack edit-in-place status updates, semantic event filtering
+- Web UI: NextAuth session auth on Server Actions, repo/branch selector, feature flags system, live job streaming inline in chat
+- MCP tool layer: per-instance MCP_SERVERS.json, template variable resolution, --mcp-config flag, tool subset curation, pre-run context hydration
+- Multi-agent clusters: CLUSTER.json definition, sequential Docker dispatch, shared volume communication, label-based state machine, hard iteration limits, cluster Slack thread notifications
+
+---
+
 ## v1.5 Persistent Workspaces (Shipped: 2026-03-11)
 
 **Phases:** 22-24 (3 phases, 7 plans)
