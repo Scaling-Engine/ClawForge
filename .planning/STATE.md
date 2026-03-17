@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Smart Operations
-status: completed
-stopped_at: Milestone archived
+milestone: v3.0
+milestone_name: Customer Launch
+status: defining_requirements
+stopped_at: ~
 last_updated: "2026-03-17T12:00:00.000Z"
-last_activity: 2026-03-17 — v2.2 milestone archived (4 phases, 8 plans, 22 requirements)
+last_activity: 2026-03-17 — Milestone v3.0 Customer Launch started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** v2.2 shipped — awaiting next milestone definition
+**Current focus:** v3.0 Customer Launch — stabilize + launch to external customers and internal team
 
 ## Current Position
 
-Milestone: v2.2 Smart Operations — SHIPPED 2026-03-17
-All 4 phases complete (39-42), 8 plans, 22 requirements satisfied.
-
-Next step: `/gsd:new-milestone` to define v2.3
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-17 — Milestone v3.0 started
 
 ## Accumulated Context
 
