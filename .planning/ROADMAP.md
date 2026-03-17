@@ -148,7 +148,11 @@ Plans:
   4. Operator can send a follow-up message to a running session to redirect the agent; the agent receives it and continues or changes course
   5. Operator sees token usage and estimated USD cost per turn displayed in the message stream, and the data is persisted in the database
   6. Operator can toggle the session to shell mode for direct bash command execution within the same session context
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 41-01-PLAN.md — Backend foundation: DB schema, session manager, SDK bridge, cost tracker, terminal streaming route
+- [ ] 41-02-PLAN.md — Frontend components: DiffView, ThinkingPanel, CostDisplay, TerminalToolCall
+- [ ] 41-03-PLAN.md — Chat integration: wire terminal mode into Chat/ChatInput, route tool calls to TerminalToolCall, visual verification
 
 ### Phase 42: Admin Operations and Superadmin
 **Goal**: All remaining SSH-required operations are available via the web UI, and a superadmin can manage all instances from a single login
@@ -177,12 +181,12 @@ Plans:
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39. Smart Execution | 2/2 | Complete    | 2026-03-16 | - |
 | 40. Job Control UI | 1/1 | Complete   | 2026-03-17 | - |
-| 41. Terminal Chat | v2.2 | 0/TBD | Not started | - |
+| 41. Terminal Chat | v2.2 | 0/3 | Planned | - |
 | 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
 
 **Total shipped:** 38 phases, 73 plans — all complete through v2.1
-**v2.2 active:** 4 phases, Phase 39 complete (2 plans), Phase 40 complete (1 plan)
+**v2.2 active:** 4 phases, Phase 39 complete (2 plans), Phase 40 complete (1 plan), Phase 41 planned (3 plans)
 
 ---
 
-*Last updated: 2026-03-17 -- Phase 40 complete*
+*Last updated: 2026-03-17 -- Phase 41 planned*
