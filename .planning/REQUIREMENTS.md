@@ -28,8 +28,8 @@ Requirements for v2.2 Smart Operations. Each maps to roadmap phases.
 
 ### UI Operations Parity (OPS)
 
-- [ ] **OPS-01**: Operator can cancel a running job from the web UI, which stops and removes the Docker container
-- [ ] **OPS-02**: Operator can retry a failed job from the web UI, which re-dispatches with the original prompt and target repo
+- [x] **OPS-01**: Operator can cancel a running job from the web UI, which stops and removes the Docker container
+- [x] **OPS-02**: Operator can retry a failed job from the web UI, which re-dispatches with the original prompt and target repo
 - [ ] **OPS-03**: Operator can add, edit, and delete target repos via a form-based admin page with slug/name/alias/dispatch validation
 - [ ] **OPS-04**: Operator can edit all platform configuration keys (LLM provider, models, timeouts, auto-merge settings) from the admin general page
 - [ ] **OPS-05**: Operator can view all instances with their status, configured repos, and active jobs from an instance management admin page
@@ -94,8 +94,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXEC-02 | Phase 39 | Complete |
 | EXEC-03 | Phase 39 | Complete |
 | EXEC-04 | Phase 39 | Complete |
-| OPS-01 | Phase 40 | Pending |
-| OPS-02 | Phase 40 | Pending |
+| OPS-01 | Phase 40 | Complete |
+| OPS-02 | Phase 40 | Complete |
 | TERM-01 | Phase 41 | Pending |
 | TERM-02 | Phase 41 | Pending |
 | TERM-03 | Phase 41 | Pending |
