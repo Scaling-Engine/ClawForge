@@ -30,9 +30,9 @@ Requirements for v2.2 Smart Operations. Each maps to roadmap phases.
 
 - [x] **OPS-01**: Operator can cancel a running job from the web UI, which stops and removes the Docker container
 - [x] **OPS-02**: Operator can retry a failed job from the web UI, which re-dispatches with the original prompt and target repo
-- [ ] **OPS-03**: Operator can add, edit, and delete target repos via a form-based admin page with slug/name/alias/dispatch validation
-- [ ] **OPS-04**: Operator can edit all platform configuration keys (LLM provider, models, timeouts, auto-merge settings) from the admin general page
-- [ ] **OPS-05**: Operator can view all instances with their status, configured repos, and active jobs from an instance management admin page
+- [x] **OPS-03**: Operator can add, edit, and delete target repos via a form-based admin page with slug/name/alias/dispatch validation
+- [x] **OPS-04**: Operator can edit all platform configuration keys (LLM provider, models, timeouts, auto-merge settings) from the admin general page
+- [x] **OPS-05**: Operator can view all instances with their status, configured repos, and active jobs from an instance management admin page
 
 ### Smart Execution (EXEC)
 
@@ -104,9 +104,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-06 | Phase 41 | Complete |
 | TERM-07 | Phase 41 | Complete |
 | TERM-08 | Phase 41 | Complete |
-| OPS-03 | Phase 42 | Pending |
-| OPS-04 | Phase 42 | Pending |
-| OPS-05 | Phase 42 | Pending |
+| OPS-03 | Phase 42 | Complete |
+| OPS-04 | Phase 42 | Complete |
+| OPS-05 | Phase 42 | Complete |
 | SUPER-01 | Phase 42 | Pending |
 | SUPER-02 | Phase 42 | Pending |
 | SUPER-03 | Phase 42 | Pending |

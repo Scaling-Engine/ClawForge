@@ -185,7 +185,7 @@ Plans:
 | 39. Smart Execution | 2/2 | Complete    | 2026-03-16 | - |
 | 40. Job Control UI | 1/1 | Complete   | 2026-03-17 | - |
 | 41. Terminal Chat | 3/3 | Complete    | 2026-03-17 | - |
-| 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
+| 42. Admin Ops + Superadmin | 1/2 | In Progress|  | - |
 
 **Total shipped:** 38 phases, 73 plans — all complete through v2.1
 **v2.2 active:** 4 phases, Phase 39 complete (2 plans), Phase 40 complete (1 plan), Phase 41 planned (3 plans)

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Smart Operations
 status: verifying
-stopped_at: Completed 41-claude-code-terminal-chat/41-03-PLAN.md
-last_updated: "2026-03-17T02:54:02.823Z"
+stopped_at: Completed 42-admin-operations-and-superadmin/42-01-PLAN.md
+last_updated: "2026-03-17T03:11:02.519Z"
 last_activity: 2026-03-17 — Phase 40 Job Control UI complete (1 plan, 3 commits)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Project State
@@ -24,13 +24,13 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 40 — Job Control UI (complete)
-Plan: 40-01 complete
-Status: Phase 40 verified, ready for Phase 41
-Last activity: 2026-03-17 — Phase 40 Job Control UI complete (1 plan, 3 commits)
+Phase: 42 — Admin Ops + Superadmin (in progress)
+Plan: 42-01 complete, 42-02 next
+Status: Plan 42-01 complete (repo CRUD, config editing, instance overview)
+Last activity: 2026-03-17 — Phase 42-01 Admin Operations complete (2 tasks, 3 commits)
 
 ```
-v2.2 Progress: [██████████░░░░░░░░░░] 50% (2/4 phases)
+v2.2 Progress: [█████████░] 88% (7/8 plans)
 ```
 
 ## Roadmap Summary
@@ -40,7 +40,7 @@ v2.2 Progress: [██████████░░░░░░░░░░] 50
 | 39 — Smart Execution | Quality gates, self-correction, merge policies in job containers | EXEC-01, EXEC-02, EXEC-03, EXEC-04 | Complete |
 | 40 — Job Control UI | Cancel and retry jobs from web UI | OPS-01, OPS-02 | Complete |
 | 41 — Terminal Chat | Embedded interactive Claude Code sessions | TERM-01 through TERM-08 | Not started |
-| 42 — Admin Ops + Superadmin | Repo CRUD, config editing, instance mgmt, cross-instance superadmin | OPS-03, OPS-04, OPS-05, SUPER-01 through SUPER-05 | Not started |
+| 42 — Admin Ops + Superadmin | Repo CRUD, config editing, instance mgmt, cross-instance superadmin | OPS-03, OPS-04, OPS-05, SUPER-01 through SUPER-05 | In progress (1/2 plans) |
 
 ## Accumulated Context
 
@@ -61,6 +61,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 41-01]: getDb() called at call-site in streaming callbacks, not at module scope
 - [Phase 41-03]: terminalSessionIdRef (useRef) tracks session ID alongside state so transport useMemo reads latest value without adding terminalSessionId as a dependency — prevents unnecessary transport re-creation
 - [Phase 41-03]: Custom fetch wrapper (terminalFetch) intercepts X-Terminal-Session-Id response header — useChat from @ai-sdk/react does not expose an onResponse callback
+- [Phase 42]: Repos stored as JSON array in settings table (type=repos, key=all) with lazy file-to-DB migration
+- [Phase 42]: Config allowlist pattern: only CONFIG_ALLOWLIST keys updatable via updateConfigAction, secrets masked to last 4 chars
 
 ### v2.2 Key Architecture Notes
 
@@ -98,6 +100,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-17T02:43:19.983Z
-Stopped at: Completed 41-claude-code-terminal-chat/41-03-PLAN.md
+Last session: 2026-03-17T03:11:02.517Z
+Stopped at: Completed 42-admin-operations-and-superadmin/42-01-PLAN.md
 Resume file: None
