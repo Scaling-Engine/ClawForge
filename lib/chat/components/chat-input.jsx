@@ -42,7 +42,7 @@ function getEffectiveType(file) {
   return extMap[ext] || file.type || 'text/plain';
 }
 
-export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeMode = false, onToggleCodeMode }) {
+export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeMode = false, onToggleCodeMode, terminalMode = false, onToggleTerminalMode, shellMode = false, onToggleShellMode }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -269,8 +269,48 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
               <PaperclipIcon size={16} />
             </button>
 
-            {/* Code mode toggle */}
-            {onToggleCodeMode && (
+            {/* Terminal mode toggle */}
+            {onToggleTerminalMode && (
+              <button
+                type="button"
+                onClick={onToggleTerminalMode}
+                className={cn(
+                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
+                  terminalMode
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                aria-label="Toggle terminal mode"
+                aria-pressed={terminalMode}
+                disabled={isStreaming}
+                title="Terminal mode"
+              >
+                {'>_'}
+              </button>
+            )}
+
+            {/* Shell mode toggle — only visible when terminal mode is active */}
+            {terminalMode && onToggleShellMode && (
+              <button
+                type="button"
+                onClick={onToggleShellMode}
+                className={cn(
+                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
+                  shellMode
+                    ? 'bg-orange-500/20 text-orange-400'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                aria-label="Toggle shell mode"
+                aria-pressed={shellMode}
+                disabled={isStreaming}
+                title="Shell mode — run bash commands"
+              >
+                {'$'}
+              </button>
+            )}
+
+            {/* Code mode toggle — hidden when terminal mode is active (mutually exclusive) */}
+            {!terminalMode && onToggleCodeMode && (
               <button
                 type="button"
                 onClick={onToggleCodeMode}

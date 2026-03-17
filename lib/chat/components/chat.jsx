@@ -13,22 +13,43 @@ export function Chat({ chatId, initialMessages = [] }) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState([]);
   const [codeMode, setCodeMode] = useState(false);
+  const [terminalMode, setTerminalMode] = useState(false);
+  const [shellMode, setShellMode] = useState(false);
+  const [terminalSessionId, setTerminalSessionId] = useState(null);
   const hasNavigated = useRef(false);
+  // Ref so the transport useMemo can read the latest sessionId without re-creating on every update
+  const terminalSessionIdRef = useRef(null);
 
   const { selectedRepo, selectedBranch } = useRepoChat();
+
+  // Custom fetch wrapper that captures X-Terminal-Session-Id from response headers
+  const terminalFetch = useCallback(async (input, init) => {
+    const response = await fetch(input, init);
+    const sessionId = response.headers.get('X-Terminal-Session-Id');
+    if (sessionId) {
+      terminalSessionIdRef.current = sessionId;
+      setTerminalSessionId(sessionId);
+    }
+    return response;
+  }, []);
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: '/stream/chat',
+        api: terminalMode ? '/stream/terminal' : '/stream/chat',
         body: {
           chatId,
           selectedRepo: selectedRepo?.slug || null,
           selectedBranch: selectedBranch || null,
           interactiveMode: codeMode,
+          // Terminal-specific fields (ignored by /stream/chat)
+          sessionId: terminalMode ? terminalSessionIdRef.current : undefined,
+          shellMode: terminalMode ? shellMode : undefined,
+          thinkingEnabled: terminalMode ? true : undefined,
         },
+        fetch: terminalMode ? terminalFetch : undefined,
       }),
-    [chatId, selectedRepo, selectedBranch, codeMode]
+    [chatId, selectedRepo, selectedBranch, codeMode, terminalMode, shellMode, terminalFetch]
   );
 
   const {
@@ -60,7 +81,8 @@ export function Chat({ chatId, initialMessages = [] }) {
   const handleSend = () => {
     if (!input.trim() && files.length === 0) return;
     const rawText = input;
-    const text = codeMode && rawText.trim()
+    // In terminal mode, send plain text — backend handles shell mode wrapping
+    const text = !terminalMode && codeMode && rawText.trim()
       ? `\`\`\`\n${rawText.trim()}\n\`\`\``
       : rawText;
     const currentFiles = files;
@@ -137,6 +159,17 @@ export function Chat({ chatId, initialMessages = [] }) {
                 setFiles={setFiles}
                 codeMode={codeMode}
                 onToggleCodeMode={() => setCodeMode((prev) => !prev)}
+                terminalMode={terminalMode}
+                onToggleTerminalMode={() => {
+                  setTerminalMode((prev) => {
+                    const next = !prev;
+                    if (next) setCodeMode(false);
+                    if (!next) setShellMode(false);
+                    return next;
+                  });
+                }}
+                shellMode={shellMode}
+                onToggleShellMode={() => setShellMode((prev) => !prev)}
               />
             </div>
           </div>
