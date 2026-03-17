@@ -194,6 +194,17 @@ export function Chat({ chatId, initialMessages = [] }) {
             setFiles={setFiles}
             codeMode={codeMode}
             onToggleCodeMode={() => setCodeMode((prev) => !prev)}
+            terminalMode={terminalMode}
+            onToggleTerminalMode={() => {
+              setTerminalMode((prev) => {
+                const next = !prev;
+                if (next) setCodeMode(false);
+                if (!next) setShellMode(false);
+                return next;
+              });
+            }}
+            shellMode={shellMode}
+            onToggleShellMode={() => setShellMode((prev) => !prev)}
           />
         </>
       )}
