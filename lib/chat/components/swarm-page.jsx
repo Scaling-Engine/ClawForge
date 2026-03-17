@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageLayout } from './page-layout.js';
 import { SpinnerIcon, RefreshIcon } from './icons.js';
-import { getSwarmStatus } from '../actions.js';
+import { getSwarmStatus, cancelJob, retryJob, getDockerJobs } from '../actions.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilities
@@ -122,6 +122,118 @@ function SwarmWorkflowList({ runs }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Docker Jobs List
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DockerJobsList({ jobs, session, onRefresh }) {
+  const [cancelling, setCancelling] = useState(null);
+  const [retrying, setRetrying] = useState(null);
+  const isAdmin = session?.user?.role === 'admin';
+
+  const handleCancel = async (jobId) => {
+    setCancelling(jobId);
+    try {
+      const result = await cancelJob(jobId);
+      if (result.error) {
+        console.error('Cancel failed:', result.error);
+        alert(result.error);
+      } else {
+        onRefresh?.();
+      }
+    } catch (err) {
+      console.error('Cancel error:', err);
+    } finally {
+      setCancelling(null);
+    }
+  };
+
+  const handleRetry = async (jobId) => {
+    setRetrying(jobId);
+    try {
+      const result = await retryJob(jobId);
+      if (result.error) {
+        console.error('Retry failed:', result.error);
+        alert(result.error);
+      } else {
+        onRefresh?.();
+      }
+    } catch (err) {
+      console.error('Retry error:', err);
+    } finally {
+      setRetrying(null);
+    }
+  };
+
+  if (!jobs || jobs.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        Active Docker Jobs
+      </h2>
+      <div className="flex flex-col divide-y divide-border rounded-md border border-border">
+        {jobs.map((job) => {
+          const isRunning = job.containerRunning;
+          const isFailed = !isRunning && job.outcome?.status === 'failure';
+
+          return (
+            <div key={job.jobId} className="flex items-center gap-3 py-3 px-3">
+              {/* Status indicator */}
+              {isRunning && (
+                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-green-500 animate-pulse" />
+              )}
+              {isFailed && (
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase shrink-0 bg-red-500/10 text-red-500">
+                  failed
+                </span>
+              )}
+              {!isRunning && !isFailed && (
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase shrink-0 bg-muted text-muted-foreground">
+                  {job.containerStatus || 'stopped'}
+                </span>
+              )}
+
+              {/* Job ID (truncated) */}
+              <span className="text-sm font-mono truncate" title={job.jobId}>
+                {job.jobId.slice(0, 8)}
+              </span>
+
+              {/* Time */}
+              <span className="text-xs text-muted-foreground shrink-0">
+                {timeAgo(job.createdAt)}
+              </span>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Admin-only controls */}
+              {isAdmin && isRunning && (
+                <button
+                  onClick={() => handleCancel(job.jobId)}
+                  disabled={cancelling === job.jobId}
+                  className="text-xs text-red-500 hover:underline shrink-0 disabled:opacity-50"
+                >
+                  {cancelling === job.jobId ? 'Cancelling...' : 'Cancel'}
+                </button>
+              )}
+              {isAdmin && isFailed && (
+                <button
+                  onClick={() => handleRetry(job.jobId)}
+                  disabled={retrying === job.jobId}
+                  className="text-xs text-blue-500 hover:underline shrink-0 disabled:opacity-50"
+                >
+                  {retrying === job.jobId ? 'Retrying...' : 'Retry'}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -131,6 +243,7 @@ export function SwarmPage({ session }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [dockerJobs, setDockerJobs] = useState([]);
 
   const fetchPage = useCallback(async (p) => {
     try {
@@ -146,14 +259,27 @@ export function SwarmPage({ session }) {
     }
   }, []);
 
+  const fetchDockerJobs = useCallback(async () => {
+    try {
+      const jobs = await getDockerJobs();
+      setDockerJobs(Array.isArray(jobs) ? jobs : []);
+    } catch (err) {
+      console.error('Failed to fetch Docker jobs:', err);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => { fetchPage(1); }, [fetchPage]);
+  useEffect(() => { fetchDockerJobs(); }, [fetchDockerJobs]);
 
-  // Auto-refresh current page every 10s
+  // Auto-refresh current page and Docker jobs every 10s
   useEffect(() => {
-    const interval = setInterval(() => fetchPage(page), 10000);
+    const interval = setInterval(() => {
+      fetchPage(page);
+      fetchDockerJobs();
+    }, 10000);
     return () => clearInterval(interval);
-  }, [fetchPage, page]);
+  }, [fetchPage, fetchDockerJobs, page]);
 
   return (
     <PageLayout session={session}>
@@ -190,6 +316,11 @@ export function SwarmPage({ session }) {
         <LoadingSkeleton />
       ) : (
         <div>
+          <DockerJobsList
+            jobs={dockerJobs}
+            session={session}
+            onRefresh={() => { fetchDockerJobs(); fetchPage(page); }}
+          />
           <SwarmWorkflowList runs={runs} />
           {/* Pagination */}
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
