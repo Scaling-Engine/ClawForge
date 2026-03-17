@@ -50,6 +50,13 @@
       "when": 1773339617000,
       "tag": "0006_cluster_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1773945600000,
+      "tag": "0007_terminal_sessions",
+      "breakpoints": true
     }
   ]
 }
