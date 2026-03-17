@@ -133,7 +133,9 @@ Plans:
   1. A running job shows a Cancel button in the web UI; clicking it stops the Docker container and the job status updates to cancelled
   2. A failed job shows a Retry button in the web UI; clicking it re-dispatches the job with the original prompt and target repo without the operator re-typing anything
   3. Both cancel and retry are guarded by admin role check — non-admin users do not see the controls
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 40-01-PLAN.md — cancelJob/retryJob Server Actions + Swarm page Cancel/Retry buttons
 
 ### Phase 41: Claude Code Terminal Chat
 **Goal**: Operators can run an interactive Claude Code session in the chat UI with live streaming of tool calls, file edits, and cost tracking
@@ -174,13 +176,13 @@ Plans:
 | 25-28 | v2.0 | 14/14 | Complete | 2026-03-12 |
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39. Smart Execution | 2/2 | Complete    | 2026-03-16 | - |
-| 40. Job Control UI | v2.2 | 0/TBD | Not started | - |
+| 40. Job Control UI | v2.2 | 0/1 | Planned | - |
 | 41. Terminal Chat | v2.2 | 0/TBD | Not started | - |
 | 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
 
 **Total shipped:** 38 phases, 73 plans — all complete through v2.1
-**v2.2 active:** 4 phases, Phase 39 planned (2 plans)
+**v2.2 active:** 4 phases, Phase 39 complete (2 plans), Phase 40 planned (1 plan)
 
 ---
 
-*Last updated: 2026-03-16 -- Phase 39 plans created*
+*Last updated: 2026-03-16 -- Phase 40 plan created*
