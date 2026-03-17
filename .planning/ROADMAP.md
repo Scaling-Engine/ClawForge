@@ -181,8 +181,8 @@ Plans:
 | 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
 
 **Total shipped:** 38 phases, 73 plans — all complete through v2.1
-**v2.2 active:** 4 phases, Phase 39 complete (2 plans), Phase 40 planned (1 plan)
+**v2.2 active:** 4 phases, Phase 39 complete (2 plans), Phase 40 complete (1 plan)
 
 ---
 
-*Last updated: 2026-03-16 -- Phase 40 plan created*
+*Last updated: 2026-03-17 -- Phase 40 complete*

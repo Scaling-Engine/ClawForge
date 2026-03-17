@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Smart Operations
-status: planning
-stopped_at: Completed 40-job-control-ui/40-01-PLAN.md
-last_updated: "2026-03-17T00:51:50.957Z"
-last_activity: 2026-03-16 — v2.2 roadmap created (4 phases, 22 requirements mapped)
+status: executing
+stopped_at: Phase 40 complete, verified
+last_updated: "2026-03-17T01:15:00.000Z"
+last_activity: 2026-03-17 — Phase 40 Job Control UI complete (1 plan, 3 commits)
 progress:
   total_phases: 4
   completed_phases: 2
@@ -24,21 +24,21 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 39 — Smart Execution (not started)
-Plan: —
-Status: Roadmap defined, awaiting Phase 39 planning
-Last activity: 2026-03-16 — v2.2 roadmap created (4 phases, 22 requirements mapped)
+Phase: 40 — Job Control UI (complete)
+Plan: 40-01 complete
+Status: Phase 40 verified, ready for Phase 41
+Last activity: 2026-03-17 — Phase 40 Job Control UI complete (1 plan, 3 commits)
 
 ```
-v2.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
+v2.2 Progress: [██████████░░░░░░░░░░] 50% (2/4 phases)
 ```
 
 ## Roadmap Summary
 
 | Phase | Goal | Requirements | Status |
 |-------|------|--------------|--------|
-| 39 — Smart Execution | Quality gates, self-correction, merge policies in job containers | EXEC-01, EXEC-02, EXEC-03, EXEC-04 | Not started |
-| 40 — Job Control UI | Cancel and retry jobs from web UI | OPS-01, OPS-02 | Not started |
+| 39 — Smart Execution | Quality gates, self-correction, merge policies in job containers | EXEC-01, EXEC-02, EXEC-03, EXEC-04 | Complete |
+| 40 — Job Control UI | Cancel and retry jobs from web UI | OPS-01, OPS-02 | Complete |
 | 41 — Terminal Chat | Embedded interactive Claude Code sessions | TERM-01 through TERM-08 | Not started |
 | 42 — Admin Ops + Superadmin | Repo CRUD, config editing, instance mgmt, cross-instance superadmin | OPS-03, OPS-04, OPS-05, SUPER-01 through SUPER-05 | Not started |
 
