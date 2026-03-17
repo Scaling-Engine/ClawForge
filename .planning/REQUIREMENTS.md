@@ -86,32 +86,32 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OBS-01 | — | Pending |
-| OBS-02 | — | Pending |
-| OBS-03 | — | Pending |
-| OBS-04 | — | Pending |
-| OBS-05 | — | Pending |
-| BILL-01 | — | Pending |
-| BILL-02 | — | Pending |
-| BILL-03 | — | Pending |
-| BILL-04 | — | Pending |
-| BILL-05 | — | Pending |
-| ONB-01 | — | Pending |
-| ONB-02 | — | Pending |
-| ONB-03 | — | Pending |
-| ONB-04 | — | Pending |
-| ONB-05 | — | Pending |
-| ONB-06 | — | Pending |
-| MON-01 | — | Pending |
-| MON-02 | — | Pending |
-| DOCS-01 | — | Pending |
-| LAUNCH-01 | — | Pending |
+| OBS-01 | Phase 43 | Pending |
+| OBS-02 | Phase 43 | Pending |
+| OBS-03 | Phase 43 | Pending |
+| OBS-04 | Phase 43 | Pending |
+| OBS-05 | Phase 43 | Pending |
+| BILL-01 | Phase 44 | Pending |
+| BILL-02 | Phase 44 | Pending |
+| BILL-03 | Phase 44 | Pending |
+| BILL-04 | Phase 44 | Pending |
+| BILL-05 | Phase 44 | Pending |
+| ONB-01 | Phase 45 | Pending |
+| ONB-02 | Phase 45 | Pending |
+| ONB-03 | Phase 45 | Pending |
+| ONB-04 | Phase 45 | Pending |
+| ONB-05 | Phase 45 | Pending |
+| ONB-06 | Phase 45 | Pending |
+| MON-01 | Phase 46 | Pending |
+| MON-02 | Phase 46 | Pending |
+| DOCS-01 | Phase 47 | Pending |
+| LAUNCH-01 | Phase 47 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
-- Mapped to phases: 0 (populated by roadmapper)
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20 (Phases 43-47)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 after initial definition*
+*Last updated: 2026-03-17 — Phase mappings added by roadmapper*

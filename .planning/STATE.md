@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Customer Launch
-status: defining_requirements
+status: roadmap_complete
 stopped_at: ~
 last_updated: "2026-03-17T12:00:00.000Z"
-last_activity: 2026-03-17 — Milestone v3.0 Customer Launch started
+last_activity: 2026-03-17 — v3.0 Customer Launch roadmap created (Phases 43-47)
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,12 +24,52 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 43 (Observability Foundation) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-17 — Milestone v3.0 started
+Status: Roadmap complete, ready to plan Phase 43
+Last activity: 2026-03-17 — v3.0 roadmap created
+
+```
+Progress: [          ] 0/5 phases  0/20 requirements
+```
+
+## Performance Metrics
+
+| Metric | v2.2 | v3.0 Target |
+|--------|------|-------------|
+| Phases | 42 complete | 5 planned (43-47) |
+| Requirements | 81 plans shipped | 20 v1 requirements to satisfy |
+| Milestone cadence | 1-2 days per milestone | TBD |
 
 ## Accumulated Context
+
+### Decisions Made (v3.0)
+
+- **Observability stack:** pino@^10.3.1 + pino-http + @sentry/nextjs@^10.44.0. No OpenTelemetry (overkill at 2-10 instances).
+- **Billing approach:** Local SQLite enforcement only in dispatch path. Stripe sync via daily cron, never blocking job creation. Read-only usage visibility first — soft limits when patterns confirmed.
+- **Onboarding redirect:** Unconditional `ONBOARDING_ENABLED` env var redirect + page-level Server Component completion check. NOT in middleware (Edge Runtime blocks better-sqlite3).
+- **Four new tables:** `error_log`, `usage_events`, `billing_limits`, `onboarding_state` — all additive, no changes to existing tables (only additive columns if needed on `job_outcomes`).
+- **Monitoring:** Zero new libraries. Extends existing dockerode stats, Drizzle queries, superadmin endpoint switch pattern.
+- **Docs:** Task-oriented operator runbook (not architecture docs). Top 10 troubleshooting errors + deployment runbook + config reference.
+
+### Research Flags for Phase Planning
+
+- **Phase 44 (Billing):** Confirm whether workspace-hour billing is in v3.0 or deferred. If deferred, omit `workspace_hour` from `usage_events` schema to avoid dead columns.
+- **Phase 45 (Onboarding):** Validate Edge Runtime redirect loop risk before writing middleware code. Confirm unconditional env var redirect + page-level check does not produce circular redirect on first load.
+- **Phase 46 (Monitoring):** Confirm charting library in `package.json` before choosing recharts vs. chart.js for monitoring page.
+
+### Do-Not-Touch List
+
+The following files must not be modified structurally — additive changes only:
+- `lib/superadmin/client.js`
+- `verifySuperadminToken()` in `api/superadmin.js`
+- `lib/db/job-outcomes.js` (additive columns only)
+- The `waitAndNotify` pattern in `lib/tools/create-job.js`
+- Existing role guards in `lib/auth/middleware.js`
+- `lib/ai/agent.js`
+- `terminalCosts`/`terminalSessions` tables
+- `lib/ws/` WebSocket proxy
+- `lib/db/config.js` settings table
 
 ### Pending Todos
 
@@ -53,5 +93,6 @@ Last activity: 2026-03-17 — Milestone v3.0 started
 ## Session Continuity
 
 Last session: 2026-03-17
-Stopped at: Milestone v2.2 archived
+Stopped at: v3.0 roadmap created
 Resume file: None
+Next action: `/gsd:plan-phase 43`
