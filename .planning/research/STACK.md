@@ -1,344 +1,238 @@
-# Technology Stack
+# Stack Research
 
-**Project:** ClawForge v2.2 Smart Operations
-**Milestone:** v2.2 — Claude Code terminal chat mode, superadmin portal with instance switching, full UI operational control, smart execution policies
-**Researched:** 2026-03-16
-**Confidence:** HIGH for Agent SDK (official docs verified); HIGH for auth patterns (codebase analysis); MEDIUM for smart execution (patterns research, no upstream reference)
+**Domain:** Commercial SaaS launch additions — observability, billing, onboarding, team monitoring
+**Milestone:** v3.0 Customer Launch
+**Researched:** 2026-03-17
+**Confidence:** HIGH (versions confirmed via npm registry; integration patterns verified against existing codebase)
 
 ---
 
 ## Scope
 
-This document covers **additions and changes needed for v2.2 only**.
+This document covers **additions needed for v3.0 only**. The full existing stack (Next.js 15.5.12, NextAuth v5 beta, Drizzle ORM + better-sqlite3, dockerode v4, LangGraph, Zod v4, Tailwind v4, node-cron, stripe SDK not yet installed) is treated as fixed.
 
-**Already in the stack — do NOT re-add or change:**
-- Next.js 15 + React 19 (peer deps)
-- LangGraph ReAct agent, SqliteSaver checkpointing
-- Drizzle ORM + better-sqlite3
-- dockerode ^4.0.9 (Docker Engine API)
-- ws ^8.19.0 (WebSocket proxy for ttyd)
-- @xterm/xterm ^6.0.0 + addon-fit + addon-attach + addon-search + addon-serialize + addon-web-links
-- @dnd-kit/core ^6.3.1 + @dnd-kit/sortable ^10.0.0
-- next-auth ^5.0.0-beta.30 (NextAuth v5, Credentials provider, admin/user RBAC)
-- @ai-sdk/react ^2.0.0 + ai ^5.0.0 (Vercel AI SDK v5 — useChat, createUIMessageStream)
-- Node.js built-in `crypto` (AES-256-GCM for secrets)
-- tweetnacl + tweetnacl-sealedbox-js (GitHub sealed-box encryption)
-- bcrypt-ts (password hashing)
-- chokidar ^5.0.0 (cluster file-watch triggers)
-- node-cron ^3.0.3 (scheduled triggers)
-- streamdown ^2.2.0 + @streamdown/code ^1.1.0 (Shiki markdown rendering)
-- AssemblyAI v3 WebSocket (voice input — already integrated)
-- All lucide-react, tailwindcss v4, clsx, tailwind-merge, class-variance-authority UI primitives
-- SSE via native ReadableStream (headless job log streaming already working)
-- streamManager pub/sub (lib/tools/stream-manager.js — already in production)
+Four new capability areas:
 
-Four new capability areas for v2.2:
-
-1. **Claude Code terminal mode in chat** — embedded Claude Agent SDK session, streaming tool calls / file edits / thinking steps, interrupt/cancel
-2. **Superadmin portal with instance switching** — single login across all instances, `superadmin` role, instance context in session
-3. **Full UI operations parity** — repo CRUD, job cancel/retry/logs, config editing, instance management from browser
-4. **Smart execution policies** — pre-CI quality gates, test feedback loops, merge policy enforcement
+1. **Observability** — structured error logging, health checks, error tracking
+2. **Billing and access control** — Stripe subscriptions, usage metering, per-customer limits
+3. **Self-service onboarding** — multi-step wizard, transactional email
+4. **Team monitoring dashboard** — cross-instance container stats, job metrics, real-time updates
 
 ---
 
-## Critical Rename: @anthropic-ai/claude-code SDK → @anthropic-ai/claude-agent-sdk
+## New Additions by Feature Area
 
-The programmatic SDK previously known as `@anthropic-ai/claude-code` (the importable library, NOT the CLI tool) has been renamed to `@anthropic-ai/claude-agent-sdk`. The CLI tool (`claude` binary, `@anthropic-ai/claude-code` CLI package) is unaffected.
+### 1. Observability
 
-**Current versions (verified 2026-03-16 via npm registry):**
-- `@anthropic-ai/claude-code` (CLI) — `2.1.76`
-- `@anthropic-ai/claude-agent-sdk` (programmatic SDK) — `0.2.76`
-
-The two packages serve different purposes:
-- `@anthropic-ai/claude-code` — the `claude` CLI binary, installed globally, used by job containers
-- `@anthropic-ai/claude-agent-sdk` — TypeScript/JS library, imported in Node.js code, exposes `query()` async generator
-
-ClawForge currently uses the CLI (`claude -p`) inside Docker job containers. For v2.2 terminal chat mode, we need the **SDK** (`@anthropic-ai/claude-agent-sdk`) running in the Event Handler Node.js process, not inside Docker.
-
----
-
-## Recommended Stack — New Additions Only
-
-### Feature 1: Claude Code Terminal Chat Mode
-
-#### The Core Library
+#### Structured Server-Side Logging
 
 | Library | Version | Purpose | Why |
 |---------|---------|---------|-----|
-| `@anthropic-ai/claude-agent-sdk` | `^0.2.76` | Programmatic Claude Code execution with streaming | The official Anthropic SDK for running Claude Code as an async generator. Exposes `query()` which yields `SDKMessage` objects: assistant messages, tool calls, tool results, system init, result. Supports `interrupt()`, `close()`, `AbortController` cancellation. This is the only correct way to embed Claude Code execution in a Node.js server process — the CLI (-p) produces unstructured stdout unsuitable for real-time UI. | ADD (new) |
+| `pino` | `^10.3.1` | Structured JSON logger | Fastest Node.js logger (5x faster than alternatives), zero dependencies, JSON output by default. Stdout-only — PM2/Docker Compose captures to rotating files. No log aggregation service needed at 2-instance scale. |
+| `pino-http` | `^11.0.0` | HTTP request/response logging | Mounts on the existing `server.js` custom HTTP server (one `createServer()` call). Logs every request with latency, status code, and structured context without manual instrumentation. |
 
-#### What query() Streams (SDKMessage union type, HIGH confidence — official docs)
+**Integration point:** `server.js` is the correct mount point — it wraps Next.js and already handles WebSocket upgrade interception. Add `pinoHttp()` before the Next.js handler. pino v10 requires Node.js 20+; the job container Dockerfile uses Node 22, so there is no compatibility issue.
 
-The `query()` function returns a `Query` object (AsyncGenerator) that yields these message types relevant to the terminal chat UI:
+OpenTelemetry is explicitly out of scope per `PROJECT.md` ("hooks + committed logs sufficient for 2 instances"). Pino alone covers the need.
 
-| Message Type | When emitted | UI rendering |
-|-------------|--------------|--------------|
-| `SDKSystemMessage` (subtype: `init`) | Session start | Shows model, tools available, session ID |
-| `SDKAssistantMessage` | Each assistant turn | Text content + any tool_use blocks |
-| `SDKPartialAssistantMessage` | When `includePartialMessages: true` | Token-by-token streaming (opt-in) |
-| `SDKUserMessage` | Tool results fed back | Tool result display |
-| `SDKResultMessage` | Final answer | Shows cost, duration, num_turns |
-| `SDKToolProgressMessage` | Mid-tool progress | Shows what Claude is doing inside a tool |
-| `SDKStatusMessage` | Status updates | Thinking/working indicators |
+#### Error Tracking
 
-The `SDKAssistantMessage.message` field is a `BetaMessage` from the Anthropic SDK — its `.content` array contains `TextBlock` and `ToolUseBlock` items. Tool calls include the tool name and full input JSON. This is far richer than the JSONL parsing done by `lib/tools/log-parser.js` for headless jobs.
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `@sentry/nextjs` | `^10.44.0` | Client + server error capture with source maps | Official Next.js integration with App Router. `onRequestError` hook in `instrumentation.ts` auto-captures all Server Component and API route errors. Sentry reworked the SDK specifically to avoid Turbopack bundler dependency (used in Next.js 15 dev). Cloud free tier: 5,000 errors/month — covers launch volume with no infrastructure to run. |
 
-#### Interrupt / Cancel Pattern
+Self-hosted alternatives (GlitchTip, Bugsink) require PostgreSQL, which contradicts the SQLite-only constraint. At launch scale, Sentry.io free tier is correct. Re-evaluate if error volume exceeds 5K/month after launch.
 
-```javascript
-// Query object has interrupt() and close() methods:
-const q = query({ prompt, options: { abortController: ac } });
-// ...
-await q.interrupt();  // soft interrupt (streaming input mode)
-q.close();            // hard close + process termination
-ac.abort();           // AbortController cancellation
-```
+**Integration point:** Add `instrumentation.ts` + `sentry.client.config.ts` + `sentry.server.config.ts` via the Sentry manual setup path. The `onRequestError` hook captures async errors in Server Components that Next.js's default error boundaries would otherwise silently swallow.
 
-Use `close()` for operator-initiated "stop" (terminates underlying process immediately). Use `abortController.abort()` when the browser disconnects (SSE connection abort signal).
+#### Health Check Endpoint
 
-#### Session Continuity
+No new library. Add `/app/api/health/route.js` (App Router route handler) that:
+1. Checks SQLite with a `SELECT 1` via existing Drizzle instance
+2. Checks Docker socket with `docker.listContainers({ limit: 1 })` via existing dockerode instance
+3. Returns `{ status: 'ok', db: true, docker: true, uptime: process.uptime(), timestamp: Date.now() }`
+4. Returns HTTP 503 if either check fails
 
-The SDK has first-class session support:
-- `options.resume: sessionId` — continues an existing session with full context
-- `options.sessionId: uuid` — pins a session to a specific UUID (useful for thread-scoped chat)
-- `options.persistSession: true` (default) — sessions saved to disk, resumable
+The existing superadmin health dashboard already polls each instance's health endpoint via the API proxy pattern (`queryAllInstances`). This endpoint is what it polls. No new library needed.
 
-Map ClawForge `chatId` → Claude Agent SDK `sessionId` for thread continuity. This means a chat thread in ClawForge maps 1:1 to a Claude agent session, so the operator can continue where they left off across browser refreshes.
+---
 
-#### Working Directory Isolation
+### 2. Billing and Per-Customer Access Control
 
-The SDK's `options.cwd` sets the working directory for the Claude Code process. For terminal chat mode:
-- Use the workspace volume mount path (`/workspace`) if a workspace is active
-- Fall back to a per-instance scratch directory (e.g., `/tmp/clawforge-{instanceName}-chat`) for stateless sessions
+#### Payment Processing
 
-This is different from job containers (which clone target repos). Terminal chat mode operates on whatever directory is set in `cwd`.
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `stripe` | `^20.4.1` | Subscriptions, Checkout, Customer Portal, Billing Meters, webhooks | Industry standard for SaaS. Stripe Checkout handles PCI compliance entirely — no card form to build. Stripe Billing Meters aggregate usage events natively — no separate metering service. Stripe Customer Portal handles plan changes and cancellation with one `billingPortal.sessions.create()` call. |
 
-#### Key Options for Production Use
+**What to use:**
+- **Stripe Checkout** (`mode: 'subscription'`) for initial signup — redirect-based, no card form to build
+- **Stripe Customer Portal** for plan changes and cancellation — one API call to generate a session URL
+- **Stripe Billing Meters** for metered usage (job runs, terminal turns) — emit events with `stripe.billing.meterEvents.create()`, Stripe aggregates for the billing period
+- **Stripe Webhooks** to sync subscription state back to local DB — listen for `customer.subscription.updated`, `invoice.paid`, `invoice.payment_failed`
 
-```javascript
-import { query } from '@anthropic-ai/claude-agent-sdk';
+**Integration point:** Add `/app/api/webhooks/stripe/route.js`. Verify `stripe-signature` header with `stripe.webhooks.constructEvent()`. The webhook handler updates the `billing_accounts` table (see schema below). Existing `api/index.js` catch-all already handles other webhooks — follow the same verification pattern.
 
-const ac = new AbortController();
-const q = query({
-  prompt: userMessage,
-  options: {
-    sessionId: chatId,                            // maps ClawForge chatId to SDK session
-    resume: existingSessionId || undefined,       // resume if continuing thread
-    cwd: workspacePath || scratchDir,
-    allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
-    permissionMode: 'acceptEdits',                // auto-accept file edits (operator-trusted)
-    systemPrompt: {
-      type: 'preset',
-      preset: 'claude_code',
-      append: instanceAgentMd,                    // inject AGENT.md content
-    },
-    settingSources: [],                           // no filesystem settings (controlled env)
-    abortController: ac,
-    includePartialMessages: false,                // full messages only (reduces noise)
-    maxTurns: 50,                                 // safety cap
-    env: { ANTHROPIC_API_KEY: instanceApiKey },
-  },
-});
+**Why not a billing platform (Lago, Flexprice, Metronome):** Those platforms are built for millions of usage events per day and ship their own databases and event pipelines. At 10 customers and 1K job runs/month, they are infrastructure with no payoff. Stripe Billing Meters does metering natively — no separate platform justified.
 
-for await (const msg of q) {
-  // stream msg to browser via SSE
-}
-```
+#### Local Usage Tracking and Access Control
 
-**No new server infrastructure needed.** The SDK runs in the existing Event Handler Node.js process. SSE to the browser uses the existing `ReadableStream` pattern already used by `lib/jobs/stream-api.js`.
-
-#### What NOT to Build for Terminal Chat Mode
-
-- Do NOT spawn a Docker container — the SDK runs in-process
-- Do NOT use xterm.js for terminal chat mode — it's a text/tool-call display, not a PTY terminal. Use the existing `Messages` component with added tool-call visualization. (xterm.js stays for workspace containers where ttyd provides PTY sessions.)
-- Do NOT use the old `lib/tools/log-parser.js` JSONL parser — the SDK yields structured message objects directly
-
-### Feature 2: Superadmin Portal with Instance Switching
-
-#### No New Libraries Required
-
-The superadmin pattern is implemented entirely within existing NextAuth v5 + Drizzle ORM infrastructure. This is a schema + middleware change, not a library addition.
-
-**Pattern:** Add `superadmin` role to the `users` table. Extend the NextAuth session JWT to carry `instanceName` (which instance the user is currently "viewing"). The superadmin can switch instance context via a Server Action that updates a session variable or cookie, not by re-authenticating.
-
-**Implementation approach:**
-
-```
-users.role: 'user' | 'admin' | 'superadmin'
-session.user.role: 'superadmin'
-session.user.instanceName: 'noah' | 'strategyES'  ← new field in JWT/session
-```
-
-The middleware already guards `/admin/*` by role. Extend it:
-- `superadmin` can access `/admin/*` on all instances
-- A `/superadmin/*` route shows the cross-instance dashboard
-- Instance switching updates `session.user.instanceName` via NextAuth `update()` (v5 supports session mutation)
-
-**NextAuth v5 session update** (HIGH confidence — official NextAuth v5 docs pattern):
+No new library. Two new SQLite tables via Drizzle schema extension:
 
 ```javascript
-// Server Action — switch instance context
-'use server';
-import { auth, update } from '../auth/index.js';
-
-export async function switchInstance(instanceName) {
-  const session = await auth();
-  if (session?.user?.role !== 'superadmin') throw new Error('Forbidden');
-  await update({ user: { ...session.user, instanceName } });
-}
-```
-
-NextAuth v5's `update()` function mutates the live session JWT without requiring re-login. This is the correct pattern — no need for a separate session store or cookie.
-
-**No new npm packages needed for superadmin.** The entire implementation uses:
-- Drizzle ORM migration (add `superadmin` to role enum in schema)
-- NextAuth v5 `update()` (already in installed next-auth ^5.0.0-beta.30)
-- New `/superadmin` Next.js pages (UI only)
-
-#### DB Schema Change Required
-
-```javascript
-// users table: role column already allows any text value
-// No schema migration needed for the column itself — SQLite text columns accept any string
-// BUT: update createFirstUser, updateUserRole, and middleware role checks
-// to handle the new 'superadmin' value
-```
-
-The `role` column is `text('role').notNull().default('admin')` — it already accepts arbitrary strings. No Drizzle migration needed; only application-layer changes (role check logic, UI).
-
-### Feature 3: Full UI Operations Parity
-
-#### No New Libraries Required
-
-All UI operations parity features use existing stack:
-
-| Operation | Mechanism | Existing Stack Used |
-|-----------|-----------|---------------------|
-| Repo CRUD (add/edit/remove) | Server Action → writes REPOS.json file via `fs.writeFile` | Node.js `fs`, existing `lib/tools/repos.js` patterns |
-| Job cancel | Server Action → `docker.getContainer(id).stop()` | Existing dockerode (`lib/tools/docker.js`) |
-| Job retry | Server Action → calls `dispatchDockerJob()` with same params | Existing `lib/tools/docker.js` |
-| Job logs (historical) | Server Action → reads from `clusterAgentRuns.logs` or log files | Existing Drizzle ORM |
-| Config editing (UI) | Server Action → `setConfigValue()` / `setConfigSecret()` | Existing `lib/db/config.js` |
-| Instance management | Server Action → writes instance config files | Node.js `fs`, existing file structure |
-| PR approve/reject | Already implemented (`pull-requests-page.jsx`) | Existing `lib/github-api.js` |
-| MCP server config UI | Already implemented (`settings-mcp-page.jsx`) | Existing `lib/tools/mcp-servers.js` |
-
-**The gap is UI surface, not infrastructure.** Every operation has a working backend path. What's missing is the admin page that exposes it.
-
-**Exception — job stream replay:** Displaying historical logs for completed jobs requires storing structured log data. Currently `clusterAgentRuns.logs` stores raw text. For completed Agent SDK terminal sessions, store the serialized message array (JSON) in a new `terminal_sessions` table.
-
-#### New DB Table: terminal_sessions
-
-```javascript
-export const terminalSessions = sqliteTable('terminal_sessions', {
-  id: text('id').primaryKey(),          // = chatId / sessionId
-  instanceName: text('instance_name').notNull(),
-  chatId: text('chat_id').notNull(),
-  sdkSessionId: text('sdk_session_id'), // Claude Agent SDK session UUID for resume
-  cwd: text('cwd'),
-  status: text('status').notNull().default('active'), // 'active' | 'completed' | 'interrupted'
-  messages: text('messages').notNull().default('[]'), // JSON array of SDKMessage snapshots
-  totalCostUsd: real('total_cost_usd'),
-  numTurns: integer('num_turns').default(0),
+// New table: billing_accounts
+// One row per instance — tracks Stripe state and plan limits
+export const billingAccounts = sqliteTable('billing_accounts', {
+  id: text('id').primaryKey(),
+  instanceName: text('instance_name').notNull().unique(),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  plan: text('plan').notNull().default('free'),       // 'free' | 'pro' | 'team'
+  jobLimitMonthly: integer('job_limit_monthly').default(50),
+  workspaceLimitConcurrent: integer('workspace_limit_concurrent').default(2),
+  status: text('status').notNull().default('active'), // 'active' | 'past_due' | 'canceled'
+  currentPeriodEnd: integer('current_period_end'),
   createdAt: integer('created_at').notNull(),
-  completedAt: integer('completed_at'),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+// New table: usage_events
+// Lightweight event log for monthly aggregation and Stripe meter forwarding
+export const usageEvents = sqliteTable('usage_events', {
+  id: text('id').primaryKey(),
+  instanceName: text('instance_name').notNull(),
+  eventType: text('event_type').notNull(),  // 'job_run' | 'terminal_turn' | 'workspace_hour'
+  quantity: real('quantity').notNull().default(1),
+  metadata: text('metadata'),               // JSON, nullable — e.g. { targetRepo, cost }
+  createdAt: integer('created_at').notNull(),
 });
 ```
 
-This enables:
-1. Resuming a terminal session after browser refresh (via `sdkSessionId`)
-2. Showing historical terminal session logs in the UI
-3. Cost tracking per session
+Monthly aggregates via SQL: `SELECT COUNT(*) FROM usage_events WHERE instance_name = ? AND event_type = 'job_run' AND created_at >= ?`. SQLite handles this comfortably at 10K events/month with a simple `(instance_name, event_type, created_at)` index.
 
-### Feature 4: Smart Execution Policies
+**Stripe meter event forwarding:** Add a `node-cron` (already in dependencies) daily job in `lib/billing/meter-sync.js` that aggregates yesterday's `usage_events` and calls `stripe.billing.meterEvents.create()` per customer. This batches Stripe API calls to once per day — clean and within rate limits.
 
-#### No New Libraries Required
+**Access control enforcement:** New `lib/billing/limits.js` module exposes:
+- `checkJobLimit(instanceName)` — reads `billing_accounts`, counts this month's `usage_events` for `job_run`, returns `{ allowed: bool, reason: string }`
+- `checkWorkspaceLimit(instanceName)` — counts active workspaces in `code_workspaces`
 
-Smart execution policies operate on existing infrastructure:
+Called from `lib/tools/create-job.js` before dispatch and from workspace creation. Returns early with a channel notification if the limit is exceeded (same pattern as existing error notifications).
 
-| Policy | Implementation | Stack Used |
-|--------|---------------|------------|
-| Pre-CI quality gates | Run `npm test` / `npm run lint` / `npx tsc --noEmit` inside job container before PR creation | Existing job container (bash commands in entrypoint.sh) |
-| Test feedback loops | Parse test output → feed back to Claude Agent SDK session via `streamInput()` | `@anthropic-ai/claude-agent-sdk` (already adding for terminal chat) |
-| Merge policies | Check CI status via GitHub API before auto-merge; configurable per repo in REPOS.json | Existing `lib/tools/github.js` + GitHub Checks API |
-| Cost budgets | `options.maxBudgetUsd` in Agent SDK query options | `@anthropic-ai/claude-agent-sdk` |
+---
 
-**Pre-CI gates in job containers:** The existing entrypoint.sh runs `claude -p`. Extend it with a validation step after Claude's work but before PR creation:
+### 3. Self-Service Onboarding Flow
 
-```bash
-# In entrypoint.sh (after claude -p completes):
-if [ "$RUN_QUALITY_GATE" = "true" ]; then
-  npm test --silent 2>&1 | tail -20 > /tmp/gate-result.txt
-  if [ $? -ne 0 ]; then
-    # Feed failure back to claude for fix attempt
-    cat /tmp/gate-result.txt | claude -p --continue "Tests failed. Fix them." --allowedTools "Read,Edit,Bash"
-  fi
-fi
-```
+#### Multi-Step Form
 
-This is a shell script change to existing files, not a library addition.
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `react-hook-form` | `^7.71.2` | Multi-step onboarding wizard with per-step validation | Standard for complex React forms. Uncontrolled inputs — no re-renders on every keystroke. Works with existing Zod v4 via `@hookform/resolvers`. Active maintenance: v7.71.2 was published March 2026. |
+| `@hookform/resolvers` | `^5.x` | Zod v4 integration for react-hook-form | Required bridge between react-hook-form and Zod v4. `@hookform/resolvers` v5 is the Zod v4 compatible version (v4 resolvers only worked with Zod v3). Zero runtime overhead — schema validation runs at submit/blur only. |
 
-**REPOS.json merge policy extension:**
+**Onboarding wizard steps:**
 
-```json
-{
-  "repos": [
-    {
-      "slug": "clawforge",
-      "mergePolicy": {
-        "requireCiPass": true,
-        "requireReview": false,
-        "allowedPaths": ["src/**", "lib/**"],
-        "blockedPaths": ["instances/**"]
-      }
-    }
-  ]
+1. Account creation (email + password → existing `lib/db/users.js`)
+2. Instance name + channel selection (Slack/Telegram/Web Chat)
+3. GitHub PAT entry with live validation (via existing `lib/github-api.js` — `GET /user` to verify token scope)
+4. Billing plan selection (free/pro/team) → Stripe Checkout redirect on paid plans
+5. Success page with operator setup checklist
+
+**No Zustand.** Onboarding state is transient and scoped to one browser session. `useState` in the parent wizard component carries accumulated step data. Zustand adds a dependency and architectural pattern for what is a simple local form.
+
+**Integration point:** New `/app/onboarding/*` page directory. Uses existing Tailwind + shadcn components. No changes to existing pages.
+
+#### Transactional Email
+
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `resend` | `^6.9.4` | Welcome email, billing alerts | Minimal SDK (5-line integration). 3,000 emails/month free — covers 10-50 customers. HTTP API, no SMTP server to manage. Send call: `resend.emails.send({ from, to, subject, html })`. |
+
+Use cases: (1) welcome email on account creation, (2) payment failure notification when Stripe webhook fires `invoice.payment_failed`. Inline HTML strings are sufficient for 2-3 email types — no template engine needed.
+
+`resend` is optional at launch if the team prefers to start without email. The `stripe` webhook handler is the primary notification path for billing events. Add `resend` when the first external customer onboards.
+
+---
+
+### 4. Team Monitoring Dashboard
+
+No new libraries. All monitoring capabilities extend existing dockerode, Drizzle ORM, and SSE patterns.
+
+**Container stats via dockerode:** `container.stats({ stream: false })` returns a one-shot snapshot of CPU %, memory usage (bytes used / limit), and network I/O per container. The existing dockerode instance in `lib/tools/docker.js` already has socket access. Add `getContainerStats(containerId)` to `lib/tools/docker.js` — no new dependency.
+
+**CPU calculation from raw stats:**
+
+```javascript
+function calculateCpuPercent(stats) {
+  const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+  const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+  const numCpus = stats.cpu_stats.online_cpus;
+  return (cpuDelta / systemDelta) * numCpus * 100;
 }
 ```
 
-Extend `lib/tools/repos.js` to read `mergePolicy` from REPOS.json. The auto-merge workflow checks these policies before merging.
+This is the standard dockerode stats formula — available in dockerode GitHub issue #389 and confirmed working.
 
-**Test feedback loops for terminal chat mode:** The Claude Agent SDK's `streamInput()` method allows multi-turn input streaming. This enables:
+**Job metrics from existing tables:** The `job_origins`, `job_outcomes`, and `usage_events` tables have all needed data. Add `lib/db/metrics.js` with queries:
+- `getJobMetrics(instanceName, windowHours)` — success rate, failure rate, avg duration
+- `getActiveContainers(instanceName)` — count by type (job/workspace/cluster)
+- `getErrorCount(instanceName, windowHours)` — from Sentry webhook events stored in `notifications` table or a new `error_events` table
 
-```javascript
-const q = query({ prompt: initialPrompt, options: { ... } });
-// ... stream messages ...
-// If tests fail after a session completes:
-await q.streamInput(asyncIterableOf([{
-  type: 'user',
-  message: { role: 'user', content: 'Tests failed:\n' + testOutput }
-}]));
-```
+**SSE for real-time dashboard updates:** The existing `streamManager` pub/sub (already in production for headless job streaming) can be extended with a `monitoringStreamManager` that emits container lifecycle events. The `/api/admin/stream` SSE endpoint follows the exact same `ReadableStream` pattern as `/api/jobs/[id]/stream`. No new WebSocket library needed.
 
-This is the "test feedback loop" pattern — the operator or automation feeds CI results back into an active session.
+**Cross-instance aggregation:** The existing `queryAllInstances` pattern in the superadmin portal makes HTTP requests to each instance's API via `AGENT_SUPERADMIN_TOKEN` Bearer auth. Extend it to call `/api/health` and `/api/admin/metrics` on each instance. `Promise.allSettled` (already used) handles offline instances gracefully.
+
+---
+
+## Complete New Dependency List
+
+| Library | Version | Feature Area | Status |
+|---------|---------|-------------|--------|
+| `pino` | `^10.3.1` | Observability | Required |
+| `pino-http` | `^11.0.0` | Observability | Required |
+| `@sentry/nextjs` | `^10.44.0` | Observability | Required |
+| `stripe` | `^20.4.1` | Billing | Required |
+| `react-hook-form` | `^7.71.2` | Onboarding | Required |
+| `@hookform/resolvers` | `^5.x` | Onboarding | Required |
+| `resend` | `^6.9.4` | Onboarding email | Optional at launch |
+
+**Total new production dependencies: 6-7.** Team monitoring and health checks are pure extensions of existing dockerode + Drizzle ORM + SSE patterns — zero new libraries.
 
 ---
 
 ## Installation
 
 ```bash
-# Claude Agent SDK — programmatic Claude Code execution for terminal chat mode
-npm install @anthropic-ai/claude-agent-sdk@^0.2.76
+# Observability
+npm install pino pino-http @sentry/nextjs
+
+# Billing
+npm install stripe
+
+# Onboarding form
+npm install react-hook-form @hookform/resolvers
+
+# Transactional email (add when first customer onboards)
+npm install resend
 ```
-
-That is the **only new npm dependency for v2.2.**
-
-Everything else — superadmin, UI operations, smart execution — is implemented using existing installed packages.
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Claude Code execution in chat | `@anthropic-ai/claude-agent-sdk` (SDK) | Spawn `claude -p` process + parse stdout | Stdout parsing is unreliable (ANSI codes, interleaving). SDK yields structured `SDKMessage` objects. Much cleaner. |
-| Claude Code execution in chat | `@anthropic-ai/claude-agent-sdk` (SDK) | Docker container per chat turn | Containers add 9s startup latency and require volume mounts. Chat mode needs sub-second response starts. SDK runs in-process. |
-| Terminal rendering for chat | Existing Messages component + tool-call renderer | xterm.js | xterm.js is a PTY terminal emulator — correct for ttyd workspaces but wrong for chat-style tool-call rendering. Text with expandable tool blocks is the right UX. |
-| Superadmin instance switching | NextAuth v5 `update()` (JWT mutation) | Separate auth per instance | Re-authenticating to switch instances is terrible UX. Session mutation is the correct NextAuth v5 pattern. |
-| Superadmin instance switching | NextAuth v5 `update()` | Server-side in-memory instance state | Stateless (JWT carries instance) is more reliable across container restarts. |
-| Pre-CI quality gates | Shell script in entrypoint.sh | Separate quality gate service | No new infrastructure needed. The job container already runs Node.js and has the repo. Shell gates are zero-overhead. |
-| Test feedback loops | Agent SDK `streamInput()` | New LangGraph tool for retrying | `streamInput()` is the correct SDK primitive for multi-turn feedback. No new tool definition needed. |
-| Session continuity | Map `chatId` → SDK `sessionId` | Separate session store | SDK handles its own session persistence. Reusing `chatId` as `sessionId` eliminates a synchronization problem. |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `@sentry/nextjs` cloud free tier | GlitchTip self-hosted | GlitchTip requires PostgreSQL — introduces a second DB engine, contradicts SQLite constraint |
+| `@sentry/nextjs` cloud free tier | Bugsink self-hosted | Same PostgreSQL dependency problem |
+| `pino` to stdout | OpenTelemetry SDK | Explicitly out of scope in `PROJECT.md`; requires collector sidecar; 5+ packages for what pino does in 1 |
+| Stripe direct | Lago / Flexprice / Metronome | Built for 1B+ events/day, ship their own databases; zero justification at 10 customers |
+| Stripe direct | Lago / Flexprice + Stripe | Separate metering service is redundant — Stripe Billing Meters does metering natively |
+| SQLite `usage_events` | Separate metering DB | 10K events/month fits comfortably in SQLite with a simple index; no separate DB justified at this scale |
+| `resend` | SendGrid | Higher complexity, no benefit for 3 email types |
+| `resend` | Nodemailer + SMTP | Requires mail server management; `resend` is a pure HTTP API call |
+| `react-hook-form` | Formik | Formik is in maintenance mode; react-hook-form has better TypeScript support and active development |
+| `useState` for wizard step state | Zustand | Zustand is for cross-component shared state; wizard state is local and ephemeral — `useState` is correct |
+| dockerode `stats()` | cAdvisor + Prometheus | Sidecar stack for 2 containers is operational overhead with no payoff; `stats()` gives the same data with zero infrastructure |
+| dockerode `stats()` | Express Status Monitor | Application-level metrics only; `stats()` gives container-level resource usage which is what a multi-container platform needs |
 
 ---
 
@@ -346,127 +240,98 @@ Everything else — superadmin, UI operations, smart execution — is implemente
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `socket.io` or `ws` for terminal chat mode | Already have SSE via ReadableStream for unidirectional streaming. Bidirectional (interrupt) handled by Server Actions. | Existing SSE + Server Action for interrupt |
-| `node-pty` | PTY needed for interactive terminals (workspaces), not for agent SDK sessions. SDK manages its own process. | Already have ttyd for workspace PTY sessions |
-| `xterm.js` for chat mode display | PTY terminal UX is wrong for agent-style chat. Tool calls should be collapsible rich UI, not raw terminal output. | Extend existing `tool-call.jsx` renderer |
-| Any session management library (redis, express-session) | NextAuth v5 JWT handles instance context natively via `update()` | NextAuth v5 built-in session mutation |
-| `@anthropic-ai/claude-code` (the SDK import) | This package has been renamed. The new name is `@anthropic-ai/claude-agent-sdk`. | `@anthropic-ai/claude-agent-sdk` |
-| New Docker container for each chat turn | 9s startup vs milliseconds. SDK runs in-process. | `@anthropic-ai/claude-agent-sdk` in-process |
-| Kubernetes or cloud job runners | Two-instance deployment doesn't need k8s. Docker Compose is sufficient. | Existing Docker Engine API dispatch |
-
----
-
-## Architecture Integration Points
-
-### Agent SDK + Existing SSE (lib/jobs/stream-api.js pattern)
-
-The terminal chat mode SSE endpoint follows the exact same pattern as `/api/jobs/stream/[jobId]`:
-
-```
-Browser EventSource → GET /api/terminal/stream/[chatId]
-  → ReadableStream SSE
-  → subscribed to terminalStreamManager (new, mirrors streamManager)
-  → fed by async for await (const msg of query(...))
-```
-
-The `streamManager` pattern (pub/sub with `subscribe(id, handler)`) already works. Create a parallel `terminalStreamManager` for terminal sessions.
-
-### Agent SDK + Existing Auth (lib/auth/index.js)
-
-The terminal chat endpoint checks `auth()` exactly like `lib/chat/api.js` and `lib/jobs/stream-api.js`. No new auth mechanism.
-
-### Agent SDK + Existing Chat (lib/chat/api.js)
-
-When terminal mode is enabled in the chat (`terminalMode: true` flag in request body), `lib/chat/api.js` routes to the Agent SDK path instead of the LangGraph agent path. The `useChat` hook on the frontend is unchanged — it still posts to `/stream/chat` and receives AI SDK v5 UIMessage stream format. The server-side API translates SDK messages into AI SDK v5 writer events.
-
-### Superadmin + Existing Middleware (lib/auth/middleware.js)
-
-Minimal change: add `'superadmin'` to the admin role check:
-
-```javascript
-if (pathname.startsWith('/admin')) {
-  const role = req.auth.user?.role;
-  if (role !== 'admin' && role !== 'superadmin') {
-    return NextResponse.redirect(new URL('/forbidden', req.url));
-  }
-}
-// New superadmin-only routes:
-if (pathname.startsWith('/superadmin')) {
-  if (req.auth.user?.role !== 'superadmin') {
-    return NextResponse.redirect(new URL('/forbidden', req.url));
-  }
-}
-```
-
-### Repo CRUD + Existing REPOS.json (lib/tools/repos.js)
-
-REPOS.json is a static file today. Repo CRUD from the UI requires:
-1. A Server Action that reads/writes REPOS.json via `fs.readFile` / `fs.writeFile`
-2. A cache-bust mechanism after write (the existing `loadAllowedRepos()` must re-read from disk)
-3. Validation that the new repo is accessible (GitHub API ping before saving)
-
-No new dependencies. The file is JSON — native `JSON.parse` / `JSON.stringify` plus atomic write (write to temp → rename) is sufficient.
-
----
-
-## DB Schema Changes Required
-
-```javascript
-// New table: terminal_sessions
-// Tracks Claude Agent SDK sessions for terminal chat mode
-export const terminalSessions = sqliteTable('terminal_sessions', {
-  id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull(),
-  chatId: text('chat_id').notNull(),
-  sdkSessionId: text('sdk_session_id'),   // SDK-assigned UUID for resume
-  cwd: text('cwd'),
-  status: text('status').notNull().default('active'),
-  messages: text('messages').notNull().default('[]'),  // JSON[]
-  totalCostUsd: real('total_cost_usd'),
-  numTurns: integer('num_turns').default(0),
-  createdAt: integer('created_at').notNull(),
-  completedAt: integer('completed_at'),
-});
-
-// users table: no column change needed (role is free-form text)
-// Application layer must handle 'superadmin' in role checks
-
-// settings table: no change needed
-// REPOS.json: extended in-place (mergePolicy field added, no DB migration)
-```
+| OpenTelemetry SDK | Explicit out-of-scope in `PROJECT.md`; requires collector sidecar; overkill for 2 instances | `pino` for logs, `@sentry/nextjs` for errors |
+| Self-hosted Sentry | Requires 58+ services including Redis, Kafka, ClickHouse | Sentry.io free tier (5K errors/month) |
+| Prometheus + Grafana | Sidecar stack for 2 containers; operational overhead with no payoff at this scale | dockerode `container.stats()` + SSE to existing dashboard |
+| Lago / Metronome / Flexprice | Built for 1B+ events/month; each ships its own database | Stripe Billing Meters + SQLite `usage_events` |
+| Zustand for onboarding wizard | Adds a library for what `useState` handles in 5 lines | React `useState` for step + accumulated form data |
+| Separate session store (Redis) for onboarding | Onboarding is a single-page multi-step form — ephemeral browser state only | React component state |
+| Socket.io for monitoring dashboard | Existing SSE via `ReadableStream` handles unidirectional push; bidirectional not needed for dashboards | Existing SSE pattern from `lib/jobs/stream-api.js` |
 
 ---
 
 ## Version Compatibility
 
 | Package | Compatible With | Notes |
-|---------|----------------|-------|
-| `@anthropic-ai/claude-agent-sdk@^0.2.76` | Node >=18, ESM | Uses ESM exports. Compatible with our `"type": "module"` package. Verified 2026-03-16. |
-| `@anthropic-ai/claude-agent-sdk@^0.2.76` | `@anthropic-ai/claude-code` CLI (2.1.76) | SDK and CLI are independent packages. SDK spawns the `claude` CLI binary internally via `pathToClaudeCodeExecutable`. Both can coexist. |
-| NextAuth v5 `update()` | next-auth ^5.0.0-beta.30 | `update()` is available in NextAuth v5 beta — confirmed in NextAuth v5 docs. JWT session mutation is a v5 feature. |
+|---------|-----------------|-------|
+| `@sentry/nextjs@10.44.0` | Next.js 15.x | Verified — `onRequestError` hook requires Next.js 15; Sentry reworked SDK to remove Turbopack bundler dependency in v9+ |
+| `pino@10.3.1` | Node.js 20+ | pino v10 drops Node 18; ClawForge Dockerfile uses Node 22 — no conflict |
+| `pino-http@11.0.0` | `pino@10.x` | pino-http v11 requires pino v9+; compatible with pino v10 |
+| `react-hook-form@7.71.2` | React 18/19, Zod v4 | v7.71.2 current as of March 2026; Zod v4 requires `@hookform/resolvers` v5 (v4 resolvers only worked with Zod v3) |
+| `stripe@20.4.1` | Node.js 16+, ESM | Pure HTTP client; compatible with `"type": "module"` (project uses ESM throughout) |
+| `resend@6.9.4` | Node.js 18+ | Pure HTTP client; no bundler constraints |
+
+---
+
+## DB Schema Changes Required
+
+```javascript
+// lib/db/schema.js additions for v3.0
+
+// billing_accounts — one row per instance
+export const billingAccounts = sqliteTable('billing_accounts', {
+  id: text('id').primaryKey(),
+  instanceName: text('instance_name').notNull().unique(),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  plan: text('plan').notNull().default('free'),        // 'free' | 'pro' | 'team'
+  jobLimitMonthly: integer('job_limit_monthly').default(50),
+  workspaceLimitConcurrent: integer('workspace_limit_concurrent').default(2),
+  status: text('status').notNull().default('active'),  // 'active' | 'past_due' | 'canceled'
+  currentPeriodEnd: integer('current_period_end'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+// usage_events — lightweight event log for metering
+export const usageEvents = sqliteTable('usage_events', {
+  id: text('id').primaryKey(),
+  instanceName: text('instance_name').notNull(),
+  eventType: text('event_type').notNull(),  // 'job_run' | 'terminal_turn' | 'workspace_hour'
+  quantity: real('quantity').notNull().default(1),
+  metadata: text('metadata'),               // JSON, nullable
+  createdAt: integer('created_at').notNull(),
+});
+// Index: (instance_name, event_type, created_at) for monthly aggregation queries
+```
+
+---
+
+## Integration Points with Existing Stack
+
+| New Capability | Integrates With | How |
+|----------------|----------------|-----|
+| `pino-http` | `server.js` (custom HTTP server) | Mount before Next.js handler in the existing `createServer()` call |
+| `@sentry/nextjs` | `instrumentation.ts` (Next.js built-in) | `onRequestError` hook auto-captures all Server Component and API route errors |
+| Stripe webhooks | `api/index.js` (existing catch-all router) | New `/webhooks/stripe` route; verify `stripe-signature`; update `billing_accounts` |
+| Billing limits | `lib/tools/create-job.js`, workspace creation | Call `lib/billing/limits.js` before dispatch; return error message to channel if exceeded |
+| `react-hook-form` + `@hookform/resolvers` | `/app/onboarding/*` pages | New pages only; no changes to existing pages |
+| `resend` | `lib/billing/stripe-webhook.js` | Called on `invoice.paid` (welcome) and `invoice.payment_failed` (alert) |
+| Container stats | `lib/tools/docker.js` (existing dockerode) | Add `getContainerStats(id)` function using `container.stats({ stream: false })` |
+| Usage events | `lib/tools/create-job.js`, `lib/chat/terminal-api.js` | Emit to `usage_events` table on job dispatch and terminal turn completion |
+| Monitoring SSE | Existing `streamManager` pattern | New `monitoringStreamManager` + `/api/admin/stream` endpoint following same `ReadableStream` pattern |
 
 ---
 
 ## Sources
 
-- `@anthropic-ai/claude-agent-sdk` npm registry — version 0.2.76, confirmed 2026-03-16 (HIGH confidence)
-- `@anthropic-ai/claude-code` npm registry — version 2.1.76, CLI tool, confirmed 2026-03-16 (HIGH confidence)
-- Anthropic Agent SDK TypeScript reference — `query()`, `Query` interface, `Options`, `SDKMessage` union type (HIGH confidence — official docs)
-- Anthropic Agent SDK migration guide — package rename, breaking changes in v0.1.0, `settingSources` default change (HIGH confidence — official docs)
-- Anthropic Agent SDK overview — capabilities, installation, session management patterns (HIGH confidence — official docs)
-- code.claude.com/docs/en/headless — CLI headless mode vs SDK distinction confirmed (HIGH confidence — official docs)
-- ClawForge `lib/jobs/stream-api.js` — existing SSE pattern analysis (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/chat/api.js` — AI SDK v5 createUIMessageStream pattern (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/auth/middleware.js` — existing role-based middleware (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/auth/config.js` — NextAuth v5 Credentials provider (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/db/schema.js` — full schema including `users`, `settings`, `codeWorkspaces`, `clusterAgentRuns` (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/db/config.js` — `getConfigValue`/`setConfigValue`/`getConfigSecret` patterns (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/db/users.js` — role handling, `updateUserRole` (HIGH confidence — direct codebase inspection)
-- ClawForge `package.json` — full dependency baseline v2.1.0 (HIGH confidence — direct codebase inspection)
-- ClawForge `instances/noah/config/REPOS.json` — REPOS.json structure for repo CRUD design (HIGH confidence — direct codebase inspection)
-- WebSearch: NextAuth v5 `update()` session mutation pattern — multiple sources confirm this is the v5 approach for session mutation without re-auth (MEDIUM confidence — WebSearch verified with NextAuth v5 docs pattern)
+- [pino npm](https://www.npmjs.com/package/pino) — v10.3.1 confirmed current; v10 drops Node 18
+- [pino-http GitHub](https://github.com/pinojs/pino-http) — v11.0.0 confirmed current; requires pino v9+
+- [Sentry Next.js docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/) — `onRequestError` hook, Next.js 15 compatibility, Turbopack SDK rewrite
+- [@sentry/nextjs npm](https://www.npmjs.com/package/@sentry/nextjs) — v10.44.0 confirmed current
+- [Sentry self-hosting requirements](https://docs.sentry.io/self-hosted/) — 58+ services confirmed; rules out self-hosting at this scale
+- [Stripe usage-based billing docs](https://docs.stripe.com/billing/subscriptions/usage-based) — Billing Meters API confirmed; `meterEvents.create()` endpoint
+- [Stripe Node SDK npm](https://www.npmjs.com/package/stripe) — v20.4.1 confirmed current; ESM compatible
+- [react-hook-form npm](https://www.npmjs.com/package/react-hook-form) — v7.71.2 confirmed current as of March 2026
+- [resend npm](https://www.npmjs.com/package/resend) — v6.9.4 confirmed current
+- [dockerode Container.stats](https://github.com/apocas/dockerode/issues/389) — `stream: false` one-shot stats pattern confirmed; CPU calculation formula verified
+- [GlitchTip installation docs](https://glitchtip.com/documentation/install/) — PostgreSQL requirement confirmed; rules out for SQLite project
+- ClawForge `lib/db/schema.js` — existing tables analyzed to design non-conflicting new tables (HIGH confidence — direct codebase inspection)
+- ClawForge `lib/tools/create-job.js` — identified as correct integration point for billing limit checks (HIGH confidence — direct codebase inspection)
+- ClawForge `package.json` — full dependency baseline confirmed; `node-cron` already present for meter sync cron job (HIGH confidence — direct codebase inspection)
+- ClawForge `PROJECT.md` — "Out of Scope" section confirms OpenTelemetry explicitly excluded (HIGH confidence — direct codebase inspection)
 
 ---
 
-*Stack research for: ClawForge v2.2 Smart Operations*
-*Researched: 2026-03-16*
+*Stack research for: ClawForge v3.0 Customer Launch — observability, billing, onboarding, team monitoring*
+*Researched: 2026-03-17*

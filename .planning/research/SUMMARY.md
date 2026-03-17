@@ -1,198 +1,251 @@
 # Project Research Summary
 
-**Project:** ClawForge v2.2 Smart Operations
-**Domain:** Multi-channel AI agent platform — programmatic Claude Code execution, superadmin control plane, UI operations parity, smart CI execution
-**Researched:** 2026-03-16
-**Confidence:** HIGH
+**Project:** ClawForge v3.0 Customer Launch
+**Domain:** Commercial SaaS launch additions to an existing AI agent gateway platform
+**Researched:** 2026-03-17
+**Confidence:** HIGH (stack + architecture derived from direct codebase inspection; features + pitfalls MEDIUM on external patterns)
 
 ## Executive Summary
 
-ClawForge v2.2 adds four capability areas to the production v2.1 platform: interactive Claude Code terminal chat mode (operators watch live tool calls and file edits in the browser), a superadmin portal with instance switching, full UI operations parity (all SSH/CLI tasks become browser actions), and smart execution policies (pre-CI quality gates with self-correcting agent feedback loops). The research consistently shows this is an evolutionary build — not a greenfield effort — and that every v2.2 capability can be integrated using existing infrastructure with minimal new dependencies. The single new npm package required is `@anthropic-ai/claude-agent-sdk@^0.2.76` (renamed from `@anthropic-ai/claude-code` SDK); everything else is application-layer configuration, new Server Actions, and workflow extensions.
+ClawForge v2.2 is a fully operational two-layer AI agent gateway with Docker isolation, LangGraph orchestration, three-tier RBAC, and a functional superadmin portal. The v3.0 work is not a greenfield build — it is a commercial launch hardening of an existing production system. The four capability areas (observability, billing/access control, self-service onboarding, team monitoring) all integrate as additive extensions to the existing SQLite schema, API route patterns, and superadmin proxy infrastructure. The research consensus is clear: use what exists, extend rather than replace, and resist the pull toward infrastructure over-engineering at a 2-10 instance scale.
 
-The recommended approach treats each v2.2 area as a thin layer over established v2.1 patterns. Terminal chat mode extends the existing `createUIMessageStream` path in `lib/chat/api.js` rather than adding a new WebSocket server. Superadmin is a proxy-based aggregation layer using API key auth (`AGENT_SUPERADMIN_TOKEN`) rather than cross-instance session sharing. UI operations use the established Server Action + dockerode pattern with mandatory `requireAdmin()` guards. Smart execution lives in GitHub Actions workflows with event-driven corrective job dispatch through the existing webhook handler. The build order is driven by architectural dependencies: smart execution gates ship first (hours, no UI work), job cancel/retry second (quick wins that establish the `requireAdmin()` pattern), terminal chat mode third (largest build, 3-4 days), repo CRUD and admin UI fourth, superadmin portal fifth.
+The recommended approach is disciplined addition: four new SQLite tables (`error_log`, `usage_events`, `billing_limits`, `onboarding_state`), six new library dependencies (`pino`, `pino-http`, `@sentry/nextjs`, `stripe`, `react-hook-form`, `@hookform/resolvers`), and no changes to any production-critical path that cannot be guarded behind an env var or inserted only before/after the critical operation. The existing superadmin endpoint switch pattern, Drizzle additive migrations, and dockerode stats API cover monitoring without new infrastructure. Billing enforcement reads from local SQLite only — no Stripe calls in the job dispatch critical path.
 
-The key risks are transport and isolation mistakes. Using the wrong streaming transport for terminal mode (the correct answer is extending the existing AI SDK UIMessageStream, not a new WebSocket), sharing `AUTH_SECRET` across instances for superadmin (never acceptable — use the `AGENT_SUPERADMIN_TOKEN` API key proxy pattern), and skipping `requireAdmin()` role checks on destructive Server Actions (the Docker socket is fully exposed; one unguarded action is a container host escape). The research identified nine critical pitfalls and provided concrete prevention patterns for each; several are confirmed by GitHub issues with the Claude Agent SDK (spawn ENOENT in Docker, `settingSources` credential override, streaming/thinking mutual exclusion).
+The top risk is scope creep masquerading as quality: OpenTelemetry instead of pino, Lago instead of Stripe Billing Meters, a comprehensive 8-step onboarding wizard, and hard billing limits that block operators on day one. Each of these is technically defensible and each one would delay the launch or damage the first operator relationships. The research is unambiguous: at this scale, the simpler option is correct in every case.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-The v2.2 stack requires exactly one new npm dependency: `@anthropic-ai/claude-agent-sdk@^0.2.76`. This is the renamed package previously known as `@anthropic-ai/claude-code` (importable SDK — distinct from the `claude` CLI binary). It runs as an async generator (`query()`) inside the existing Next.js Event Handler process and yields structured `SDKMessage` objects — far cleaner than parsing CLI stdout. The SDK supports session continuity (`sessionId` maps to ClawForge `chatId`), interrupt and cancel (`q.interrupt()`, `q.close()`, `AbortController`), configurable working directories (`options.cwd`), and cost budgets (`options.maxBudgetUsd`). Always set `settingSources: []` in containers to prevent `~/.claude/settings.json` from overriding injected API keys.
+The existing stack (Next.js 15, NextAuth v5, Drizzle ORM + better-sqlite3, dockerode v4, LangGraph, Zod v4, Tailwind v4, node-cron) is treated as fixed. v3.0 adds exactly 6-7 new production dependencies, all with confirmed version compatibility against the existing stack.
 
-All other v2.2 features — superadmin, UI operations parity, smart execution — are implemented entirely with already-installed packages: NextAuth v5 `update()` for session mutation, Drizzle ORM for the new `terminal_sessions` table, existing dockerode for job cancel/retry, and Node.js `fs` for REPOS.json operations.
+**Core new technologies:**
 
-**Core technologies (new additions only):**
-- `@anthropic-ai/claude-agent-sdk@^0.2.76`: Programmatic Claude Code execution — the only correct way to embed interactive Claude Code in a Node.js server; CLI stdout parsing is unreliable for real-time UI
-- NextAuth v5 `update()` (already installed): Session mutation for superadmin instance context — no re-authentication required to switch instance views
-- `AGENT_SUPERADMIN_TOKEN` (new GitHub secret): API key for hub-to-instance proxying — never share `AUTH_SECRET` across instances
-- Node.js `readline` interface (built-in): Required wrapper for JSONL parsing from subprocess stdout — prevents partial-line JSON parse failures on long Claude Code sessions
-- New `terminal_sessions` Drizzle table: Persists Agent SDK session IDs, cost, status, and message history for resume and cost visibility
+- `pino@^10.3.1` + `pino-http@^11.0.0`: Structured JSON logging to stdout — fastest Node.js logger, mounts on the existing `server.js` custom HTTP server before the Next.js handler. Replaces ad-hoc `console.log('[prefix]', ...)` convention with structured context fields. pino v10 requires Node 20+; Dockerfile uses Node 22 — no conflict.
+- `@sentry/nextjs@^10.44.0`: Client + server error capture with source maps — the only viable error tracking option that does not require PostgreSQL (self-hosted Sentry/GlitchTip both require it, contradicting the SQLite constraint). Free tier covers 5K errors/month. The `onRequestError` hook auto-captures all Server Component and API route errors.
+- `stripe@^20.4.1`: Subscriptions, Checkout, Customer Portal, and Billing Meters — used for payment processing and async usage reporting only, never in the job dispatch critical path. Billing Meters handles metering natively so no separate metering platform (Lago, Metronome, Flexprice) is needed or justified at this scale.
+- `react-hook-form@^7.71.2` + `@hookform/resolvers@^5.x`: Multi-step onboarding wizard with per-step Zod v4 validation. The v5 resolvers are required for Zod v4 compatibility (v4 resolvers only work with Zod v3).
+- `resend@^6.9.4`: Transactional email (welcome, billing alerts) — optional at launch, add when first external customer onboards. 3K emails/month free, 5-line integration, no SMTP server to manage.
+
+Team monitoring and health checks require zero new libraries — dockerode `container.stats({ stream: false })`, existing Drizzle queries, and the existing SSE `ReadableStream` pattern cover all needs.
 
 ### Expected Features
 
-**Must have (table stakes) — v2.2 launch:**
-- Streaming Claude Code text and tool calls in real time in chat UI — without this, terminal mode has no value
-- Live tool call visualization (tool name, inputs, results inline as they arrive)
-- File edit visibility (diff-style display of what Claude changed)
-- Job cancel via UI — missing from any serious ops platform; 4-hour build using existing dockerode
-- Job retry via UI — requires `originalPrompt` column migration; unblocks operators from re-typing failed jobs
-- Repo CRUD in admin panel — operators currently edit REPOS.json via SSH
-- Superadmin role with instance switcher — single login for multi-instance operators
-- Pre-CI quality gates in job container — highest ROI, entrypoint.sh extension only
-- Self-correction feedback loop (1 iteration max) — agent sees its own test failures and fixes them
+Full feature research in `.planning/research/FEATURES.md`.
 
-**Should have — v2.2 follow-on phases:**
-- Merge policy config per repo (extend REPOS.json + `auto-merge.yml`)
-- Interrupt/resume in Claude Code chat mode (initial release uses cancel + restart)
-- Full job log viewer page (initial release links to GitHub Actions)
-- `instanceId` DB migration for cross-instance queries (enables superadmin aggregate views)
-- Config editing in admin panel (audit missing `setConfig()` keys)
-- Gate result visibility surfaced in chat response text
+**Must have for v3.0 launch (P1):**
+- Per-instance job and workspace limits — prevents one instance from starving Docker resources on the host
+- Graceful limit error messages with current usage, limit, and reset date — operators must understand why a job was rejected
+- Onboarding checklist with DB-persisted progress state — without it, new operators are lost across multi-day setup
+- Automated step verification (GitHub PAT validity, Docker socket reachability, Slack webhook ping) — prevents "passed wizard but broken in prod" failures
+- First-job dispatch widget as the terminal onboarding milestone — value is confirmed only when a PR is created, not when a form is filled
+- Error events table with persistence across restarts — post-mortem debugging requires error history that survives container restart
+- Contextual tooltips on complex admin panel fields (AGENT_* prefix, mergePolicy, qualityGates) — reduces support burden
+- Helpful empty states on repos, MCP servers, and secrets pages — currently show nothing
+- External docs: deployment runbook + config reference — minimum bar for any production product
+- Job success rate metric on superadmin health cards — single most useful operational health signal
+- Usage tracking (tokens, duration) on job_outcomes — all future billing decisions require this data
 
-**Defer to v2.3+:**
-- Tool call approval mode (requires TypeScript SDK `onBeforeToolCall` callback; architecture change)
-- Shell mode alongside chat mode (complex dual-mode session handling)
-- Branch protection rule sync (manual setup is fine at 2-instance scale)
-- Superadmin impersonation (security-sensitive, not needed for 2 instances)
-- Bulk job operations (low volume does not justify complexity)
+**Should have, add post-launch (P2):**
+- Alert on consecutive job failures (3+ threshold, Slack notification to superadmin)
+- Historical job timeline chart (stacked bar, recharts, queries existing job_outcomes)
+- Post-first-job guided tour (custom component, 3-5 steps, triggered only after first_job_run)
+- Soft billing limits with 80% threshold warnings before hard stops
+- Instance health scorecard page (extends onboarding verification into ongoing operations)
+- Container resource utilization tracking (CPU/memory captured at job completion via dockerode stats)
+
+**Defer to v3.1+ (P3):**
+- Stripe integration for payment processing and subscriptions — build the entitlement layer now, wire Stripe when invoice volume justifies it
+- Video walkthrough for first deploy (content, not code)
+- Cross-instance failure pattern detection (useful at 5+ instances, overkill at 2-3)
+- AI-powered help assistant in admin panel
 
 ### Architecture Approach
 
-v2.2 extends the existing two-layer architecture (LangGraph Event Handler + Docker job containers) with four integration patterns, each mapping to established v2.1 precedents. Terminal chat mode is the headless job streaming pattern without PR creation: extending `lib/chat/api.js` with a `terminalMode` branch that calls `dispatchTerminalJob()` instead of LangGraph, and pipes the Docker log stream through the existing `parseLineToSemanticEvent()` into the AI SDK UIMessageStream writer. Superadmin is a proxy pattern where the hub instance reads other instances via `AGENT_SUPERADMIN_TOKEN`-authenticated status endpoints. UI operations are Server Actions with `requireAdmin()` guards routing through existing dockerode and `createJob()` primitives. Smart execution splits responsibility: pre-CI gates run in GitHub Actions workflows; CI failure feedback runs in the Event Handler via webhook dispatch of corrective jobs.
+All four v3.0 capabilities follow the same three integration patterns established by the existing codebase: (1) additive SQLite table extension via `lib/db/schema.js` + Drizzle migration + dedicated `lib/db/[feature].js` query helper; (2) new cases added to the `handleSuperadminEndpoint()` switch in `api/superadmin.js` — the existing `queryAllInstances()` proxy requires zero changes; (3) feature-flagged middleware extensions behind env var guards so existing instances (Noah, StrategyES) see zero behavior change.
 
-One architectural disagreement between research files: STACK.md recommends running the Agent SDK in-process in the Event Handler (no new container, sub-second response start). ARCHITECTURE.md recommends a dedicated Docker container per terminal session (`dispatchTerminalJob()`, new image) for filesystem isolation. This is the most consequential design decision in v2.2 and must be resolved before Phase 3 planning begins (see Gaps below).
+Full architecture research in `.planning/research/ARCHITECTURE.md`.
 
-**Major components:**
-1. **Terminal container** (`templates/docker/claude-code-terminal/`) — new Docker image; runs `claude -p` with `--output-format stream-json`; no git push, no PR creation; shares warm-start volume pattern with job containers
-2. **`lib/chat/api.js` terminalMode branch** — new execution path alongside LangGraph; `dispatchTerminalJob()` + Docker log stream piped through `parseLineToSemanticEvent()` + AI SDK UIMessageStream writer
-3. **`lib/jobs/actions.js`** — new Server Actions: `cancelJob()`, `retryJob()`; delegate to existing dockerode and `createJob()` primitives; all guarded by `requireAdmin()`
-4. **`lib/repos/actions.js`** — REPOS.json CRUD via git job dispatch (audit trail via PR; no direct filesystem writes to instance config)
-5. **`lib/superadmin/`** — cross-instance Server Actions; reads instance status via `x-superadmin-token` API proxy; writes go through GitHub API (`lib/github-api.js`)
-6. **`auto-merge.yml` + `notify-job-failed.yml` extensions** — quality gate status checks, CI failure webhook with test output, `ci_failure` event handler in `api/index.js`
-7. **`terminal_sessions` Drizzle table** — tracks Agent SDK session IDs, cost, status, message history
+**Four new tables:**
+1. `error_log` — structured error persistence keyed by context + severity, written by `lib/observability/errors.js`, read by superadmin health and errors endpoints
+2. `usage_events` — append-only billing event log with `periodMonth` text column for cheap monthly GROUP BY, written after job dispatch and terminal session close
+3. `billing_limits` — per-instance configurable limits (one row per `(instanceName, limitType)` pair), read by `lib/billing/enforce.js` before every job dispatch
+4. `onboarding_state` — single row per instance state machine (`pending` → `in_progress` → `complete`), step completion derived from real data checks against existing tables (not user self-reporting)
+
+**Critical Edge Runtime constraint:** `lib/auth/middleware.js` runs in Edge Runtime where `better-sqlite3` is unavailable. The onboarding redirect must use an unconditional redirect when `ONBOARDING_ENABLED=true` env var is set, with completion check in the page's Server Component — not in middleware.
+
+**Billing enforcement data flow:** limit check (synchronous SQLite read, <1ms) happens before the GitHub API call in `lib/tools/create-job.js`; usage event recording happens after successful dispatch (fire-and-forget). Stripe sync happens asynchronously via the existing `lib/cron.js` daily cron — never in the dispatch path.
+
+**Confirmed do-not-touch list:** `lib/superadmin/client.js`, `verifySuperadminToken()` in `api/superadmin.js`, `lib/db/job-outcomes.js` (additive columns only), the `waitAndNotify` detached async pattern in `lib/tools/create-job.js`, existing role guards in `lib/auth/middleware.js`, `lib/ai/agent.js`, `terminalCosts`/`terminalSessions` tables, `lib/ws/` WebSocket proxy, `lib/db/config.js` settings table.
 
 ### Critical Pitfalls
 
-1. **Wrong transport for terminal mode** — attempting to reuse the ttyd WebSocket or headless SSE endpoint for Claude Code terminal chat. ttyd uses binary frame protocol; SSE is unidirectional. Correct approach: extend the existing AI SDK UIMessageStream via the `POST /stream/chat` path. Zero new server infrastructure.
+Full pitfall research in `.planning/research/PITFALLS.md`.
 
-2. **Claude Agent SDK ENOENT in Docker** — the SDK spawns `node cli.js` internally (not the `claude` binary). Workspace containers without a full Node.js installation fail with `spawn node ENOENT`. Verify `node --version` is accessible inside any container hosting the SDK. Always set `settingSources: []` to prevent `~/.claude/settings.json` from overriding container-injected API keys.
+1. **SQLite write contention from observability logging** — writing one DB row per job event (40-60 events per job) serializes the SQLite writer against all DB operations. Prevention: write observability data to `logs/jobs/{jobId}.jsonl` filesystem files; write only one summary row to `job_outcomes` per job completion. Never INSERT inside `parseLineToSemanticEvent()` or `streamManager` event handlers.
 
-3. **Superadmin breaks per-instance auth isolation** — sharing `AUTH_SECRET` across instances allows a compromised session on one instance to authenticate on all. Use `AGENT_SUPERADMIN_TOKEN` for narrow API key proxying between hub and managed instances. Session tokens never cross instance boundaries.
+2. **Billing enforcement blocking the Docker fast path** — adding a Stripe API call to `lib/tools/create-job.js` creates a network-dependent synchronous blocker on the 9-second job dispatch path. Prevention: enforcement reads local SQLite only (`checkUsageLimit()` — synchronous better-sqlite3 query, <1ms); Stripe usage reporting runs in the daily cron job, never in the dispatch path.
 
-4. **Unguarded destructive Server Actions** — adding browser-accessible cancel/retry/destroy Server Actions without explicit role checks in the function body. Middleware guards page routes, not POST requests to Server Actions. Every dockerode call must start with `requireAdmin()`. The Docker socket is fully writable; one unguarded action is a full host escape.
+3. **Wrong billing unit of consumption** — `jobs_per_month` count misses that a 30-minute cluster run costs 10x a 2-minute single-task job. Prevention: track compute cost (`terminalCosts.estimated_usd` + job duration) as the billing unit. For v3.0 initial, implement usage tracking as read-only visibility first; add soft limits once real usage patterns are understood. Never ship hard limits to initial operators on day one.
 
-5. **Streaming and extended thinking are mutually exclusive** — if `maxThinkingTokens` is set on the Agent SDK, `StreamEvent` messages are not emitted. Never set `maxThinkingTokens` as default for terminal chat mode; it makes the UI appear frozen for the entire duration.
+4. **Onboarding wizard abandonment at infrastructure steps** — operators complete steps 1-3 (account, API key, config) and abandon at the Docker Compose deploy step because it requires SSH context switch. Prevention: two-phase design — (1) pre-flight artifact generation in browser (Docker Compose snippet, env var list, Slack manifest as copy-pasteable blocks); (2) async verification after operator returns from infrastructure work. No step should require leaving the browser tab.
 
-6. **Pre-CI gates bypass Docker dispatch path** — gates added to `run-job.yml` only apply to Actions-dispatched jobs. `dispatchDockerJob()` runs immediately without waiting for any workflow. Gates for Docker-dispatched jobs must be synchronous checks inside `lib/ai/tools.js` before `dispatchDockerJob()` is called.
+5. **Slack notification format breaking existing operator workflows** — Noah and StrategyES operators have Slack search queries and automations built against the current notification format. Prevention: treat `notifySlack()` output as a versioned interface; add new fields only as Slack Block Kit `context` blocks appended to existing messages; audit all `notifySlack()` calls before the commercial launch phase; confirm with Noah and Sam explicitly.
 
-7. **`auto-merge.yml` condition not wired to new gate** — adding a gate step without updating the `Merge PR` step's `if:` condition creates a silent bypass. Structure the workflow with a single aggregation step; `Merge PR` references only that boolean.
+6. **Documentation audience mismatch** — existing `docs/ARCHITECTURE.md` and `CLAUDE.md` are developer reference material, not operator docs. Prevention: write a separate task-oriented operator runbook (one task per page); use first-week support questions to drive additional pages.
+
+---
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure reflecting architectural dependencies and ROI order:
+The research produces a clear four-phase capability sequence plus a fifth commercial launch hardening phase. The dependency graph is not arbitrary — it reflects real data dependencies between the new tables and the features that read from them.
 
-### Phase 1: Smart Execution Gates
-**Rationale:** Highest ROI per hour of work. Entirely in `entrypoint.sh` and GitHub Actions workflows — zero UI, zero schema changes, zero new containers. Independent of all other v2.2 areas. Can ship and protect existing jobs before any other v2.2 work lands.
-**Delivers:** Pre-CI quality gates in job containers (`qualityGates` array in REPOS.json), one-iteration self-correction feedback loop (agent sees test failures and fixes them), merge policy config per repo, gate failure surfaced in chat notification via `summarizeJob()`
-**Addresses:** Area 4 P1 features (quality gates, feedback loop, merge policy)
-**Avoids:** Pitfall 6 (unlimited correction iterations — hard max of 1); Pitfall 8 (gates must cover both Docker and Actions dispatch paths)
-**Research flag:** Standard CI/CD patterns — skip additional research. Verify during implementation that Docker dispatch path is covered alongside Actions path.
+### Phase 1: Observability Foundation
 
-### Phase 2: Job Control UI (Cancel and Retry)
-**Rationale:** Quick wins (hours each) that close the most glaring operational gap. Establishes the `requireAdmin()` helper pattern that all subsequent UI operation phases depend on. Cancel follows the existing `stopWorkspace()` dockerode pattern exactly.
-**Delivers:** Cancel button in JobStreamViewer (stops running container, preserves branch), retry button on failed jobs, `originalPrompt` column DB migration, `lib/jobs/actions.js` Server Actions module
-**Addresses:** Area 3 P1 features (job cancel, job retry)
-**Avoids:** Pitfall 7 (Docker socket exposure — `requireAdmin()` as first line of every destructive Server Action; never accept `containerId` from client input)
-**Research flag:** Standard dockerode patterns — skip research. The `stopWorkspace()` pattern in `lib/tools/docker.js` is the exact template.
+**Rationale:** No dependencies on other v3.0 work. Immediate production value — errors are currently lost on container restart. Must be in place before billing and onboarding go live because those features introduce new failure modes that will need debugging. Instruments the system before adding new complexity.
 
-### Phase 3: Claude Code Terminal Chat Mode
-**Rationale:** The flagship v2.2 feature and the largest single build (3-4 days). Benefits from cancel pattern established in Phase 2 for `cancelTerminalJob()`. Must come before superadmin because the terminal session infrastructure is referenced by instance management UI.
-**Delivers:** Interactive Claude Code in chat UI with streaming tool calls and file edits, interrupt/cancel, new terminal container Docker image, `terminal_sessions` DB table, session cost tracking
-**Addresses:** Area 1 P1 features (streaming text + tool calls, file edit visibility, token/cost tracking)
-**Avoids:** Pitfall 1 (correct transport: AI SDK UIMessageStream extension, not new WebSocket); Pitfall 2 (SDK ENOENT — verify Node on PATH in container before UI build); Pitfall 3 (never embed xterm canvas inside chat bubble message components); Pitfall 4 (readline wrapper for JSONL — one-line fix that must be in place before integration testing); Pitfall 5 (never set `maxThinkingTokens` as default)
-**Research flag:** Needs phase research. Resolve the in-process vs container execution model disagreement first (see Gaps). Verify container environment before building UI. Agent SDK has confirmed sharp edges that require pre-implementation validation.
+**Delivers:** `error_log` table, `lib/observability/errors.js` `captureError()` function, structured JSON logging via pino + pino-http mounted on `server.js`, Sentry.io integration for client/server error capture, health endpoint extension (`errorCount24h`, `lastErrorAt`, `dbStatus`), 30-day log pruning cron.
 
-### Phase 4: Repo CRUD and Admin UI Operations
-**Rationale:** Depends on `requireAdmin()` pattern from Phase 2. REPOS.json mutations go through git job dispatch (established in v1.3 instance generator), which leverages Phase 3's terminal job infrastructure. Closes the last SSH-required workflow.
-**Delivers:** Repo CRUD admin page, REPOS.json changes via git PR for audit trail, persona file editing (SOUL.md, AGENT.md, EVENT_HANDLER.md) via git PR, config key audit and expansion in `/admin/general`, instance management page
-**Addresses:** Area 3 P1 features (repo CRUD, config editing); Area 3 P2 features (instance management page)
-**Avoids:** Direct filesystem writes for REPOS.json and persona files — must go through git PR for durability and rollback; `loadAllowedRepos()` must re-read from disk after write with cache-bust
-**Research flag:** Standard patterns — skip research. Git job dispatch for config mutations is established in the v1.3 instance generator.
+**Addresses features:** Error events table with persistence, job success rate metric (extended health endpoint), error context for post-mortem debugging.
 
-### Phase 5: Superadmin Portal
-**Rationale:** Independent of Phases 1-3 architecturally (could run in parallel), positioned here because Phase 4 establishes instance management admin pages that the superadmin portal aggregates. Auth model (API key proxying, not session sharing) must be locked in before any superadmin UI code is written.
-**Delivers:** Superadmin role in users table middleware, `/superadmin/*` route guard, `config/instances.json` instance registry, `/api/superadmin/status` endpoint with `x-superadmin-token` auth, cross-instance health dashboard, instance switcher UI
-**Addresses:** Area 2 P1 features (single login, instance switcher, instance health overview)
-**Avoids:** Pitfall 6 (per-instance auth isolation — `AGENT_SUPERADMIN_TOKEN` for API proxying, never shared `AUTH_SECRET`); superadmin portal running its own LangGraph instance (use UI-only aggregation; writes go through GitHub API)
-**Research flag:** Auth isolation model is confirmed — skip research on auth approach. Document `AGENT_SUPERADMIN_TOKEN` rotation procedure in ops runbook before shipping.
+**Avoids:** SQLite write contention — filesystem JSONL logging for job-level events, one summary row per job to `job_outcomes` only. Alert fatigue — configure only 5 business-outcome alerts (job failure rate, workspace crash, Slack delivery failures, dispatch P95, instance heartbeat).
 
-### Phase 6: v2.2 Follow-On (Interrupt/Resume, instanceId Migration, Merge Policy UI)
-**Rationale:** Deferred items requiring core infrastructure from Phases 1-5 to be stable first. `instanceId` DB migration is backward-compatible but touches many tables and should be validated against production data before merging.
-**Delivers:** Session interrupt/resume in terminal chat mode, `instanceId` column on core tables for cross-instance queries, merge policy config UI in admin panel, full job log viewer page, gate result visibility in chat
-**Addresses:** Area 1 P2 (interrupt/resume); Area 2 P2 (`instanceId` migration); Area 3 P2 (log viewer, merge policy UI); Area 4 P2 (gate result visibility)
-**Avoids:** Performance trap: never add Claude Code terminal output to LangGraph thread state / SQLite checkpointer; serialize only on session close
-**Research flag:** `instanceId` migration needs planning — flag for phase research given schema impact across `chats`, `job_outcomes`, `cluster_runs`, `code_workspaces`, `notifications`.
+**Stack:** `pino@^10.3.1`, `pino-http@^11.0.0`, `@sentry/nextjs@^10.44.0`.
+
+**Research flag:** Sentry Next.js 15 App Router integration is fully documented with official guides — skip research. Standard logging patterns.
+
+### Phase 2: Billing and Usage Tracking
+
+**Rationale:** Must exist before Onboarding (Phase 3) because the onboarding `first_job` step check reads from `usage_events`. Establishes the `billing_limits` table that the monitoring dashboard (Phase 4) reads for usage-vs-limit display. Concurrency limit must be in place before any free tier access is opened.
+
+**Delivers:** `usage_events` table (append-only, `periodMonth` text column indexed), `billing_limits` table (per-instance configurable), `lib/billing/enforce.js:checkUsageLimit()` (synchronous SQLite enforcement before job dispatch), `lib/db/usage.js:recordUsageEvent()` (fire-and-forget after dispatch), Stripe integration for payment processing (Checkout, Customer Portal, Billing Meters, webhook handler), daily cron for async Stripe meter sync, admin UI for superadmin to adjust per-instance limits.
+
+**Addresses features:** Per-instance job/workspace limits, graceful limit error messages, usage tracking (tokens + duration on job_outcomes), plan tier stored per instance (superadmin-editable), concurrency limit to prevent burst abuse.
+
+**Avoids:** Stripe in dispatch critical path — local SQLite enforcement only. Hard limits on day one — read-only usage visibility first; soft limits (80% warning threshold) when patterns are confirmed.
+
+**Stack:** `stripe@^20.4.1`. Existing `node-cron` for meter sync cron.
+
+**Research flag:** Workspace-hour usage event implementation (periodic cron vs. on-close event) needs resolution during phase planning — confirm whether workspace billing is in scope for v3.0 or deferred to v3.1.
+
+### Phase 3: Self-Service Onboarding
+
+**Rationale:** Depends on Phase 2 (`usage_events` must exist for `first_job` step verification). Must come before commercial launch (Phase 5). The onboarding flow determines whether external customers can self-serve or require concierge support — this is the primary Phase 5 enabler.
+
+**Delivers:** `onboarding_state` table (single-row-per-instance state machine), `lib/onboarding/steps.js` (step definitions with programmatic completion checks against existing tables), `lib/onboarding/state.js` (state machine with `checkAndAdvance()`), `/app/onboarding/page.js` wizard UI (react-hook-form + Zod v4 + existing shadcn), `ONBOARDING_ENABLED=true` env var gate in middleware, pre-flight artifact generation (Docker Compose snippet, env var list, Slack app manifest as copy-pasteable blocks), contextual tooltips on complex admin fields, helpful empty states on key pages.
+
+**Addresses features:** Onboarding checklist with progress persistence, automated step verification, first-job dispatch widget as terminal milestone, resumable setup across sessions, setup time estimates per step.
+
+**Avoids:** Two-phase design only (artifact generation + async verification) — no infrastructure steps inside the wizard. Onboarding redirect in page Server Component, not middleware (Edge Runtime blocks better-sqlite3). Success = first job dispatched and PR created, not wizard form submitted.
+
+**Stack:** `react-hook-form@^7.71.2`, `@hookform/resolvers@^5.x`. Existing Zod v4, Tailwind, shadcn components.
+
+**Research flag:** Edge Runtime redirect loop risk — unconditional `ONBOARDING_ENABLED` redirect + page-level completion check needs validation that no circular redirect occurs. Flag for phase planning before writing middleware code.
+
+### Phase 4: Team Monitoring Dashboard
+
+**Rationale:** Hard dependency on all three prior phases — aggregates `error_log` (Phase 1), `usage_events` + `billing_limits` (Phase 2), and `onboarding_state` (Phase 3) via new superadmin endpoints. The `queryAllInstances()` proxy client requires zero changes; new endpoint cases are sufficient.
+
+**Delivers:** Three new superadmin endpoint cases (`errors`, `usage`, `onboarding` in `handleSuperadminEndpoint()` switch), `/app/superadmin/monitoring/page.js` (per-instance cards with health, error rate, usage vs. limits, onboarding progress), dockerode `container.stats({ stream: false })` for CPU/memory snapshots at job completion, job success rate per instance (query on existing `job_outcomes`), alert-on-consecutive-failures logic (Slack notification, max once per hour per instance).
+
+**Addresses features:** Cross-instance monitoring in superadmin portal, error tracking visibility, historical job timeline chart, health degradation alerts, container resource utilization tracking.
+
+**Avoids:** Infrastructure-level alerting (CPU/memory thresholds) — business-outcome alerts only. External monitoring services (Datadog, New Relic) — all data stays in existing SQLite. Real-time streaming event feed across all instances — polling at 30-second intervals is correct at this scale.
+
+**Stack:** Zero new libraries. Extends existing dockerode, Drizzle, and SSE ReadableStream patterns.
+
+**Research flag:** Confirm which charting library (recharts vs. chart.js) is already present in the superadmin portal before choosing for the monitoring page — avoid duplicate charting dependency. Otherwise standard patterns — skip additional research.
+
+### Phase 5: Commercial Launch Hardening
+
+**Rationale:** Runs after Phases 1-4 are functional. Protects existing operators (Noah, StrategyES) from regressions introduced by the new features. Provides external operators with the documentation needed to succeed. Verifies demo isolation before external access is opened.
+
+**Delivers:** Task-oriented operator runbook (10 pages covering most common operator actions — not architecture documentation), config reference (every env var, every REPOS.json field, every admin panel setting), deployment runbook (VPS deploy, Docker Compose, DNS, Slack app creation), troubleshooting guide (top 10 errors with fixes), Slack notification format audit (zero breaking changes confirmed with Noah and Sam), demo instance with isolated Docker network, `resend` transactional email (welcome + billing alert), post-first-job guided tour (custom component, 3-5 steps, triggered only after `first_job_run`).
+
+**Addresses features:** External docs, troubleshooting guide, post-first-job guided tour, demo isolation, existing operator regression protection.
+
+**Avoids:** Shipping existing `docs/ARCHITECTURE.md` as operator documentation (audience mismatch). Changing notification format without operator confirmation. Demo instance sharing Docker networks or volumes with production instances.
+
+**Stack:** `resend@^6.9.4` (optional — add when first external customer onboards).
+
+**Research flag:** No technical research needed. Notification format audit and demo instance isolation are coordination and operations tasks.
 
 ### Phase Ordering Rationale
 
-- **Smart execution first** — prerequisite-free, highest ROI per hour, immediately protects all existing jobs with no UI work
-- **Job control before terminal mode** — establishes `requireAdmin()` guard pattern required by all subsequent UI phases; `cancelTerminalJob()` in Phase 3 follows the Phase 2 pattern
-- **Terminal mode before superadmin** — terminal session management infrastructure is referenced by instance management UI built in Phase 4-5
-- **Area 4 (smart execution) is the only fully independent area** — confirmed in FEATURES.md dependency analysis; can be built entirely in parallel with Areas 1-3
-- **`instanceId` migration last** — high schema impact, backward-compat nullable approach, should be validated against stable production data
+- **Observability first** because all subsequent phases introduce new failure modes that need debugging infrastructure; also delivers immediate production value independent of the commercial features.
+- **Billing before Onboarding** because the onboarding `first_job` step check reads from `usage_events` — if billing tables don't exist, onboarding step verification fails at the data layer.
+- **Onboarding before Monitoring Dashboard** because the monitoring dashboard displays onboarding state from the `onboarding_state` table as one of its three data aggregations.
+- **Commercial Hardening last** because it depends on all four capability areas being functional and is primarily a quality, documentation, and coordination phase.
+- Phases 1 and 2 have no shared tables and can be built in parallel by separate developers. All other phases are sequentially dependent.
 
 ### Research Flags
 
-Needs phase research before planning:
-- **Phase 3 (Terminal Chat Mode):** Resolve in-process vs container execution model disagreement (STACK.md vs ARCHITECTURE.md give different answers — see Gaps). Verify SDK container environment before writing UI code. Agent SDK has confirmed GitHub issues that must be reproduced and validated in the ClawForge container environment.
-- **Phase 6 (`instanceId` migration):** Schema change touches multiple core tables. Needs migration plan and backward-compat validation before any implementation begins.
+Phases needing deeper research during planning:
+- **Phase 2 (Billing):** Workspace-hour usage event timing — confirm whether workspace session billing is in scope for v3.0 and whether the periodic cron approach (every 15 minutes) or on-close event approach is appropriate.
+- **Phase 3 (Onboarding):** Edge Runtime redirect loop risk — validate that unconditional `ONBOARDING_ENABLED` redirect + page-level completion check does not produce a circular redirect on first load before writing middleware code.
 
-Phases with standard patterns (skip research):
-- **Phase 1 (Smart Execution Gates):** Standard CI/CD quality gate pattern; entrypoint.sh extension follows existing template variable patterns.
-- **Phase 2 (Job Control UI):** Dockerode cancel/retry follows existing `stopWorkspace()` pattern exactly.
-- **Phase 4 (Repo CRUD):** Git job dispatch for config mutations is established in v1.3 instance generator.
-- **Phase 5 (Superadmin):** API key proxy architecture is confirmed; primarily UI and endpoint work.
+Phases with well-documented patterns (skip research-phase):
+- **Phase 1 (Observability):** Sentry Next.js 15 integration has official docs; pino stdout logging is standard.
+- **Phase 4 (Monitoring):** Superadmin endpoint extension pattern is already proven in production; dockerode stats CPU formula is confirmed.
+- **Phase 5 (Documentation):** No technical research needed — content and coordination work only.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Official Anthropic SDK docs and npm registry verified 2026-03-16; single new dependency confirmed; all other tech verified by direct codebase inspection of `package.json`, `lib/db/schema.js`, `lib/tools/docker.js` |
-| Features | HIGH | Feature gaps confirmed by direct codebase inspection — `lib/db/schema.js` (no `instanceId`, no `originalPrompt`), admin page listing (no repo CRUD page), `lib/tools/docker.js` (no UI cancel). v2.1 shipped state confirmed against component files. |
-| Architecture | HIGH | Integration patterns derived from direct inspection of all referenced files; confirmed against established v2.0/v2.1 build decisions in `.planning/PROJECT.md`. One disagreement between research files flagged explicitly. |
-| Pitfalls | HIGH | 9 critical pitfalls confirmed via GitHub issues (`#4383`, `#6775`), official SDK docs (streaming/thinking incompatibility documented), direct code inspection (Docker socket exposure pattern, partial-line JSONL behavior) |
+| Stack | HIGH | All 7 new dependency versions confirmed via npm registry. All integration points verified against actual codebase files (`server.js`, `instrumentation.ts`, `api/index.js`, `lib/tools/create-job.js`). Node.js version compatibility verified (pino v10 requires Node 20+; Dockerfile uses Node 22). |
+| Features | MEDIUM | External SaaS patterns sourced from WebSearch — multiple sources agree on TTV metrics, onboarding completion rates, billing model alignment. ClawForge-specific feature decisions are HIGH confidence — verified against v2.2 shipped capabilities and current `lib/db/schema.js`. |
+| Architecture | HIGH | Derived entirely from direct inspection of 13 codebase files including `lib/db/schema.js`, `api/superadmin.js`, `lib/superadmin/client.js`, `lib/auth/middleware.js`, `lib/tools/create-job.js`, and `.planning/codebase/CONCERNS.md`. All integration points confirmed against real code. Edge Runtime constraint confirmed by Next.js documentation. |
+| Pitfalls | HIGH (codebase) / MEDIUM (external) | SQLite WAL write contention and Edge Runtime `better-sqlite3` constraint confirmed against codebase. Alert fatigue (edgedelta.com), metric cardinality (Honeycomb), billing model alignment (Stripe/Zenskar), and onboarding abandonment (daily.dev) sourced from multiple external references. |
 
-**Overall confidence:** HIGH
+**Overall confidence:** HIGH for implementation-level decisions. MEDIUM for external product/market judgments (feature priority, operator behavior predictions at scale).
 
 ### Gaps to Address
 
-- **In-process vs container execution model for terminal chat mode:** STACK.md recommends running `@anthropic-ai/claude-agent-sdk` in-process in the Event Handler (sub-second response start, no Docker overhead). ARCHITECTURE.md recommends a dedicated Docker container per terminal session (`dispatchTerminalJob()`, new image) for filesystem isolation matching v2.1's security model. These are architecturally incompatible. **Resolve during Phase 3 planning before writing any code.** Key tradeoff: in-process has lower latency (~0ms start vs ~9s) but Claude Code has filesystem access to the ClawForge server process. Container approach matches existing security posture but adds startup overhead.
+- **Workspace-hour billing scope:** Research is ambiguous on whether workspace session metering belongs in v3.0 or v3.1. The `workspace_hour` event type is defined in the schema design but the periodic cron implementation adds complexity. Decide during Phase 2 planning — if deferred, remove `workspace_hour` from the `usage_events` schema to avoid dead schema columns.
 
-- **CI failure webhook payload size:** `notify-job-failed.yml` must include test output for the corrective feedback loop. Full Jest/test output can be 50-200KB. GitHub Actions has webhook payload limits. **Validate during Phase 1** — may need to store test output as a GitHub Actions artifact and reference by URL rather than inline in the webhook body.
+- **Recharts vs. chart.js in existing codebase:** The monitoring dashboard needs a charting library. FEATURES.md notes recharts as "potentially already in use via superadmin portal." Confirm the actual dependency in `package.json` before Phase 4 to avoid adding a duplicate charting library.
 
-- **REPOS.json mutation durability model:** ARCHITECTURE.md recommends dispatching a git job to commit REPOS.json changes (full audit trail). FEATURES.md describes direct `fs.writeFile` Server Action (immediate effect). The git-job approach creates a PR that must be merged before config takes effect — an awkward UX for routine repo management. **Decide during Phase 4 planning.** Recommendation: git PR for persona files (SOUL.md, AGENT.md — high-stakes) and direct write for REPOS.json (routine config — immediate effect is more valuable).
+- **Demo instance provisioning timing:** PITFALLS.md identifies demo/production isolation as critical but does not specify when the demo instance should be provisioned. Determine during Phase 5 planning whether it is a new VPS or a Docker network on the existing host, and who provisions it.
 
-- **`AGENT_SUPERADMIN_TOKEN` rotation procedure:** New shared secret that must exist on all instances. Rotation procedure is not documented. **Address during Phase 5 planning** — add to ops runbook before shipping superadmin to production.
+- **Billing limits admin UI placement:** ARCHITECTURE.md flags `/admin/billing` (per-instance self-service) vs. `/superadmin/billing` (cross-instance from hub) as an open question. For v3.0 with manual operator configuration, per-instance admin is sufficient. Confirm during Phase 2 planning and do not build the cross-instance UI until it is needed.
+
+---
 
 ## Sources
 
-### Primary (HIGH confidence)
-- `@anthropic-ai/claude-agent-sdk` npm registry — version 0.2.76, verified 2026-03-16
-- `@anthropic-ai/claude-code` npm registry — version 2.1.76 (CLI), verified 2026-03-16
-- Anthropic Agent SDK docs — `query()` interface, `SDKMessage` union type, streaming/thinking incompatibility, `settingSources` default, interrupt/close/abort patterns
-- `code.claude.com/docs/en/headless` — `--output-format stream-json`, `--include-partial-messages`, `--resume` session continuity
-- ClawForge codebase (direct inspection): `lib/chat/api.js`, `lib/tools/log-parser.js`, `lib/tools/stream-manager.js`, `lib/jobs/stream-api.js`, `lib/tools/docker.js`, `lib/auth/middleware.js`, `lib/auth/config.js`, `lib/ws/server.js`, `lib/db/schema.js`, `lib/db/config.js`, `lib/db/users.js`, `.planning/PROJECT.md`, `docs/ARCHITECTURE.md`, `package.json`, `instances/noah/config/REPOS.json`
-- GitHub issues: `anthropics/claude-code#4383` (spawn node ENOENT in Docker), `anthropics/claude-code#6775` (SDK hangs in Node.js test environments)
+### Primary (HIGH confidence — direct codebase inspection)
 
-### Secondary (MEDIUM confidence)
-- NextAuth v5 docs — `update()` session mutation pattern, confirmed in multiple sources
-- Multi-tenant SaaS superadmin patterns — MakerKit, Microsoft 365 admin center — instance switcher UX
-- Docker management UI patterns — Dockhand, Portainer, Dozzle — cancel/retry/logs operations
-- CI/CD quality gate patterns — sequential gate execution, max retry limits, feedback loops
+- `lib/db/schema.js` — all existing tables confirmed; new table designs validated for non-conflict
+- `api/superadmin.js` — endpoint switch pattern, M2M auth, `handleSuperadminEndpoint()` switch confirmed
+- `lib/superadmin/client.js` — `queryAllInstances()` proxy pattern confirmed; zero changes required for new endpoints
+- `lib/auth/middleware.js` — Edge Runtime constraint confirmed; three-tier RBAC guards confirmed
+- `lib/tools/create-job.js` — dispatch critical path confirmed; correct insertion points for enforcement and usage recording confirmed
+- `lib/terminal/cost-tracker.js` — `terminalCosts` + `terminalSessions` accumulation pattern confirmed
+- `.planning/PROJECT.md` — v3.0 target features, out-of-scope decisions (OpenTelemetry, Max subscription auth) confirmed
+- `.planning/codebase/CONCERNS.md` — silent failure paths in `api/index.js` confirmed as primary observability gap
 
-### Tertiary
-- Community: "Common Pitfalls with the Claude Agent SDK" — SDK ENOENT, `settingSources` override, packaging path issues (corroborated by official GitHub issues)
+### Primary (HIGH confidence — official documentation)
+
+- [Sentry Next.js docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/) — `onRequestError` hook, Next.js 15 compatibility, Turbopack SDK rewrite
+- [Stripe usage-based billing docs](https://docs.stripe.com/billing/subscriptions/usage-based) — Billing Meters API confirmed
+- [dockerode Container.stats GitHub issue #389](https://github.com/apocas/dockerode/issues/389) — `stream: false` one-shot stats pattern, CPU calculation formula verified
+- npm registry — version confirmations for all 7 new dependencies as of 2026-03-17
+
+### Secondary (MEDIUM confidence — multiple sources agree)
+
+- SaaS onboarding best practices (Design Revision, Everafter.ai, Userpilot) — TTV metric, 3-7 step sweet spot, post-activation tour timing
+- Usage-based billing patterns (Stripe SaaS resource, Zenskar) — enforcement-in-application-code pattern, entitlement layer design
+- Multi-tenant monitoring patterns (New Relic, AWS SaaS Lens) — tenant-aware metrics, systemic vs. localized issue detection
+- SQLite WAL write contention (phiresky blog, oneuptime.com 2026) — writer serialization limits, production setup recommendations
+- Alert fatigue research (edgedelta.com) — 38% of teams cite noise as major incident response challenge
+- Metric cardinality pitfall (Honeycomb observability best practices) — UUID labels create unbounded time series
+- Developer onboarding abandonment (daily.dev) — infrastructure step context switch causes abandonment
 
 ---
-*Research completed: 2026-03-16*
+*Research completed: 2026-03-17*
 *Ready for roadmap: yes*
