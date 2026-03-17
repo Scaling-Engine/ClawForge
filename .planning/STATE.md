@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Smart Operations
 status: verifying
-stopped_at: Completed 41-claude-code-terminal-chat/41-01-PLAN.md
-last_updated: "2026-03-17T02:36:36.801Z"
+stopped_at: Completed 41-claude-code-terminal-chat/41-03-PLAN.md
+last_updated: "2026-03-17T02:43:19.985Z"
 last_activity: 2026-03-17 — Phase 40 Job Control UI complete (1 plan, 3 commits)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -59,6 +59,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 41-01]: requireAdmin inlined in terminal-api.js via session.user.role check (private in chat/actions.js)
 - [Phase 41-01]: Migration numbered 0007 (plan specified 0010 incorrectly — actual next index was 7)
 - [Phase 41-01]: getDb() called at call-site in streaming callbacks, not at module scope
+- [Phase 41-03]: terminalSessionIdRef (useRef) tracks session ID alongside state so transport useMemo reads latest value without adding terminalSessionId as a dependency — prevents unnecessary transport re-creation
+- [Phase 41-03]: Custom fetch wrapper (terminalFetch) intercepts X-Terminal-Session-Id response header — useChat from @ai-sdk/react does not expose an onResponse callback
 
 ### v2.2 Key Architecture Notes
 
@@ -96,6 +98,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-17T02:36:36.799Z
-Stopped at: Completed 41-claude-code-terminal-chat/41-01-PLAN.md
+Last session: 2026-03-17T02:43:19.983Z
+Stopped at: Completed 41-claude-code-terminal-chat/41-03-PLAN.md
 Resume file: None

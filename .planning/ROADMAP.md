@@ -106,7 +106,7 @@
 
 - [x] **Phase 39: Smart Execution** - Quality gates, self-correction loop, and merge policies in job containers (completed 2026-03-16)
 - [x] **Phase 40: Job Control UI** - Cancel and retry running jobs from the web UI (completed 2026-03-17)
-- [ ] **Phase 41: Claude Code Terminal Chat** - Embedded interactive Claude Code sessions with live streaming
+- [x] **Phase 41: Claude Code Terminal Chat** - Embedded interactive Claude Code sessions with live streaming (completed 2026-03-17)
 - [ ] **Phase 42: Admin Operations and Superadmin** - Repo CRUD, config editing, instance management, and cross-instance superadmin portal
 
 ## Phase Details
@@ -148,7 +148,7 @@ Plans:
   4. Operator can send a follow-up message to a running session to redirect the agent; the agent receives it and continues or changes course
   5. Operator sees token usage and estimated USD cost per turn displayed in the message stream, and the data is persisted in the database
   6. Operator can toggle the session to shell mode for direct bash command execution within the same session context
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 41-01-PLAN.md — Backend foundation: DB schema, session manager, SDK bridge, cost tracker, terminal streaming route
 - [ ] 41-02-PLAN.md — Frontend components: DiffView, ThinkingPanel, CostDisplay, TerminalToolCall
@@ -181,7 +181,7 @@ Plans:
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39. Smart Execution | 2/2 | Complete    | 2026-03-16 | - |
 | 40. Job Control UI | 1/1 | Complete   | 2026-03-17 | - |
-| 41. Terminal Chat | 2/3 | In Progress|  | - |
+| 41. Terminal Chat | 3/3 | Complete   | 2026-03-17 | - |
 | 42. Admin Ops + Superadmin | v2.2 | 0/TBD | Not started | - |
 
 **Total shipped:** 38 phases, 73 plans — all complete through v2.1

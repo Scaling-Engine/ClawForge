@@ -12,10 +12,10 @@ Requirements for v2.2 Smart Operations. Each maps to roadmap phases.
 - [x] **TERM-01**: Operator can start a Claude Code chat session that streams text output in real time from an Agent SDK subprocess
 - [x] **TERM-02**: Operator sees each tool call (file edits, bash commands, MCP tools) visualized live in the chat message stream as it happens
 - [x] **TERM-03**: Operator sees file edits as unified diffs (red/green removed/added lines) with syntax highlighting inline in the message stream
-- [ ] **TERM-04**: Operator can send follow-up instructions to a running Claude Code session to redirect or interrupt the agent mid-task
+- [x] **TERM-04**: Operator can send follow-up instructions to a running Claude Code session to redirect or interrupt the agent mid-task
 - [x] **TERM-05**: Claude Code chat session targets a specific repo working directory via named volumes with warm-start pattern
 - [x] **TERM-06**: Operator sees token usage and estimated cost per Claude Code turn, stored in the database alongside message content
-- [ ] **TERM-07**: Operator can toggle between chat mode (natural language prompts) and shell mode (direct bash commands with conversation context) in the same session
+- [x] **TERM-07**: Operator can toggle between chat mode (natural language prompts) and shell mode (direct bash commands with conversation context) in the same session
 - [x] **TERM-08**: Operator can view Claude's thinking steps in a collapsible reasoning panel when extended thinking mode is enabled
 
 ### Superadmin Portal (SUPER)
@@ -99,10 +99,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-01 | Phase 41 | Complete |
 | TERM-02 | Phase 41 | Complete |
 | TERM-03 | Phase 41 | Complete |
-| TERM-04 | Phase 41 | Pending |
+| TERM-04 | Phase 41 | Complete |
 | TERM-05 | Phase 41 | Complete |
 | TERM-06 | Phase 41 | Complete |
-| TERM-07 | Phase 41 | Pending |
+| TERM-07 | Phase 41 | Complete |
 | TERM-08 | Phase 41 | Complete |
 | OPS-03 | Phase 42 | Pending |
 | OPS-04 | Phase 42 | Pending |
