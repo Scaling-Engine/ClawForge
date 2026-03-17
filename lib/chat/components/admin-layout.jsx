@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { PageLayout } from './page-layout.js';
-import { ClockIcon, ZapIcon, KeyIcon, WrenchIcon, UserIcon, ShieldIcon } from './icons.js';
+import { ClockIcon, ZapIcon, KeyIcon, WrenchIcon, UserIcon, ShieldIcon, SettingsSliderIcon, DatabaseIcon, ServerIcon } from './icons.js';
 
 const ADMIN_NAV = [
+  { id: 'general', label: 'General', href: '/admin/general', icon: SettingsSliderIcon },
+  { id: 'repos', label: 'Repos', href: '/admin/repos', icon: DatabaseIcon },
+  { id: 'instances', label: 'Instances', href: '/admin/instances', icon: ServerIcon },
   { id: 'crons', label: 'Crons', href: '/admin/crons', icon: ClockIcon },
   { id: 'triggers', label: 'Triggers', href: '/admin/triggers', icon: ZapIcon },
   { id: 'secrets', label: 'Secrets', href: '/admin/secrets', icon: KeyIcon },
