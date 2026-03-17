@@ -231,8 +231,8 @@ export function AppSidebar({ user }) {
             </Tooltip>
           </SidebarMenuItem>
 
-          {/* Admin (role-gated) */}
-          {user?.role === 'admin' && (
+          {/* Admin (role-gated: admin or superadmin) */}
+          {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <SidebarMenuItem>
               <Tooltip>
                 <TooltipTrigger asChild>
