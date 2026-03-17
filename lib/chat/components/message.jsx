@@ -6,6 +6,13 @@ import { code as codePlugin } from '@streamdown/code';
 import { cn } from '../utils.js';
 import { SpinnerIcon, FileTextIcon, CopyIcon, CheckIcon, RefreshIcon, SquarePenIcon, WrenchIcon, XIcon, ChevronDownIcon } from './icons.js';
 import { JobStreamViewer } from './job-stream-viewer.jsx';
+import { TerminalToolCall } from './terminal-tool-call.jsx';
+
+// Claude Code CLI tool names — routed to TerminalToolCall for rich rendering
+const TERMINAL_TOOL_NAMES = new Set([
+  'Read', 'Write', 'Edit', 'MultiEdit', 'Bash', 'Glob', 'Grep',
+  'WebFetch', 'TodoWrite', 'TodoRead', '_thinking',
+]);
 
 function LinkSafetyModal({ url, isOpen, onClose, onConfirm }) {
   const [copied, setCopied] = useState(false);
@@ -390,6 +397,10 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
                         );
                       }
                       if (part.type?.startsWith('tool-')) {
+                        const toolName = part.toolName || '';
+                        if (TERMINAL_TOOL_NAMES.has(toolName)) {
+                          return <TerminalToolCall key={part.toolCallId || i} part={part} />;
+                        }
                         return <ToolCall key={part.toolCallId || i} part={part} />;
                       }
                       return null;
