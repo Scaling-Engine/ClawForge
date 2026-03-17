@@ -12,6 +12,7 @@ import { verifyApiKey } from '../lib/db/api-keys.js';
 import { isJobNotified } from '../lib/db/docker-jobs.js';
 import { ensureWorkspaceContainer, stopWorkspace, destroyWorkspace, spawnExtraShell, checkWorkspaceGitStatus } from '../lib/tools/docker.js';
 import { listWorkspaces, getWorkspace, updateWorkspace } from '../lib/db/workspaces.js';
+import { handleSuperadminRequest } from './superadmin.js';
 
 // Bot token from env, can be overridden by /telegram/register
 let telegramBotToken = null;
@@ -524,6 +525,12 @@ async function POST(request) {
 async function GET(request) {
   const url = new URL(request.url);
   const routePath = url.pathname.replace(/^\/api/, '');
+
+  // Superadmin routes use their own Bearer token auth (not x-api-key)
+  const superadminMatch = routePath.match(/^\/superadmin\/([a-z]+)$/);
+  if (superadminMatch) {
+    return handleSuperadminRequest(request, superadminMatch[1]);
+  }
 
   // Auth check
   const authError = checkAuth(routePath, request);
