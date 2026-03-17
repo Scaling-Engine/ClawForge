@@ -107,7 +107,7 @@
 - [x] **Phase 39: Smart Execution** - Quality gates, self-correction loop, and merge policies in job containers (completed 2026-03-16)
 - [x] **Phase 40: Job Control UI** - Cancel and retry running jobs from the web UI (completed 2026-03-17)
 - [x] **Phase 41: Claude Code Terminal Chat** - Embedded interactive Claude Code sessions with live streaming (completed 2026-03-17)
-- [ ] **Phase 42: Admin Operations and Superadmin** - Repo CRUD, config editing, instance management, and cross-instance superadmin portal
+- [x] **Phase 42: Admin Operations and Superadmin** - Repo CRUD, config editing, instance management, and cross-instance superadmin portal (completed 2026-03-17)
 
 ## Phase Details
 
@@ -185,7 +185,7 @@ Plans:
 | 39. Smart Execution | 2/2 | Complete    | 2026-03-16 | - |
 | 40. Job Control UI | 1/1 | Complete   | 2026-03-17 | - |
 | 41. Terminal Chat | 3/3 | Complete    | 2026-03-17 | - |
-| 42. Admin Ops + Superadmin | 1/2 | In Progress|  | - |
+| 42. Admin Ops + Superadmin | 2/2 | Complete   | 2026-03-17 | - |
 
 **Total shipped:** 38 phases, 73 plans — all complete through v2.1
 **v2.2 active:** 4 phases, Phase 39 complete (2 plans), Phase 40 complete (1 plan), Phase 41 planned (3 plans)

@@ -20,11 +20,11 @@ Requirements for v2.2 Smart Operations. Each maps to roadmap phases.
 
 ### Superadmin Portal (SUPER)
 
-- [ ] **SUPER-01**: Operator can log in once and access all ClawForge instances from a single authenticated session with a superadmin role
-- [ ] **SUPER-02**: Operator can switch between instances via an instance switcher UI without re-authenticating
-- [ ] **SUPER-03**: Superadmin landing page shows instance health overview with active job count, runner status, and last job timestamp per instance
-- [ ] **SUPER-04**: All data tables (chats, job_outcomes, cluster_runs, code_workspaces) are scoped by instanceId column for cross-instance isolation
-- [ ] **SUPER-05**: Operator can search jobs across all instances by repo name, status, or keyword from the superadmin portal
+- [x] **SUPER-01**: Operator can log in once and access all ClawForge instances from a single authenticated session with a superadmin role
+- [x] **SUPER-02**: Operator can switch between instances via an instance switcher UI without re-authenticating
+- [x] **SUPER-03**: Superadmin landing page shows instance health overview with active job count, runner status, and last job timestamp per instance
+- [x] **SUPER-04**: All data tables (chats, job_outcomes, cluster_runs, code_workspaces) are scoped by instanceId column for cross-instance isolation
+- [x] **SUPER-05**: Operator can search jobs across all instances by repo name, status, or keyword from the superadmin portal
 
 ### UI Operations Parity (OPS)
 
@@ -107,11 +107,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-03 | Phase 42 | Complete |
 | OPS-04 | Phase 42 | Complete |
 | OPS-05 | Phase 42 | Complete |
-| SUPER-01 | Phase 42 | Pending |
-| SUPER-02 | Phase 42 | Pending |
-| SUPER-03 | Phase 42 | Pending |
-| SUPER-04 | Phase 42 | Pending |
-| SUPER-05 | Phase 42 | Pending |
+| SUPER-01 | Phase 42 | Complete |
+| SUPER-02 | Phase 42 | Complete |
+| SUPER-03 | Phase 42 | Complete |
+| SUPER-04 | Phase 42 | Complete |
+| SUPER-05 | Phase 42 | Complete |
 
 **Coverage:**
 - v2.2 requirements: 22 total
