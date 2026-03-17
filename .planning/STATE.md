@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Smart Operations
-status: executing
-stopped_at: Phase 40 complete, verified
-last_updated: "2026-03-17T01:15:00.000Z"
+status: verifying
+stopped_at: Completed 41-claude-code-terminal-chat/41-02-PLAN.md
+last_updated: "2026-03-17T02:35:05.518Z"
 last_activity: 2026-03-17 — Phase 40 Job Control UI complete (1 plan, 3 commits)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
 ---
 
 # Project State
@@ -54,6 +54,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 39-02]: Merge policy reads first non-auto policy from REPOS.json — acceptable since jobs target one repo per instance
 - [Phase 39-02]: Docker path uses stdout scanning ([GATE] FAILED marker) for gate failure detection since container filesystem not accessible post-exit
 - [Phase 40-01]: requireAdmin() uses forbidden() for role failures, retryJob calls saveJobOrigin explicitly (not via dispatchDockerJob), getDockerJobs() only requires requireAuth() for read-only access
+- [Phase 41-claude-code-terminal-chat]: ESM top-level import for diff2html instead of require() — project uses type:module
+- [Phase 41-claude-code-terminal-chat]: Write tool calls construct pseudo-diff showing new file content (no before/after available)
 
 ### v2.2 Key Architecture Notes
 
@@ -91,6 +93,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-17T00:51:46.416Z
-Stopped at: Completed 40-job-control-ui/40-01-PLAN.md
+Last session: 2026-03-17T02:35:00.858Z
+Stopped at: Completed 41-claude-code-terminal-chat/41-02-PLAN.md
 Resume file: None
