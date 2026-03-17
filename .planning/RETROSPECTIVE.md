@@ -224,6 +224,54 @@
 
 ---
 
+## Milestone: v2.2 — Smart Operations
+
+**Shipped:** 2026-03-17
+**Phases:** 4 | **Plans:** 8
+**Files changed:** 89 (+12,008 / -1,679)
+
+### What Was Built
+- Smart execution: configurable quality gates (lint/typecheck/test) in entrypoint.sh with self-correction loop (max 1 retry via GATE_ATTEMPT counter) and per-repo merge policies (auto/gate-required/manual) in REPOS.json
+- Job control UI: cancelJob/retryJob Server Actions with DockerJobsList component, admin role-gated Cancel/Retry buttons on Swarm page
+- Embedded Claude Code terminal chat: Agent SDK streaming via UIMessageStream, live tool call visualization (TerminalToolCall), unified diff rendering (diff2html DiffView), collapsible ThinkingPanel, per-turn CostDisplay, shell mode toggle
+- Admin operations: DB-backed repo CRUD (settings table JSON storage with lazy file-to-DB migration), platform config editing with CONFIG_ALLOWLIST, instance management page
+- Cross-instance superadmin portal: single-login instance switching, health dashboard with 30s auto-refresh, cross-instance job search via API proxy with Promise.allSettled, AGENT_SUPERADMIN_TOKEN for M2M auth
+- Three-tier role system: user → admin → superadmin with separate auth paths for web sessions vs API proxy
+
+### What Worked
+- **terminalSessionIdRef pattern**: useRef tracks session ID alongside state so transport useMemo reads latest value without adding terminalSessionId as dependency — prevents unnecessary transport re-creation cycles
+- **Custom terminalFetch wrapper**: useChat from @ai-sdk/react doesn't expose onResponse callback, so intercepting X-Terminal-Session-Id header required a custom fetch wrapper. Clean solution to SDK limitation
+- **Promise.allSettled for cross-instance queries**: Graceful partial results when instances are offline — superadmin dashboard stays usable even with degraded instances
+- **CONFIG_ALLOWLIST pattern**: Only allowlisted keys updatable via updateConfigAction, secrets masked to last 4 chars — simple security boundary that prevents config key injection
+- **Gate state in /tmp/gate_pass file**: Avoided bash subshell scope loss for variable propagation; file-based check is portable across all execution contexts
+
+### What Was Inefficient
+- **Phase 41 was the largest (3 plans, 8 requirements)**: Terminal chat touched every layer (DB schema, session manager, SDK bridge, transport, components, chat integration). Could have been split more granularly to reduce per-plan complexity
+- **Docker stdout scanning for gate failures**: Container filesystem not accessible post-exit, requiring [GATE] FAILED marker scanning in stdout. A more structured exit code convention would be cleaner
+- **Dual transport pattern adds complexity**: Chat mode and terminal mode use different streaming transports but share the same chat UI — mode switching logic spread across multiple components
+
+### Patterns Established
+- Three-tier role system (user/admin/superadmin) with separate auth validation per tier
+- API proxy pattern for cross-instance communication (Bearer token, not shared DB)
+- Settings table as JSON document store (type + key → JSON value) for structured config like repos
+- CONFIG_ALLOWLIST for safe web-editable config keys with secret masking
+- useRef for tracking IDs that inform useMemo without triggering re-creation
+- Custom fetch wrapper pattern for SDK header interception
+- Gate state via filesystem (/tmp/gate_pass) to avoid bash scope issues
+
+### Key Lessons
+1. **SDK limitations require creative workarounds**: @ai-sdk/react's useChat lacks onResponse callback, forcing the custom terminalFetch wrapper. When choosing SDKs, evaluate the escape hatches, not just the happy path
+2. **File-based state beats shell variables in containers**: /tmp/gate_pass is more reliable than environment variables or shell subshell scope for cross-function state in entrypoint scripts
+3. **Promise.allSettled is essential for multi-instance dashboards**: One offline instance shouldn't break the entire superadmin view — allSettled with error-per-instance is the right default
+4. **Three-tier auth scales cleanly**: user → admin → superadmin maps naturally to read → write → cross-instance, with each tier adding one capability layer
+
+### Cost Observations
+- Model mix: ~90% sonnet (executors/verifiers), ~10% opus (orchestration)
+- 2-day milestone (4 phases, 8 plans) — consistent with recent velocity
+- Phase 41 (terminal chat) was the most complex single phase in v2.2 with 3 plans and 8 requirements
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -238,6 +286,7 @@
 | v1.5 | 3 | 7 | Persistent Workspaces — first interactive feature, WebSocket protocol layer |
 | v2.0 | 4 | 14 | Full Platform — SSE streaming, MCP tools, multi-agent clusters, highest plans/day |
 | v2.1 | 10 | 12 | Upstream Feature Sync — cherry-pick from upstream, 192 files in 1 day, highest LOC delta |
+| v2.2 | 4 | 8 | Smart Operations — quality gates, terminal chat, superadmin portal, three-tier auth |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -249,3 +298,5 @@
 6. **SSE > WebSocket for one-directional streams** — v2.0 lesson; simpler, auto-reconnects, works through proxies. Informed by v1.5 WebSocket debugging pain
 7. **Cherry-picking requires a divergence map** — v2.1 lesson; documenting ClawForge-specific systems before cherry-pick prevented overwriting critical infrastructure
 8. **Wave-based ordering prevents dependency tangles** — v2.1 lesson; UI → auth → advanced features meant each wave could assume previous infrastructure
+9. **File-based state beats shell variables in containers** — v2.2 lesson; /tmp/gate_pass more reliable than environment variables for cross-function state in entrypoint scripts
+10. **Promise.allSettled for multi-instance queries** — v2.2 lesson; one offline instance shouldn't break the dashboard. Error-per-instance is the right default for distributed UIs

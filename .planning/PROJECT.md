@@ -8,10 +8,10 @@ A multi-channel AI agent platform that connects Claude Code CLI to messaging cha
 
 Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results without operator intervention.
 
-## Current State (after v2.1)
+## Current State (after v2.2)
 
-**Shipped:** v1.0 through v1.5 (Foundation → Persistent Workspaces) + v2.0 Full Platform + v2.1 Upstream Feature Sync
-**Codebase:** ~50,000 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode + ws + xterm.js + @dnd-kit + AssemblyAI + @streamdown/code)
+**Shipped:** v1.0 through v2.2 (Foundation → Smart Operations)
+**Codebase:** ~62,000 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode + ws + xterm.js + @dnd-kit + AssemblyAI + @streamdown/code + @anthropic-ai/claude-agent-sdk + diff2html)
 **Instances:** 2 (Noah/Archie — full access, StrategyES/Epic — scoped to strategyes-lab)
 
 **What works:**
@@ -60,6 +60,14 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - **Code Workspaces V2**: DnD tabs (@dnd-kit), xterm addon-search/web-links/serialize, file tree sidebar
 - **Cluster detail views**: /cluster/[id] overview + console (SSE) + logs (persisted) + role detail pages
 - **Developer experience**: web_search tool (Brave API), CLI commands (create-instance, run-job, check-status)
+
+**v2.2 Smart Operations:**
+- **Smart execution**: configurable quality gates (lint/typecheck/test) in entrypoint.sh, self-correction loop (max 1 retry), per-repo merge policies (auto/gate-required/manual)
+- **Job control UI**: cancel running Docker containers and retry failed jobs from Swarm page, admin role-gated
+- **Terminal chat**: embedded Claude Code sessions via Agent SDK, UIMessageStream streaming, live tool call cards, unified diff rendering (diff2html), thinking panel, cost tracking, shell mode toggle
+- **Admin operations**: DB-backed repo CRUD, platform config editing with CONFIG_ALLOWLIST, instance management page
+- **Superadmin portal**: single-login instance switching, health dashboard (30s auto-refresh), cross-instance job search via API proxy
+- **Three-tier roles**: user → admin → superadmin, AGENT_SUPERADMIN_TOKEN for M2M auth between hub and instances
 
 ## Requirements
 
@@ -137,20 +145,24 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - ✓ Code Workspaces V2: DnD tabs, xterm addons, file tree sidebar — v2.1
 - ✓ Cluster detail views: overview, console streaming, logs, role detail — v2.1
 - ✓ Developer experience: web_search tool, CLI commands — v2.1
+- ✓ Smart execution: quality gates (lint/typecheck/test), self-correction (max 1 retry), per-repo merge policies — v2.2
+- ✓ Job control UI: cancel running jobs, retry failed jobs from web UI with admin role gating — v2.2
+- ✓ Terminal chat: Agent SDK streaming, live tool call visualization, diff rendering, cost tracking, shell mode — v2.2
+- ✓ Admin operations: DB-backed repo CRUD, config editing with CONFIG_ALLOWLIST, instance management — v2.2
+- ✓ Superadmin portal: single-login instance switching, health dashboard, cross-instance job search — v2.2
+- ✓ Three-tier roles: user → admin → superadmin with AGENT_SUPERADMIN_TOKEN M2M auth — v2.2
 
 ### Active
 
-## Current Milestone: v2.2 Smart Operations
+(No active milestone — v2.2 complete, next milestone not yet defined)
+
+## Previous Milestones
+
+### v2.2 Smart Operations (shipped 2026-03-17)
 
 **Goal:** Transform ClawForge into a fully self-service platform with embedded Claude Code terminal mode, superadmin instance switching, complete UI-driven operations, and smart execution policies.
 
-**Target features:**
-- Real Claude Code chat mode (embedded terminal UX with streaming tool calls, file edits, interrupt/resume)
-- Superadmin portal with instance switcher (single login across all instances)
-- Full UI operations parity (repo CRUD, job cancel/retry/logs, config editing, instance management)
-- Smart execution (pre-CI quality gates, test feedback loops, merge policies)
-
-## Previous Milestones
+**Delivered:** 4 phases, 8 plans, 22 requirements. Quality gates with self-correction, job cancel/retry UI, embedded Claude Code terminal chat (Agent SDK streaming, diff rendering, cost tracking), admin repo CRUD + config editing, cross-instance superadmin portal with instance switching and job search.
 
 ### v2.1 Upstream Feature Sync (shipped 2026-03-13)
 
@@ -189,7 +201,7 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - **v1.5 Persistent Workspaces** — shipped 2026-03-11
 - **v2.0 Full Platform** — shipped 2026-03-12 (Web UI, Clusters, Headless Streaming, MCP Tool Layer)
 - **v2.1 Upstream Feature Sync** — shipped 2026-03-13 (UI pages, admin panel, voice, workspaces V2, clusters UI, DX tools)
-- **v2.2 Smart Operations** — Claude Code chat mode, superadmin portal, UI operations parity, smart execution policies
+- **v2.2 Smart Operations** — shipped 2026-03-17 (Quality gates, terminal chat, superadmin portal, admin ops)
 
 **Sources:** Stripe minions blog (stripe.dev/blog/minions), thepopebot upstream (stephengpope/thepopebot), analyzed 2026-03-04
 
@@ -271,6 +283,19 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 | AudioWorklet processor as static file in public/ | Cannot be bundled by esbuild; must be loaded as separate worker script | ✓ Voice capture working |
 | activeTabId replaces activeTabIndex | String-based tab identity survives DnD reorders without index confusion | ✓ Tab tracking stable |
 | Conditional tool registration via spread | `...(env.KEY ? [tool] : [])` keeps agent tools array clean when optional services unavailable | ✓ web_search gated on BRAVE_API_KEY |
+| Gate state stored in /tmp/gate_pass file | Bash subshell scope loss prevents variable propagation; file check is portable | ✓ Gate detection reliable |
+| Self-correction hard-limited to 1 retry | Prevents infinite loops on unfixable issues; 2 total attempts maximum | ✓ GATE_ATTEMPT counter enforced |
+| Merge policy reads first non-auto policy from REPOS.json | Jobs target one repo per instance; simple resolution sufficient | ✓ Per-repo policies working |
+| Docker stdout scanning for gate failure | Container filesystem not accessible post-exit; [GATE] FAILED marker in stdout | ✓ Docker path detection working |
+| JOB_ID passed via env var to node scripts | Avoids shell quoting issues in inline GitHub Actions script | ✓ Clean parameter passing |
+| ESM top-level import for diff2html | Project uses type:module; require() would fail | ✓ Diff rendering working |
+| terminalSessionIdRef (useRef) for session tracking | Prevents transport re-creation when terminalSessionId changes; useMemo reads latest value | ✓ Stable transport lifecycle |
+| Custom terminalFetch wrapper for header interception | useChat from @ai-sdk/react lacks onResponse callback; wrapper intercepts X-Terminal-Session-Id | ✓ Session ID propagation working |
+| Repos stored as JSON array in settings table | type=repos, key=all — lazy file-to-DB migration for backward compatibility | ✓ DB-backed repo CRUD working |
+| CONFIG_ALLOWLIST for updatable keys | Only allowlisted config keys updatable via updateConfigAction; secrets masked to last 4 chars | ✓ Safe config editing |
+| API proxy pattern for superadmin | Hub queries child instances via HTTP with Bearer token, not shared DB | ✓ Cross-instance queries working |
+| queryAllInstances uses Promise.allSettled | Graceful partial results when instances are offline | ✓ Resilient dashboard |
+| Superadmin routes bypass x-api-key validation | Own Bearer token validation via AGENT_SUPERADMIN_TOKEN; separate auth path | ✓ M2M auth working |
 
 - Instance updates/deletion — define creation first, update flows are additive complexity
 - Automated deployment — security-sensitive; human review via PR is the right gate

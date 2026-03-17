@@ -1,5 +1,23 @@
 # Milestones
 
+## v2.2 Smart Operations (Shipped: 2026-03-17)
+
+**Phases:** 39-42 (4 phases, 8 plans)
+**Timeline:** 2 days (2026-03-16 → 2026-03-17)
+**Files changed:** 89 (+12,008 / -1,679)
+**Requirements:** 22/22 satisfied (EXEC, OPS, TERM, SUPER)
+**Archive:** milestones/v2.2-ROADMAP.md, milestones/v2.2-REQUIREMENTS.md
+
+**Key accomplishments:**
+- Smart execution: configurable quality gates (lint/typecheck/test) in entrypoint.sh with self-correction loop (max 1 retry) and per-repo merge policies (auto/gate-required/manual) in REPOS.json
+- Job control UI: cancel running Docker containers and retry failed jobs from web UI with admin role gating via DockerJobsList component
+- Embedded Claude Code terminal chat: Agent SDK streaming via UIMessageStream with live tool call visualization, unified diff rendering (diff2html), collapsible thinking panel, per-turn cost tracking, and shell mode toggle
+- Admin operations: DB-backed repo CRUD (settings table JSON storage), platform config editing with CONFIG_ALLOWLIST, instance management page
+- Cross-instance superadmin portal: single-login instance switching, health dashboard with 30s auto-refresh, cross-instance job search via API proxy with Promise.allSettled for graceful partial results
+- Three-tier role system (user → admin → superadmin) with AGENT_SUPERADMIN_TOKEN for machine-to-machine auth between hub and instances
+
+---
+
 ## v2.1 Upstream Feature Sync (Shipped: 2026-03-16)
 
 **Phases:** 29-38 (10 phases, 12 plans)
