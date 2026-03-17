@@ -165,7 +165,10 @@ Plans:
   4. A superadmin user can log in once and switch between instances via an instance switcher without re-authenticating
   5. Superadmin landing page shows each instance's active job count, runner status, and last job timestamp
   6. Superadmin can search jobs across all instances by repo, status, or keyword and see results from all instances in one view
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 42-01-PLAN.md — Admin operations: repo CRUD, config editing, instance management
+- [ ] 42-02-PLAN.md — Superadmin portal: cross-instance dashboard, job search, instance switcher
 
 ## Progress
 
