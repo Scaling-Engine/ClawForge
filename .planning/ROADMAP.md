@@ -151,7 +151,7 @@
 **Depends on**: Phase 43 (observability must be in place before adding new failure paths to dispatch)
 **Requirements**: BILL-01, BILL-02, BILL-03, BILL-04, BILL-05
 **Success Criteria** (what must be TRUE):
-  1. After a job completes, a row exists in `usage_events` with token count, duration, and the correct `periodMonth` value
+  1. After a job completes, a row exists in `usage_events` with duration and the correct `periodMonth` value
   2. Admin billing page shows job count, total tokens, and total duration for the current calendar month per instance
   3. When an instance reaches 80% of its configured job limit, a Slack message is sent to the operator channel before the next job is dispatched
   4. When an instance is at or above its job limit, dispatching a new job returns an error message stating current usage, the limit, and the reset date — no job is created
