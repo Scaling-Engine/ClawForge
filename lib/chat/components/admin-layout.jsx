@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PageLayout } from './page-layout.js';
 import { InstanceSwitcher } from './instance-switcher.js';
-import { ClockIcon, ZapIcon, KeyIcon, WrenchIcon, UserIcon, ShieldIcon, SettingsSliderIcon, DatabaseIcon, ServerIcon, GlobeIcon, SearchIcon } from './icons.js';
+import { ClockIcon, ZapIcon, KeyIcon, WrenchIcon, UserIcon, ShieldIcon, SettingsSliderIcon, DatabaseIcon, ServerIcon, GlobeIcon, SearchIcon, CreditCardIcon } from './icons.js';
 
 const SUPERADMIN_NAV = [
   { id: 'superadmin', label: 'Dashboard', href: '/admin/superadmin', icon: GlobeIcon },
@@ -20,6 +20,7 @@ const ADMIN_NAV = [
   { id: 'mcp', label: 'MCP Servers', href: '/admin/mcp', icon: WrenchIcon },
   { id: 'users', label: 'Users', href: '/admin/users', icon: UserIcon },
   { id: 'webhooks', label: 'Webhooks', href: '/admin/webhooks', icon: ZapIcon },
+  { id: 'billing', label: 'Billing', href: '/admin/billing', icon: CreditCardIcon },
 ];
 
 export function AdminLayout({ session, children }) {
