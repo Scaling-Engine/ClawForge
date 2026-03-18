@@ -37,7 +37,7 @@
 
 ### Documentation
 
-- [ ] **DOCS-01**: Operator docs cover deployment (VPS + Docker Compose), config reference (all env vars + REPOS.json fields), and top 10 troubleshooting errors
+- [x] **DOCS-01**: Operator docs cover deployment (VPS + Docker Compose), config reference (all env vars + REPOS.json fields), and top 10 troubleshooting errors
 
 ### Launch Readiness
 
@@ -104,7 +104,7 @@
 | ONB-06 | Phase 45 | Complete |
 | MON-01 | Phase 46 | Complete |
 | MON-02 | Phase 46 | Complete |
-| DOCS-01 | Phase 47 | Pending |
+| DOCS-01 | Phase 47 | Complete |
 | LAUNCH-01 | Phase 47 | Complete |
 
 **Coverage:**
