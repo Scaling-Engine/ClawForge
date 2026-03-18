@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
-import { auth } from '../../../lib/auth/index.js';
-import { getOnboardingState } from '../../../lib/onboarding/state.js';
-import { OnboardingWizard } from '../../../lib/chat/components/index.js';
+import { auth } from '../../lib/auth/index.js';
+import { getOnboardingState } from '../../lib/onboarding/state.js';
+import { OnboardingWizard } from '../../lib/chat/components/index.js';
 
 export default async function OnboardingPage() {
   const session = await auth();
