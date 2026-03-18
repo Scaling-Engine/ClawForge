@@ -57,6 +57,20 @@
       "when": 1773945600000,
       "tag": "0007_terminal_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1773796649545,
+      "tag": "0008_worried_puma",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1773798963519,
+      "tag": "0009_demonic_the_enforcers",
+      "breakpoints": true
     }
   ]
 }
