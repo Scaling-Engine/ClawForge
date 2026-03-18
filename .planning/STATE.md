@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 44-03-PLAN.md
-last_updated: "2026-03-18T02:09:26.228Z"
+stopped_at: Completed 45-03-PLAN.md
+last_updated: "2026-03-18T02:57:16.140Z"
 last_activity: 2026-03-17 — Phase 44 Plan 03 executed (admin billing page UI + superadmin usage endpoint)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
   percent: 83
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 44 (Billing and Usage Tracking) — complete
-Plan: 03 complete (3/3 plans done)
-Status: Phase 44 complete — admin billing page live, superadmin usage endpoint wired, all billing requirements satisfied
-Last activity: 2026-03-17 — Phase 44 Plan 03 executed (admin billing page UI + superadmin usage endpoint)
+Phase: 45 (Self-Service Onboarding) — in progress
+Plan: 03 in progress (1/3 summaries done)
+Status: Phase 45 Plan 03 complete — AGENT_* tooltips/badges on secrets page, actionable empty states on repos/secrets/MCP pages
+Last activity: 2026-03-18 — Phase 45 Plan 03 executed (UX improvements: tooltips, empty states)
 
 ```
 Progress: [█████████░] 83% — Phase 44: 3/3 plans complete
@@ -47,6 +47,7 @@ Progress: [█████████░] 83% — Phase 44: 3/3 plans complete
 | Phase 44 P01 | 8 | 1 tasks | 7 files |
 | Phase 44-billing-and-usage-tracking P02 | 2 | 2 tasks | 2 files |
 | Phase 44-billing-and-usage-tracking P03 | ~25 | 2 tasks | 7 files |
+| Phase 45-self-service-onboarding P03 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Progress: [█████████░] 83% — Phase 44: 3/3 plans complete
 - **SLACK_OPERATOR_CHANNEL:** New env var for billing 80% warnings. Non-fatal if unset — job always proceeds silently. Document in .env.example.
 - **usageRecorded flag:** In waitAndNotify — prevents double-counting across origin/no-origin Docker completion paths.
 - **Actions path usage recording:** Inside if(origin) block only — avoids webhook replay double-counts. durationSeconds=null (timing unavailable at webhook layer).
+- **MCP empty state CTA:** Toggles setup instructions panel (not a form) — MCP servers are file-based config (instances/[name]/config/MCP_SERVERS.json), no UI add form exists.
+- **AGENT_* badges on secrets list:** Blue "Container" badge for AGENT_*, purple "Container+LLM" badge for AGENT_LLM_* — visual indicator of container access level for existing secrets.
 
 ### Research Flags for Phase Planning
 
@@ -111,7 +114,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-17T00:00:00.000Z
-Stopped at: Completed 44-03-PLAN.md
+Last session: 2026-03-18T02:57:16.137Z
+Stopped at: Completed 45-03-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 45`
