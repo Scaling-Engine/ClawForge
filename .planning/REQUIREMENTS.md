@@ -32,8 +32,8 @@
 
 ### Monitoring
 
-- [ ] **MON-01**: Superadmin portal displays per-instance monitoring cards with error rate, usage vs limits, and onboarding state
-- [ ] **MON-02**: Superadmin receives a Slack alert when an instance logs 3+ consecutive job failures (throttled to once per hour per instance)
+- [x] **MON-01**: Superadmin portal displays per-instance monitoring cards with error rate, usage vs limits, and onboarding state
+- [x] **MON-02**: Superadmin receives a Slack alert when an instance logs 3+ consecutive job failures (throttled to once per hour per instance)
 
 ### Documentation
 
@@ -102,8 +102,8 @@
 | ONB-04 | Phase 45 | Complete |
 | ONB-05 | Phase 45 | Complete |
 | ONB-06 | Phase 45 | Complete |
-| MON-01 | Phase 46 | Pending |
-| MON-02 | Phase 46 | Pending |
+| MON-01 | Phase 46 | Complete |
+| MON-02 | Phase 46 | Complete |
 | DOCS-01 | Phase 47 | Pending |
 | LAUNCH-01 | Phase 47 | Pending |
 
