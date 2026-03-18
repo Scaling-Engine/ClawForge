@@ -11,6 +11,7 @@
  */
 
 import { timingSafeEqual } from 'crypto';
+import { sql } from 'drizzle-orm';
 
 const INSTANCE_NAME = process.env.INSTANCE_NAME || 'default';
 
@@ -79,11 +80,35 @@ export async function handleSuperadminRequest(request, endpoint) {
 // Endpoint implementations
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getHealth() {
+async function getHealth() {
+  const { getRecentErrorCount, getLastErrorAt } = await import('../lib/db/error-log.js');
+  const { getJobSuccessRate } = await import('../lib/db/job-outcomes.js');
+
+  let dbStatus = 'ok';
+  let errorCount24h = 0;
+  let lastErrorAt = null;
+  let jobSuccessRate = null;
+
+  try {
+    const { getDb } = await import('../lib/db/index.js');
+    const db = getDb();
+    // SELECT 1 probe — confirms DB is readable
+    db.get(sql`SELECT 1`);
+    errorCount24h = await getRecentErrorCount(24);
+    lastErrorAt = await getLastErrorAt();
+    jobSuccessRate = getJobSuccessRate(24);
+  } catch (err) {
+    dbStatus = 'degraded';
+  }
+
   return {
     instance: INSTANCE_NAME,
     status: 'online',
     uptime: process.uptime(),
+    errorCount24h,
+    lastErrorAt,
+    dbStatus,
+    jobSuccessRate,
   };
 }
 
