@@ -122,6 +122,10 @@
   - [ ] 43-02-PLAN.md — Sentry integration and JSONL job logging (OBS-03, OBS-05)
   - [ ] 43-03-PLAN.md — Health endpoint extension (OBS-04)
 - [ ] **Phase 44: Billing and Usage Tracking** - Usage events, per-instance limits, limit enforcement and warnings
+  Plans:
+  - [ ] 44-01-PLAN.md — Schema, query helpers, enforcement logic, and tests (BILL-01, BILL-03, BILL-04, BILL-05)
+  - [ ] 44-02-PLAN.md — Enforcement gate in dispatch path + usage recording (BILL-01, BILL-03, BILL-04)
+  - [ ] 44-03-PLAN.md — Superadmin usage endpoint + admin billing page (BILL-02, BILL-05)
 - [ ] **Phase 45: Self-Service Onboarding** - Wizard, step verification, first-job dispatch, tooltips, empty states
 - [ ] **Phase 46: Team Monitoring Dashboard** - Cross-instance monitoring cards, consecutive-failure alerting
 - [ ] **Phase 47: Commercial Launch Hardening** - Operator docs, Slack notification audit
@@ -152,7 +156,7 @@
   3. When an instance reaches 80% of its configured job limit, a Slack message is sent to the operator channel before the next job is dispatched
   4. When an instance is at or above its job limit, dispatching a new job returns an error message stating current usage, the limit, and the reset date — no job is created
   5. Superadmin can navigate to the billing config page and change `jobs_per_month` and `concurrent_jobs` for any instance — the new limits take effect on the next dispatch
-**Plans**: TBD
+**Plans:** 3 plans
 
 ### Phase 45: Self-Service Onboarding
 **Goal**: A new operator can set up a working ClawForge instance without asking for help — and the system confirms their setup actually works
@@ -199,14 +203,14 @@
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39-42 | v2.2 | 8/8 | Complete | 2026-03-17 |
 | 43 | 3/3 | Complete    | 2026-03-18 | - |
-| 44 | v3.0 | 0/? | Not started | - |
+| 44 | v3.0 | 0/3 | Planned | - |
 | 45 | v3.0 | 0/? | Not started | - |
 | 46 | v3.0 | 0/? | Not started | - |
 | 47 | v3.0 | 0/? | Not started | - |
 
 **Total shipped:** 42 phases, 81 plans — all complete through v2.2
-**v3.0 in progress:** 5 phases (43-47), 0/20 requirements satisfied
+**v3.0 in progress:** 5 phases (43-47), 5/20 requirements satisfied
 
 ---
 
-*Last updated: 2026-03-17 -- Phase 43 planned (3 plans)*
+*Last updated: 2026-03-18 -- Phase 44 planned (3 plans)*
