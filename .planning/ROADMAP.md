@@ -173,7 +173,7 @@
   4. The final onboarding step dispatches a real job and shows the operator a link to the created PR — the wizard only marks itself complete when a PR URL is returned
   5. Admin fields with complexity (AGENT_* prefix convention, mergePolicy values, qualityGates structure) display a tooltip explaining the correct format when the field is focused
   6. Repos, secrets, and MCP servers pages that have no items show an actionable empty state — not a blank table — with a prompt to add the first item
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 45-01-PLAN.md — Schema, state module, middleware redirect, superadmin endpoint (ONB-01, ONB-02)
@@ -213,7 +213,7 @@ Plans:
 | 39-42 | v2.2 | 8/8 | Complete | 2026-03-17 |
 | 43 | 3/3 | Complete    | 2026-03-18 | - |
 | 44 | 3/3 | Complete    | 2026-03-18 | - |
-| 45 | 2/3 | In Progress|  | - |
+| 45 | 3/3 | Complete   | 2026-03-18 | - |
 | 46 | v3.0 | 0/? | Not started | - |
 | 47 | v3.0 | 0/? | Not started | - |
 

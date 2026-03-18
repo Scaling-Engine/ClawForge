@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 45-01-PLAN.md
-last_updated: "2026-03-18T02:58:17.671Z"
-last_activity: "2026-03-18 — Phase 45 Plan 03 executed (UX improvements: tooltips, empty states)"
+stopped_at: Completed 45-02-PLAN.md
+last_updated: "2026-03-18T03:05:50.671Z"
+last_activity: "2026-03-18 — Phase 45 Plan 02 executed (onboarding wizard UI: verification module, 5 Server Actions, 5 step components)"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
-  percent: 83
+  completed_plans: 9
+  percent: 89
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 45 (Self-Service Onboarding) — in progress
-Plan: 01 complete (2/3 summaries done)
-Status: Phase 45 Plan 01 complete — onboarding_state schema, state module, middleware redirect, page shell, superadmin endpoint
-Last activity: 2026-03-17 — Phase 45 Plan 01 executed (onboarding foundation: DB schema + state module + middleware + page shell)
+Plan: 02 complete (3/3 summaries done — phase complete)
+Status: Phase 45 complete — wizard UI, verification module, Server Actions, 5 step components, DB-persisted progress
+Last activity: 2026-03-18 — Phase 45 Plan 02 executed (onboarding wizard UI: verification module, 5 Server Actions, 5 step components)
 
 ```
 Progress: [█████████░] 89% — Phase 45: 2/3 plans complete
@@ -49,6 +49,7 @@ Progress: [█████████░] 89% — Phase 45: 2/3 plans complete
 | Phase 44-billing-and-usage-tracking P03 | ~25 | 2 tasks | 7 files |
 | Phase 45-self-service-onboarding P03 | 8 | 2 tasks | 3 files |
 | Phase 45-self-service-onboarding P01 | 8 | 2 tasks | 6 files |
+| Phase 45-self-service-onboarding P02 | 6 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Progress: [█████████░] 89% — Phase 45: 2/3 plans complete
 - **AGENT_* badges on secrets list:** Blue "Container" badge for AGENT_*, purple "Container+LLM" badge for AGENT_LLM_* — visual indicator of container access level for existing secrets.
 - **Onboarding singleton row:** id='singleton' — only one onboarding state per instance. select-then-update/insert pattern mirrors billing upsert.
 - **Wizard component file extension:** onboarding-wizard.jsx (not .js) — lib/chat/components/*.js is gitignored as esbuild output; source must be .jsx, exported via index.js.
+- **dispatchOnboardingFirstJob returns job_id+branch not prUrl:** createJob() returns {job_id, branch} only; PR is created asynchronously by GitHub Actions. Job dispatch success (job_id returned) is the pipeline verification signal.
+- **onboarding-steps/ subdir compiled by esbuild glob:** lib/chat/components/**/*.jsx glob in build script picks up step subcomponents automatically — no extra build config needed.
 
 ### Research Flags for Phase Planning
 
@@ -117,7 +120,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-18T02:58:17.669Z
-Stopped at: Completed 45-01-PLAN.md
+Last session: 2026-03-18T03:05:50.670Z
+Stopped at: Completed 45-02-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 45`
