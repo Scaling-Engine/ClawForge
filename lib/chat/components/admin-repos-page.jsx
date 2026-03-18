@@ -322,14 +322,15 @@ export function AdminReposPage() {
           ))}
         </div>
       ) : repos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="rounded-full bg-muted p-4 mb-4">
-            <DatabaseIcon size={24} />
-          </div>
-          <p className="text-sm font-medium mb-1">No repos configured</p>
-          <p className="text-xs text-muted-foreground max-w-sm">
-            Add a repo to allow the agent to create jobs against it.
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="text-4xl mb-4">📦</div>
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">No repositories configured</h3>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-md">
+            Add your first repository to enable job dispatch. ClawForge needs at least one repo to create branches and pull requests.
           </p>
+          <button onClick={() => setEditing('new')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+            Add First Repository
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

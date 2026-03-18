@@ -520,16 +520,14 @@ function GitHubSecretsSection() {
           )}
         </div>
       ) : !showForm ? (
-        <div className="rounded-lg border border-dashed bg-card p-6 flex flex-col items-center text-center">
-          <div className="rounded-full bg-muted p-3 mb-3">
-            <ShieldIcon size={20} />
-          </div>
-          <p className="text-sm text-muted-foreground mb-3">No GitHub secrets configured</p>
-          <button
-            onClick={openCreateForm}
-            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium bg-foreground text-background hover:bg-foreground/90"
-          >
-            Create a secret
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="text-4xl mb-4">🔑</div>
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">No secrets configured</h3>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-md">
+            Add GitHub Actions secrets to pass environment variables to job containers. Use the AGENT_ prefix to make secrets available inside containers.
+          </p>
+          <button onClick={openCreateForm} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+            Add First Secret
           </button>
         </div>
       ) : null}

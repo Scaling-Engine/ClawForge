@@ -90,6 +90,7 @@ function ServerCard({ server }) {
 export default function SettingsMcpPage() {
   const [servers, setServers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showSetup, setShowSetup] = useState(false);
 
   useEffect(() => {
     getMcpServers()
@@ -97,6 +98,10 @@ export default function SettingsMcpPage() {
       .catch(() => setServers([]))
       .finally(() => setLoading(false));
   }, []);
+
+  function handleAddServer() {
+    setShowSetup(true);
+  }
 
   return (
     <div>
@@ -107,13 +112,44 @@ export default function SettingsMcpPage() {
         {loading ? (
           <div className="h-14 animate-pulse rounded-md bg-border/50" />
         ) : servers.length === 0 ? (
-          <div className="rounded-lg border border-dashed bg-card p-6 flex flex-col items-center text-center">
-            <p className="text-sm text-muted-foreground mb-1">
-              No MCP servers configured
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Add servers to <code className="font-mono">config/MCP_SERVERS.json</code> to enable MCP tools.
-            </p>
+          <div>
+            {showSetup ? (
+              <div className="rounded-lg border bg-card p-4 space-y-3">
+                <h3 className="text-sm font-medium">Add Your First MCP Server</h3>
+                <p className="text-xs text-muted-foreground">
+                  MCP servers are configured via the instance config file. Edit the following file to add a server:
+                </p>
+                <code className="block rounded bg-muted px-3 py-2 text-xs font-mono">
+                  instances/[instance-name]/config/MCP_SERVERS.json
+                </code>
+                <p className="text-xs text-muted-foreground">Example entry:</p>
+                <pre className="rounded bg-muted px-3 py-2 text-xs font-mono overflow-x-auto">{`[
+  {
+    "name": "my-server",
+    "command": "npx",
+    "args": ["-y", "@my-org/my-mcp-server"],
+    "allowedTools": ["tool_name"]
+  }
+]`}</pre>
+                <button
+                  onClick={() => setShowSetup(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="text-4xl mb-4">🔌</div>
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">No MCP servers configured</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-md">
+                  Connect MCP (Model Context Protocol) servers to give your agent access to external tools and data sources during job execution.
+                </p>
+                <button onClick={handleAddServer} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                  Add First MCP Server
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
