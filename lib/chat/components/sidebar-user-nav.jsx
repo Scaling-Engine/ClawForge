@@ -25,7 +25,7 @@ export function SidebarUserNav({ user, collapsed }) {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className={cn(collapsed ? 'justify-center' : 'justify-between')}>
+            <SidebarMenuButton className={cn(collapsed ? 'justify-center' : 'justify-between pr-3')}>
               <div className={cn('flex items-center overflow-hidden', collapsed ? '' : 'gap-2')}>
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
                   {(user?.email?.[0] || 'U').toUpperCase()}
