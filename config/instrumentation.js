@@ -64,3 +64,13 @@ export async function register() {
 
   console.log('ClawForge initialized');
 }
+
+/**
+ * Next.js instrumentation hook — auto-captures Server Component and API route errors.
+ * Called by Next.js for every unhandled server-side error when SENTRY_DSN is configured.
+ * This is a module-level export, separate from register().
+ */
+export async function onRequestError(err, request, context) {
+  const Sentry = await import('@sentry/nextjs');
+  await Sentry.captureRequestError(err, { request, context });
+}
