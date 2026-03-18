@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Customer Launch
-status: roadmap_complete
-stopped_at: ~
-last_updated: "2026-03-17T12:00:00.000Z"
-last_activity: 2026-03-17 — v3.0 Customer Launch roadmap created (Phases 43-47)
+status: in_progress
+stopped_at: Completed 43-02-PLAN.md — Sentry integration and JSONL job logger
+last_updated: "2026-03-18T01:17:58.233Z"
+last_activity: 2026-03-17 — v3.0 roadmap created
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
@@ -24,13 +24,13 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 43 (Observability Foundation) — not started
-Plan: —
-Status: Roadmap complete, ready to plan Phase 43
-Last activity: 2026-03-17 — v3.0 roadmap created
+Phase: 43 (Observability Foundation) — in progress
+Plan: 02 complete (1/3 plans done)
+Status: Phase 43 Plan 02 complete — Sentry + JSONL job logger
+Last activity: 2026-03-18 — Phase 43 Plan 02 executed (Sentry + JSONL job logger)
 
 ```
-Progress: [          ] 0/5 phases  0/20 requirements
+Progress: [███░░░░░░░] 33% — Phase 43: 1/3 plans complete  2/20 requirements satisfied
 ```
 
 ## Performance Metrics
@@ -40,6 +40,7 @@ Progress: [          ] 0/5 phases  0/20 requirements
 | Phases | 42 complete | 5 planned (43-47) |
 | Requirements | 81 plans shipped | 20 v1 requirements to satisfy |
 | Milestone cadence | 1-2 days per milestone | TBD |
+| Phase 43 P02 duration | 2 min | 2 tasks, 7 files |
 
 ## Accumulated Context
 
@@ -51,6 +52,8 @@ Progress: [          ] 0/5 phases  0/20 requirements
 - **Four new tables:** `error_log`, `usage_events`, `billing_limits`, `onboarding_state` — all additive, no changes to existing tables (only additive columns if needed on `job_outcomes`).
 - **Monitoring:** Zero new libraries. Extends existing dockerode stats, Drizzle queries, superadmin endpoint switch pattern.
 - **Docs:** Task-oriented operator runbook (not architecture docs). Top 10 troubleshooting errors + deployment runbook + config reference.
+- **JSONL logger testability:** appendJobEvent accepts optional baseDir parameter — avoids mocking logsDir import, keeps test isolation clean.
+- **Sentry conditional init:** `enabled: !!process.env.SENTRY_DSN` guards — zero network calls when DSN absent. No instrumentationHook flag (Next.js >=15.3 auto-detects).
 
 ### Research Flags for Phase Planning
 
@@ -92,7 +95,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-17
-Stopped at: v3.0 roadmap created
+Last session: 2026-03-18T01:17:58.231Z
+Stopped at: Completed 43-02-PLAN.md — Sentry integration and JSONL job logger
 Resume file: None
 Next action: `/gsd:plan-phase 43`
