@@ -51,6 +51,10 @@ export async function handleSuperadminEndpoint(endpoint, params) {
       return await getJobs(params);
     case 'usage':
       return await getUsage();
+    case 'onboarding': {
+      const { getOnboardingState } = await import('../lib/onboarding/state.js');
+      return { onboarding: getOnboardingState() };
+    }
     default:
       throw new Error(`Unknown superadmin endpoint: ${endpoint}`);
   }
