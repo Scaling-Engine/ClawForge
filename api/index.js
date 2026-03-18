@@ -8,6 +8,7 @@ import { chat, summarizeJob, addToThread } from '../lib/ai/index.js';
 import { createNotification } from '../lib/db/notifications.js';
 import { getJobOrigin } from '../lib/db/job-origins.js';
 import { saveJobOutcome } from '../lib/db/job-outcomes.js';
+import { recordUsageEvent } from '../lib/db/usage.js';
 import { loadTriggers } from '../lib/triggers.js';
 import { verifyApiKey } from '../lib/db/api-keys.js';
 import { isJobNotified } from '../lib/db/docker-jobs.js';
@@ -301,6 +302,20 @@ async function handleGithubWebhook(request) {
         });
       } catch (err) {
         console.error('Failed to save job outcome:', err);
+      }
+
+      // Record usage event for billing (BILL-01) — Actions path
+      try {
+        recordUsageEvent({
+          instanceName: process.env.INSTANCE_NAME || 'noah',
+          eventType: 'job_dispatch',
+          quantity: 1,
+          durationSeconds: null, // Actions path does not have container timing
+          refId: jobId,
+          periodMonth: new Date().toISOString().slice(0, 7),
+        });
+      } catch (err) {
+        console.error('Failed to record usage event (actions path):', err);
       }
 
       // Inject into LangGraph memory so agent knows the job finished
