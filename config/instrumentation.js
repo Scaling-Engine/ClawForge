@@ -62,7 +62,19 @@ export async function register() {
     }
   }, IDLE_CHECK_INTERVAL_MS);
 
-  console.log('ClawForge initialized');
+  // Prune error_log entries older than 30 days — daily at 3am
+  const cron = (await import('node-cron')).default;
+  const { pruneOldErrors } = await import('../lib/db/error-log.js');
+  cron.schedule('0 3 * * *', () => {
+    try {
+      pruneOldErrors(30);
+    } catch (err) {
+      console.warn(`[error-prune] Failed to prune old errors: ${err.message}`);
+    }
+  });
+
+  const { log } = await import('../lib/observability/logger.js');
+  log('info', 'startup', 'ClawForge initialized');
 }
 
 /**

@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from 'crypto';
+import { captureError } from '../lib/observability/errors.js';
 import { createJob } from '../lib/tools/create-job.js';
 import { setWebhook } from '../lib/tools/telegram.js';
 import { getJobStatus } from '../lib/tools/github.js';
@@ -166,7 +167,7 @@ async function handleTelegramWebhook(request) {
 
   // Process message asynchronously (don't block the webhook response)
   processChannelMessage(adapter, normalized, { userId: 'telegram', chatTitle: 'Telegram' }).catch((err) => {
-    console.error('Failed to process message:', err);
+    captureError('channel', err, { platform: 'telegram', threadId: normalized.threadId });
   });
 
   return Response.json({ ok: true });
@@ -240,7 +241,7 @@ async function handleSlackEvents(request) {
 
   // Process message asynchronously (don't block the webhook response)
   processChannelMessage(adapter, result, { userId: 'slack', chatTitle: 'Slack' }).catch((err) => {
-    console.error('Failed to process Slack message:', err);
+    captureError('channel', err, { platform: 'slack', threadId: result.threadId });
   });
 
   return Response.json({ ok: true });
