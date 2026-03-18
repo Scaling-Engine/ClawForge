@@ -132,6 +132,9 @@
   - [ ] 45-02-PLAN.md — Wizard UI, verification Server Actions, first-job dispatch (ONB-02, ONB-03, ONB-04)
   - [ ] 45-03-PLAN.md — AGENT_* tooltips and actionable empty states (ONB-05, ONB-06)
 - [ ] **Phase 46: Team Monitoring Dashboard** - Cross-instance monitoring cards, consecutive-failure alerting
+  Plans:
+  - [ ] 46-01-PLAN.md — Backend: consecutive failure detection, alert module, monitoring Server Action (MON-01, MON-02)
+  - [ ] 46-02-PLAN.md — Frontend: monitoring dashboard component and page shell (MON-01)
 - [ ] **Phase 47: Commercial Launch Hardening** - Operator docs, Slack notification audit
 
 </details>
@@ -187,7 +190,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The superadmin portal displays a monitoring card for each instance showing: current error rate, job usage vs. configured limit, and onboarding completion state
   2. After three consecutive job failures on any single instance, the superadmin receives a Slack alert — and if that instance continues failing, no further alerts arrive for that instance within the same hour
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 46-01-PLAN.md — Backend: consecutive failure detection, alert module, monitoring Server Action (MON-01, MON-02)
+- [ ] 46-02-PLAN.md — Frontend: monitoring dashboard component and page shell (MON-01)
 
 ### Phase 47: Commercial Launch Hardening
 **Goal**: External customers can be onboarded without operator intervention and existing operators are protected from notification regressions
@@ -214,7 +221,7 @@ Plans:
 | 43 | 3/3 | Complete    | 2026-03-18 | - |
 | 44 | 3/3 | Complete    | 2026-03-18 | - |
 | 45 | 3/3 | Complete    | 2026-03-18 | - |
-| 46 | v3.0 | 0/? | Not started | - |
+| 46 | v3.0 | 0/2 | Planned | - |
 | 47 | v3.0 | 0/? | Not started | - |
 
 **Total shipped:** 42 phases, 81 plans — all complete through v2.2
@@ -222,4 +229,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-03-18 -- Phase 45 planned (3 plans)*
+*Last updated: 2026-03-18 -- Phase 46 planned (2 plans)*
