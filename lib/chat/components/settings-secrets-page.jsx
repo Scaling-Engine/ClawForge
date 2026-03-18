@@ -388,7 +388,15 @@ function GitHubSecretsSection() {
 
           {!editingName && (
             <div className="mb-3">
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Name (suffix)</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                Name (suffix)
+                <span
+                  title="Prefix with AGENT_ to pass this secret to job containers. Prefix with AGENT_LLM_ to also make it accessible to the LLM. Secrets without AGENT_ prefix are NOT passed to containers."
+                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-muted-foreground text-muted-foreground text-[9px] font-bold cursor-help leading-none"
+                >
+                  i
+                </span>
+              </label>
               <div className="flex items-center gap-0">
                 <span className="inline-flex items-center rounded-l-md border border-r-0 border-border bg-muted px-3 py-2 text-sm text-muted-foreground font-mono">
                   {formPrefix}
@@ -398,6 +406,7 @@ function GitHubSecretsSection() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
                   placeholder="MY_SECRET_NAME"
+                  title="Prefix with AGENT_ to pass this secret to job containers. Prefix with AGENT_LLM_ to also make it accessible to the LLM. Secrets without AGENT_ prefix are NOT passed to containers."
                   className="flex-1 rounded-r-md border border-border bg-background px-3 py-2 text-sm font-mono"
                 />
               </div>
@@ -457,7 +466,14 @@ function GitHubSecretsSection() {
                     <ShieldIcon size={16} />
                   </div>
                   <div>
-                    <code className="text-sm font-mono">{secret.name}</code>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm font-mono">{secret.name}</code>
+                      {secret.name.startsWith('AGENT_LLM_') ? (
+                        <span className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 px-1.5 py-0.5 rounded">Container + LLM</span>
+                      ) : secret.name.startsWith('AGENT_') ? (
+                        <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-1.5 py-0.5 rounded">Container</span>
+                      ) : null}
+                    </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-muted-foreground font-mono">
                         {secret.masked || '(value not cached locally)'}
