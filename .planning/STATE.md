@@ -125,6 +125,7 @@ The following files must not be modified structurally — additive changes only:
 |---|-------------|------|--------|-----------|
 | 2 | Update package.json version from 0.1.0 to 2.1.0 | 2026-03-16 | c7e1ca0 | [2-make-sure-the-version-on-the-web-app-mat](./quick/2-make-sure-the-version-on-the-web-app-mat/) |
 | 3 | Display agent name from SOUL.md in sidebar, chat header, greeting, and browser tab | 2026-03-16 | 0c4e473 | [3-make-instance-agent-name-prominently-vis](./quick/3-make-instance-agent-name-prominently-vis/) |
+| 260318-cot | Fix sidebar menu scroll cutoff and name toggle spacing | 2026-03-18 | 37a09fa | [260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-](./quick/260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-/) |
 
 ## Session Continuity
 
