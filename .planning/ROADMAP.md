@@ -206,7 +206,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. An external operator following only the published docs can deploy ClawForge on a fresh VPS, configure their instance, and dispatch a first job — without asking Noah or the team a single question
   2. Every `notifySlack()` call in the codebase has been reviewed and confirmed to produce identical message structure for Noah and StrategyES as it did before v3.0 — no existing Slack search queries or automations break
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 47-01-PLAN.md — Slack notification format audit (LAUNCH-01)
@@ -229,7 +229,7 @@ Plans:
 | 44 | 3/3 | Complete    | 2026-03-18 | - |
 | 45 | 3/3 | Complete    | 2026-03-18 | - |
 | 46 | 2/2 | Complete    | 2026-03-18 | - |
-| 47 | v3.0 | 0/2 | Not started | - |
+| 47 | 1/2 | In Progress|  | - |
 
 **Total shipped:** 42 phases, 81 plans — all complete through v2.2
 **v3.0 in progress:** 5 phases (43-47), 5/20 requirements satisfied
