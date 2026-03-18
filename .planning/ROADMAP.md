@@ -127,6 +127,10 @@
   - [ ] 44-02-PLAN.md — Enforcement gate in dispatch path + usage recording (BILL-01, BILL-03, BILL-04)
   - [ ] 44-03-PLAN.md — Superadmin usage endpoint + admin billing page (BILL-02, BILL-05)
 - [ ] **Phase 45: Self-Service Onboarding** - Wizard, step verification, first-job dispatch, tooltips, empty states
+  Plans:
+  - [ ] 45-01-PLAN.md — Schema, state module, middleware redirect, superadmin endpoint (ONB-01, ONB-02)
+  - [ ] 45-02-PLAN.md — Wizard UI, verification Server Actions, first-job dispatch (ONB-02, ONB-03, ONB-04)
+  - [ ] 45-03-PLAN.md — AGENT_* tooltips and actionable empty states (ONB-05, ONB-06)
 - [ ] **Phase 46: Team Monitoring Dashboard** - Cross-instance monitoring cards, consecutive-failure alerting
 - [ ] **Phase 47: Commercial Launch Hardening** - Operator docs, Slack notification audit
 
@@ -169,7 +173,12 @@
   4. The final onboarding step dispatches a real job and shows the operator a link to the created PR — the wizard only marks itself complete when a PR URL is returned
   5. Admin fields with complexity (AGENT_* prefix convention, mergePolicy values, qualityGates structure) display a tooltip explaining the correct format when the field is focused
   6. Repos, secrets, and MCP servers pages that have no items show an actionable empty state — not a blank table — with a prompt to add the first item
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 45-01-PLAN.md — Schema, state module, middleware redirect, superadmin endpoint (ONB-01, ONB-02)
+- [ ] 45-02-PLAN.md — Wizard UI, verification Server Actions, first-job dispatch (ONB-02, ONB-03, ONB-04)
+- [ ] 45-03-PLAN.md — AGENT_* tooltips and actionable empty states (ONB-05, ONB-06)
 
 ### Phase 46: Team Monitoring Dashboard
 **Goal**: The superadmin can see the health of every instance at a glance and receives automatic alerts when something is systematically wrong
@@ -204,7 +213,7 @@
 | 39-42 | v2.2 | 8/8 | Complete | 2026-03-17 |
 | 43 | 3/3 | Complete    | 2026-03-18 | - |
 | 44 | 3/3 | Complete    | 2026-03-18 | - |
-| 45 | v3.0 | 0/? | Not started | - |
+| 45 | v3.0 | 0/3 | Planned | - |
 | 46 | v3.0 | 0/? | Not started | - |
 | 47 | v3.0 | 0/? | Not started | - |
 
@@ -213,4 +222,4 @@
 
 ---
 
-*Last updated: 2026-03-18 -- Phase 44 planned (3 plans)*
+*Last updated: 2026-03-18 -- Phase 45 planned (3 plans)*
