@@ -117,6 +117,10 @@
 <summary>🔄 v3.0 Customer Launch (Phases 43-47) -- IN PROGRESS</summary>
 
 - [ ] **Phase 43: Observability Foundation** - Error persistence, structured logging, Sentry, health endpoint
+  Plans:
+  - [ ] 43-01-PLAN.md — Error persistence and structured logging (OBS-01, OBS-02)
+  - [ ] 43-02-PLAN.md — Sentry integration and JSONL job logging (OBS-03, OBS-05)
+  - [ ] 43-03-PLAN.md — Health endpoint extension (OBS-04)
 - [ ] **Phase 44: Billing and Usage Tracking** - Usage events, per-instance limits, limit enforcement and warnings
 - [ ] **Phase 45: Self-Service Onboarding** - Wizard, step verification, first-job dispatch, tooltips, empty states
 - [ ] **Phase 46: Team Monitoring Dashboard** - Cross-instance monitoring cards, consecutive-failure alerting
@@ -136,7 +140,7 @@
   3. A deliberately triggered client-side JS error and a server-side API route error both appear in the Sentry project dashboard
   4. `GET /api/health` returns `errorCount24h`, `lastErrorAt`, `dbStatus`, and per-instance job success rate in the response body
   5. A job run that spans 50+ events produces filesystem JSONL log files — no corresponding rows in the DB per event, only one summary row in `job_outcomes`
-**Plans**: TBD
+**Plans:** 3 plans
 
 ### Phase 44: Billing and Usage Tracking
 **Goal**: Job dispatch is governed by configurable per-instance limits and every job's cost is captured for future billing decisions
@@ -194,7 +198,7 @@
 | 25-28 | v2.0 | 14/14 | Complete | 2026-03-12 |
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39-42 | v2.2 | 8/8 | Complete | 2026-03-17 |
-| 43 | v3.0 | 0/? | Not started | - |
+| 43 | v3.0 | 0/3 | Planning complete | - |
 | 44 | v3.0 | 0/? | Not started | - |
 | 45 | v3.0 | 0/? | Not started | - |
 | 46 | v3.0 | 0/? | Not started | - |
@@ -205,4 +209,4 @@
 
 ---
 
-*Last updated: 2026-03-17 -- v3.0 Customer Launch roadmap created*
+*Last updated: 2026-03-17 -- Phase 43 planned (3 plans)*
