@@ -49,6 +49,8 @@ export async function handleSuperadminEndpoint(endpoint, params) {
       return await getStats();
     case 'jobs':
       return await getJobs(params);
+    case 'usage':
+      return await getUsage();
     default:
       throw new Error(`Unknown superadmin endpoint: ${endpoint}`);
   }
@@ -192,5 +194,22 @@ async function getJobs(params) {
       ...j,
       instance: INSTANCE_NAME,
     })),
+  };
+}
+
+async function getUsage() {
+  const { getUsageSummary, getBillingLimits } = await import('../lib/db/usage.js');
+  const periodMonth = new Date().toISOString().slice(0, 7);
+  const summary = getUsageSummary(INSTANCE_NAME, periodMonth);
+  const limits = getBillingLimits(INSTANCE_NAME);
+  return {
+    instance: INSTANCE_NAME,
+    period: periodMonth,
+    jobsDispatched: summary.jobCount,
+    totalDurationSeconds: summary.totalDurationSeconds,
+    limits: {
+      jobsPerMonth: limits.jobsPerMonth,
+      concurrentJobs: limits.concurrentJobs,
+    },
   };
 }
