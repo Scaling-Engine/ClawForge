@@ -190,7 +190,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The superadmin portal displays a monitoring card for each instance showing: current error rate, job usage vs. configured limit, and onboarding completion state
   2. After three consecutive job failures on any single instance, the superadmin receives a Slack alert — and if that instance continues failing, no further alerts arrive for that instance within the same hour
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 46-01-PLAN.md — Backend: consecutive failure detection, alert module, monitoring Server Action (MON-01, MON-02)
@@ -221,7 +221,7 @@ Plans:
 | 43 | 3/3 | Complete    | 2026-03-18 | - |
 | 44 | 3/3 | Complete    | 2026-03-18 | - |
 | 45 | 3/3 | Complete    | 2026-03-18 | - |
-| 46 | 1/2 | In Progress|  | - |
+| 46 | 2/2 | Complete   | 2026-03-18 | - |
 | 47 | v3.0 | 0/? | Not started | - |
 
 **Total shipped:** 42 phases, 81 plans — all complete through v2.2
