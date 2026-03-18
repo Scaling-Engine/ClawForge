@@ -221,7 +221,7 @@ Plans:
 | 43 | 3/3 | Complete    | 2026-03-18 | - |
 | 44 | 3/3 | Complete    | 2026-03-18 | - |
 | 45 | 3/3 | Complete    | 2026-03-18 | - |
-| 46 | 2/2 | Complete   | 2026-03-18 | - |
+| 46 | 2/2 | Complete    | 2026-03-18 | - |
 | 47 | v3.0 | 0/? | Not started | - |
 
 **Total shipped:** 42 phases, 81 plans — all complete through v2.2
