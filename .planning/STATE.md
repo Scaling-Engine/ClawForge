@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 43-03-PLAN.md
-last_updated: "2026-03-18T01:27:16.417Z"
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-03-18T01:57:27.818Z"
 last_activity: 2026-03-18 — Phase 43 Plan 03 executed (extended getHealth with observability fields)
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
   percent: 100
 ---
 
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 43 (Observability Foundation) — complete
-Plan: 03 complete (3/3 plans done)
-Status: Phase 43 Plan 03 complete — Health endpoint extended with error count, DB status, and job success rate
-Last activity: 2026-03-18 — Phase 43 Plan 03 executed (extended getHealth with observability fields)
+Phase: 44 (Billing and Usage Tracking) — in progress
+Plan: 01 complete (1/3 plans done)
+Status: Phase 44 Plan 01 complete — Billing data layer: usage_events + billing_limits tables, query helpers, enforcement gate
+Last activity: 2026-03-18 — Phase 44 Plan 01 executed (billing data layer with 14 passing tests)
 
 ```
-Progress: [██████████] 100% — Phase 43: 3/3 plans complete  3/20 requirements satisfied
+Progress: [███████░░░] 67% — Phase 44: 1/3 plans complete  7/20 requirements satisfied
 ```
 
 ## Performance Metrics
@@ -44,6 +44,7 @@ Progress: [██████████] 100% — Phase 43: 3/3 plans complete
 | Phase 43 P02 duration | 2 min | 2 tasks, 7 files |
 | Phase 43 P01 | 5 | 2 tasks | 10 files |
 | Phase 43 P03 | 8 | 1 tasks | 3 files |
+| Phase 44 P01 | 8 | 1 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,9 @@ Progress: [██████████] 100% — Phase 43: 3/3 plans complete
 - **Sentry conditional init:** `enabled: !!process.env.SENTRY_DSN` guards — zero network calls when DSN absent. No instrumentationHook flag (Next.js >=15.3 auto-detects).
 - **getHealth() dynamic imports:** Uses `await import(...)` inside the function to avoid circular dependency at module load time — consistent with getStats/getJobs pattern.
 - **getJobSuccessRate null rate:** Returns `rate: null` (not `0`) when `total === 0` — distinguishes no-data from all-failed, important for Phase 46 monitoring display logic.
+- **Billing functions synchronous:** All usage.js and enforce.js functions use better-sqlite3 .run()/.get()/.all() — consistent with existing Drizzle patterns (no async needed for SQLite).
+- **Unlimited-by-default enforcement:** checkUsageLimit returns allowed:true with limit:null when no billing_limits row exists — avoids accidental lockout on new instances.
+- **Billing upsert pattern:** select-then-update/insert (not INSERT OR REPLACE) — preserves warningSentPeriod field on limit value updates.
 
 ### Research Flags for Phase Planning
 
@@ -100,7 +104,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-18T01:23:19.986Z
-Stopped at: Completed 43-03-PLAN.md
+Last session: 2026-03-18T01:57:27.816Z
+Stopped at: Completed 44-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 43`

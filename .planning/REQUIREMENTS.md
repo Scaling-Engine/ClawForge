@@ -15,11 +15,11 @@
 
 ### Billing & Usage
 
-- [ ] **BILL-01**: System records job token usage and duration to `usage_events` table after each dispatch
+- [x] **BILL-01**: System records job token usage and duration to `usage_events` table after each dispatch
 - [ ] **BILL-02**: Admin can view per-instance usage metrics (job count, tokens, duration) for the current billing period
-- [ ] **BILL-03**: System sends Slack warning to operator when instance reaches 80% of configured job limit
-- [ ] **BILL-04**: System rejects job dispatch with a clear message (current usage, limit, reset date) when hard limit is exceeded
-- [ ] **BILL-05**: Superadmin can configure per-instance billing limits (jobs per month, concurrent jobs)
+- [x] **BILL-03**: System sends Slack warning to operator when instance reaches 80% of configured job limit
+- [x] **BILL-04**: System rejects job dispatch with a clear message (current usage, limit, reset date) when hard limit is exceeded
+- [x] **BILL-05**: Superadmin can configure per-instance billing limits (jobs per month, concurrent jobs)
 
 ### Onboarding
 
@@ -91,11 +91,11 @@
 | OBS-03 | Phase 43 | Complete |
 | OBS-04 | Phase 43 | Complete |
 | OBS-05 | Phase 43 | Complete |
-| BILL-01 | Phase 44 | Pending |
+| BILL-01 | Phase 44 | Complete |
 | BILL-02 | Phase 44 | Pending |
-| BILL-03 | Phase 44 | Pending |
-| BILL-04 | Phase 44 | Pending |
-| BILL-05 | Phase 44 | Pending |
+| BILL-03 | Phase 44 | Complete |
+| BILL-04 | Phase 44 | Complete |
+| BILL-05 | Phase 44 | Complete |
 | ONB-01 | Phase 45 | Pending |
 | ONB-02 | Phase 45 | Pending |
 | ONB-03 | Phase 45 | Pending |
