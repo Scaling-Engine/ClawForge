@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 45-03-PLAN.md
-last_updated: "2026-03-18T02:57:16.140Z"
-last_activity: 2026-03-17 — Phase 44 Plan 03 executed (admin billing page UI + superadmin usage endpoint)
+stopped_at: Completed 45-01-PLAN.md
+last_updated: "2026-03-18T02:58:17.671Z"
+last_activity: "2026-03-18 — Phase 45 Plan 03 executed (UX improvements: tooltips, empty states)"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 83
 ---
 
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 45 (Self-Service Onboarding) — in progress
-Plan: 03 in progress (1/3 summaries done)
-Status: Phase 45 Plan 03 complete — AGENT_* tooltips/badges on secrets page, actionable empty states on repos/secrets/MCP pages
-Last activity: 2026-03-18 — Phase 45 Plan 03 executed (UX improvements: tooltips, empty states)
+Plan: 01 complete (2/3 summaries done)
+Status: Phase 45 Plan 01 complete — onboarding_state schema, state module, middleware redirect, page shell, superadmin endpoint
+Last activity: 2026-03-17 — Phase 45 Plan 01 executed (onboarding foundation: DB schema + state module + middleware + page shell)
 
 ```
-Progress: [█████████░] 83% — Phase 44: 3/3 plans complete
+Progress: [█████████░] 89% — Phase 45: 2/3 plans complete
 ```
 
 ## Performance Metrics
@@ -48,6 +48,7 @@ Progress: [█████████░] 83% — Phase 44: 3/3 plans complete
 | Phase 44-billing-and-usage-tracking P02 | 2 | 2 tasks | 2 files |
 | Phase 44-billing-and-usage-tracking P03 | ~25 | 2 tasks | 7 files |
 | Phase 45-self-service-onboarding P03 | 8 | 2 tasks | 3 files |
+| Phase 45-self-service-onboarding P01 | 8 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Progress: [█████████░] 83% — Phase 44: 3/3 plans complete
 - **Actions path usage recording:** Inside if(origin) block only — avoids webhook replay double-counts. durationSeconds=null (timing unavailable at webhook layer).
 - **MCP empty state CTA:** Toggles setup instructions panel (not a form) — MCP servers are file-based config (instances/[name]/config/MCP_SERVERS.json), no UI add form exists.
 - **AGENT_* badges on secrets list:** Blue "Container" badge for AGENT_*, purple "Container+LLM" badge for AGENT_LLM_* — visual indicator of container access level for existing secrets.
+- **Onboarding singleton row:** id='singleton' — only one onboarding state per instance. select-then-update/insert pattern mirrors billing upsert.
+- **Wizard component file extension:** onboarding-wizard.jsx (not .js) — lib/chat/components/*.js is gitignored as esbuild output; source must be .jsx, exported via index.js.
 
 ### Research Flags for Phase Planning
 
@@ -114,7 +117,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-18T02:57:16.137Z
-Stopped at: Completed 45-03-PLAN.md
+Last session: 2026-03-18T02:58:17.669Z
+Stopped at: Completed 45-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 45`

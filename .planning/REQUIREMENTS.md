@@ -23,8 +23,8 @@
 
 ### Onboarding
 
-- [ ] **ONB-01**: New operator is redirected to onboarding wizard on first login when `ONBOARDING_ENABLED=true`
-- [ ] **ONB-02**: Onboarding step progress is persisted in DB and resumes correctly across sessions
+- [x] **ONB-01**: New operator is redirected to onboarding wizard on first login when `ONBOARDING_ENABLED=true`
+- [x] **ONB-02**: Onboarding step progress is persisted in DB and resumes correctly across sessions
 - [ ] **ONB-03**: Wizard programmatically verifies: GitHub PAT validity, Docker socket reachability, and Slack webhook connectivity
 - [ ] **ONB-04**: Onboarding terminal step dispatches a real job and confirms a PR was created
 - [x] **ONB-05**: Complex admin fields (AGENT_* prefix, mergePolicy, qualityGates) display contextual tooltips
@@ -96,8 +96,8 @@
 | BILL-03 | Phase 44 | Complete |
 | BILL-04 | Phase 44 | Complete |
 | BILL-05 | Phase 44 | Complete |
-| ONB-01 | Phase 45 | Pending |
-| ONB-02 | Phase 45 | Pending |
+| ONB-01 | Phase 45 | Complete |
+| ONB-02 | Phase 45 | Complete |
 | ONB-03 | Phase 45 | Pending |
 | ONB-04 | Phase 45 | Pending |
 | ONB-05 | Phase 45 | Complete |
