@@ -16,7 +16,7 @@
 ### Billing & Usage
 
 - [x] **BILL-01**: System records job token usage and duration to `usage_events` table after each dispatch
-- [ ] **BILL-02**: Admin can view per-instance usage metrics (job count, tokens, duration) for the current billing period
+- [x] **BILL-02**: Admin can view per-instance usage metrics (job count, tokens, duration) for the current billing period
 - [x] **BILL-03**: System sends Slack warning to operator when instance reaches 80% of configured job limit
 - [x] **BILL-04**: System rejects job dispatch with a clear message (current usage, limit, reset date) when hard limit is exceeded
 - [x] **BILL-05**: Superadmin can configure per-instance billing limits (jobs per month, concurrent jobs)
@@ -92,7 +92,7 @@
 | OBS-04 | Phase 43 | Complete |
 | OBS-05 | Phase 43 | Complete |
 | BILL-01 | Phase 44 | Complete |
-| BILL-02 | Phase 44 | Pending |
+| BILL-02 | Phase 44 | Complete |
 | BILL-03 | Phase 44 | Complete |
 | BILL-04 | Phase 44 | Complete |
 | BILL-05 | Phase 44 | Complete |

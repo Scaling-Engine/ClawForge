@@ -156,7 +156,7 @@
   3. When an instance reaches 80% of its configured job limit, a Slack message is sent to the operator channel before the next job is dispatched
   4. When an instance is at or above its job limit, dispatching a new job returns an error message stating current usage, the limit, and the reset date — no job is created
   5. Superadmin can navigate to the billing config page and change `jobs_per_month` and `concurrent_jobs` for any instance — the new limits take effect on the next dispatch
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 ### Phase 45: Self-Service Onboarding
 **Goal**: A new operator can set up a working ClawForge instance without asking for help — and the system confirms their setup actually works
@@ -203,7 +203,7 @@
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39-42 | v2.2 | 8/8 | Complete | 2026-03-17 |
 | 43 | 3/3 | Complete    | 2026-03-18 | - |
-| 44 | 2/3 | In Progress|  | - |
+| 44 | 3/3 | Complete   | 2026-03-18 | - |
 | 45 | v3.0 | 0/? | Not started | - |
 | 46 | v3.0 | 0/? | Not started | - |
 | 47 | v3.0 | 0/? | Not started | - |
