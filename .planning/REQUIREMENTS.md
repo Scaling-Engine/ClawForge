@@ -10,7 +10,7 @@
 - [x] **OBS-01**: System writes structured JSON logs to stdout via pino on the custom HTTP server
 - [x] **OBS-02**: Error events are persisted to `error_log` table and survive process restarts
 - [x] **OBS-03**: Sentry captures all server and client errors with source maps
-- [ ] **OBS-04**: Health endpoint returns `errorCount24h`, `lastErrorAt`, `dbStatus`, and per-instance job success rate
+- [x] **OBS-04**: Health endpoint returns `errorCount24h`, `lastErrorAt`, `dbStatus`, and per-instance job success rate
 - [x] **OBS-05**: Job-level observability events are written to filesystem JSONL files (not DB per-event) to avoid write contention
 
 ### Billing & Usage
@@ -89,7 +89,7 @@
 | OBS-01 | Phase 43 | Complete |
 | OBS-02 | Phase 43 | Complete |
 | OBS-03 | Phase 43 | Complete |
-| OBS-04 | Phase 43 | Pending |
+| OBS-04 | Phase 43 | Complete |
 | OBS-05 | Phase 43 | Complete |
 | BILL-01 | Phase 44 | Pending |
 | BILL-02 | Phase 44 | Pending |

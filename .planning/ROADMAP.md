@@ -140,7 +140,7 @@
   3. A deliberately triggered client-side JS error and a server-side API route error both appear in the Sentry project dashboard
   4. `GET /api/health` returns `errorCount24h`, `lastErrorAt`, `dbStatus`, and per-instance job success rate in the response body
   5. A job run that spans 50+ events produces filesystem JSONL log files — no corresponding rows in the DB per event, only one summary row in `job_outcomes`
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 ### Phase 44: Billing and Usage Tracking
 **Goal**: Job dispatch is governed by configurable per-instance limits and every job's cost is captured for future billing decisions
@@ -198,7 +198,7 @@
 | 25-28 | v2.0 | 14/14 | Complete | 2026-03-12 |
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39-42 | v2.2 | 8/8 | Complete | 2026-03-17 |
-| 43 | 2/3 | In Progress|  | - |
+| 43 | 3/3 | Complete   | 2026-03-18 | - |
 | 44 | v3.0 | 0/? | Not started | - |
 | 45 | v3.0 | 0/? | Not started | - |
 | 46 | v3.0 | 0/? | Not started | - |
