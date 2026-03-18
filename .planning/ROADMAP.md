@@ -136,6 +136,9 @@
   - [ ] 46-01-PLAN.md — Backend: consecutive failure detection, alert module, monitoring Server Action (MON-01, MON-02)
   - [ ] 46-02-PLAN.md — Frontend: monitoring dashboard component and page shell (MON-01)
 - [ ] **Phase 47: Commercial Launch Hardening** - Operator docs, Slack notification audit
+  Plans:
+  - [ ] 47-01-PLAN.md — Slack notification format audit (LAUNCH-01)
+  - [ ] 47-02-PLAN.md — Operator docs completion: troubleshooting, config reference, env vars (DOCS-01)
 
 </details>
 
@@ -203,7 +206,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. An external operator following only the published docs can deploy ClawForge on a fresh VPS, configure their instance, and dispatch a first job — without asking Noah or the team a single question
   2. Every `notifySlack()` call in the codebase has been reviewed and confirmed to produce identical message structure for Noah and StrategyES as it did before v3.0 — no existing Slack search queries or automations break
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 47-01-PLAN.md — Slack notification format audit (LAUNCH-01)
+- [ ] 47-02-PLAN.md — Operator docs completion: troubleshooting, config reference, env vars (DOCS-01)
 
 ## Progress
 
@@ -222,11 +229,11 @@ Plans:
 | 44 | 3/3 | Complete    | 2026-03-18 | - |
 | 45 | 3/3 | Complete    | 2026-03-18 | - |
 | 46 | 2/2 | Complete    | 2026-03-18 | - |
-| 47 | v3.0 | 0/? | Not started | - |
+| 47 | v3.0 | 0/2 | Not started | - |
 
 **Total shipped:** 42 phases, 81 plans — all complete through v2.2
 **v3.0 in progress:** 5 phases (43-47), 5/20 requirements satisfied
 
 ---
 
-*Last updated: 2026-03-18 -- Phase 46 planned (2 plans)*
+*Last updated: 2026-03-18 -- Phase 47 planned (2 plans)*
