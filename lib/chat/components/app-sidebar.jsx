@@ -71,10 +71,7 @@ export function AppSidebar({ user }) {
             </TooltipContent>
           </Tooltip>
         </div>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <SidebarMenu className="px-2">
+        <SidebarMenu>
           {/* New chat */}
           <SidebarMenuItem className="mb-2">
             <Tooltip>
@@ -341,19 +338,19 @@ export function AppSidebar({ user }) {
           </SidebarMenuItem>
 
         </SidebarMenu>
+      </SidebarHeader>
 
-        {!collapsed && (
-          <>
-            <SidebarGroup className="pt-0">
-              <SidebarGroupLabel>Chats</SidebarGroupLabel>
-            </SidebarGroup>
-            <SidebarHistory />
-          </>
-        )}
+      {!collapsed && (
+        <SidebarContent>
+          <SidebarGroup className="pt-0">
+            <SidebarGroupLabel>Chats</SidebarGroupLabel>
+          </SidebarGroup>
+          <SidebarHistory />
+        </SidebarContent>
+      )}
 
-        {/* Spacer when collapsed to push footer down */}
-        {collapsed && <div className="flex-1" />}
-      </SidebarContent>
+      {/* Spacer when collapsed to push footer down */}
+      {collapsed && <div className="flex-1" />}
 
       <SidebarFooter>
         {user && <SidebarUserNav user={user} collapsed={collapsed} />}

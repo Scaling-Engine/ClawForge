@@ -144,7 +144,7 @@ export function Sidebar({ children, className, side = 'left' }) {
 }
 
 export function SidebarHeader({ children, className }) {
-  return <div className={cn('flex flex-col gap-2 p-2', className)}>{children}</div>;
+  return <div className={cn('flex shrink-0 flex-col gap-2 overflow-y-auto p-2', className)}>{children}</div>;
 }
 
 export function SidebarContent({ children, className }) {
