@@ -26,12 +26,21 @@ jobs:
       - name: Resolve compose project
         id: setup
         run: |
-          # Get the compose project name and .env path from the running containers
-          PROJECT_NAME=$(docker inspect clawforge-noah --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || echo "")
+          # Known deployment directory (where docker-compose was originally run)
+          DEPLOY_DIR="$HOME/ClaudeCode/Business/Products/clawforge"
+
+          # Get project name from running containers
+          PROJECT_NAME=$(docker inspect clawforge-noah --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || echo "clawforge")
           PROJECT_DIR=$(docker inspect clawforge-noah --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null || echo "")
 
-          if [ -z "$PROJECT_NAME" ] || [ -z "$PROJECT_DIR" ]; then
-            echo "Could not find compose project from running containers"
+          # Validate .env exists at the label's path; fallback to known deploy dir
+          if [ -n "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/.env" ]; then
+            echo "Using label path: $PROJECT_DIR"
+          elif [ -f "$DEPLOY_DIR/.env" ]; then
+            echo "Label path missing .env, falling back to: $DEPLOY_DIR"
+            PROJECT_DIR="$DEPLOY_DIR"
+          else
+            echo "No .env found at label path ($PROJECT_DIR) or deploy dir ($DEPLOY_DIR)"
             exit 1
           fi
 
