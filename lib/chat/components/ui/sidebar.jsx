@@ -126,7 +126,7 @@ export function Sidebar({ children, className, side = 'left' }) {
   return (
     <div
       className={cn(
-        'flex h-svh flex-col border-r border-border bg-muted transition-[width] duration-200',
+        'sticky top-0 flex h-svh flex-col border-r border-border bg-muted transition-[width] duration-200',
         open ? 'w-[var(--sidebar-width)]' : 'w-[var(--sidebar-width-icon)]',
         className
       )}
