@@ -129,12 +129,19 @@
 | POL-01 | Phase 50 | Planned |
 | POL-02 | Phase 50 | Planned |
 | POL-03 | Phase 50 | Planned |
+| FIX-01 | Phase 51 | Pending |
+| FIX-02 | Phase 51 | Pending |
+
+### Gap Closure Requirements (Phase 51)
+
+- [ ] **FIX-01**: useFeature hook reads from the same React context that FeaturesProvider wraps — Code toggle and Interactive button render when codeWorkspace flag is true and user is admin
+- [ ] **FIX-02**: Resume button only appears for running workspaces — clicking Resume never causes a redirect loop back to /chats
 
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: 28 (Phases 43-47, 49-50)
+- v1 requirements: 30 total
+- Mapped to phases: 30 (Phases 43-47, 49-51)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-20 — Phase 50 Code Mode Polish requirements added*
+*Last updated: 2026-03-20 — Phase 51 gap closure requirements added*

@@ -257,4 +257,17 @@ Plans:
 
 ---
 
-*Last updated: 2026-03-20 -- Phase 50 planned (1 plan)*
+### Phase 51: Code Mode Bug Fixes
+
+**Goal:** Fix split-module context bug (features-context.jsx vs .js) that prevents Code toggle from rendering, and fix Resume button redirect loop for starting workspaces.
+**Requirements**: FIX-01, FIX-02
+**Depends on:** Phase 50
+**Gap Closure:** Closes BUG-1-SPLIT-CONTEXT (HIGH) and BUG-2-RESUME-STARTING (MEDIUM) from v1.0 audit
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 51 to break down)
+
+---
+
+*Last updated: 2026-03-20 -- Phase 51 gap closure added*
