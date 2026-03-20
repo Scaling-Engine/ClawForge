@@ -87,6 +87,8 @@ export function ChatPage({ session, needsSetup, chatId }) {
     return null;
   }
 
+  const isAdmin = session?.user?.role === 'admin' || session?.user?.role === 'superadmin';
+
   return (
     <FeaturesProvider flags={featureFlags}>
       <ChatNavProvider value={{ activeChatId: resolvedChatId, navigateToChat }}>
@@ -99,6 +101,7 @@ export function ChatPage({ session, needsSetup, chatId }) {
                   key={resolvedChatId}
                   chatId={resolvedChatId}
                   initialMessages={initialMessages}
+                  isAdmin={isAdmin}
                 />
               )}
             </SidebarInset>

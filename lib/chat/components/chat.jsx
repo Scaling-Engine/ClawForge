@@ -9,12 +9,11 @@ import { ChatHeader } from './chat-header.js';
 import { Greeting } from './greeting.js';
 import { useRepoChat } from '../repo-chat-context.js';
 
-export function Chat({ chatId, initialMessages = [] }) {
+export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState([]);
-  const [codeMode, setCodeMode] = useState(false);
-  const [terminalMode, setTerminalMode] = useState(false);
-  const [shellMode, setShellMode] = useState(false);
+  const [codeActive, setCodeActive] = useState(false);
+  const [codeSubMode, setCodeSubMode] = useState('plan'); // 'plan' | 'code'
   const [terminalSessionId, setTerminalSessionId] = useState(null);
   const hasNavigated = useRef(false);
   // Ref so the transport useMemo can read the latest sessionId without re-creating on every update
@@ -36,20 +35,20 @@ export function Chat({ chatId, initialMessages = [] }) {
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: terminalMode ? '/stream/terminal' : '/stream/chat',
+        api: codeActive ? '/stream/terminal' : '/stream/chat',
         body: {
           chatId,
           selectedRepo: selectedRepo?.slug || null,
           selectedBranch: selectedBranch || null,
-          interactiveMode: codeMode,
           // Terminal-specific fields (ignored by /stream/chat)
-          sessionId: terminalMode ? terminalSessionIdRef.current : undefined,
-          shellMode: terminalMode ? shellMode : undefined,
-          thinkingEnabled: terminalMode ? true : undefined,
+          sessionId: codeActive ? terminalSessionIdRef.current : undefined,
+          shellMode: false,
+          thinkingEnabled: codeActive ? true : undefined,
+          codeSubMode: codeActive ? codeSubMode : undefined,
         },
-        fetch: terminalMode ? terminalFetch : undefined,
+        fetch: codeActive ? terminalFetch : undefined,
       }),
-    [chatId, selectedRepo, selectedBranch, codeMode, terminalMode, shellMode, terminalFetch]
+    [chatId, selectedRepo, selectedBranch, codeActive, codeSubMode, terminalFetch]
   );
 
   const {
@@ -81,10 +80,7 @@ export function Chat({ chatId, initialMessages = [] }) {
   const handleSend = () => {
     if (!input.trim() && files.length === 0) return;
     const rawText = input;
-    // In terminal mode, send plain text — backend handles shell mode wrapping
-    const text = !terminalMode && codeMode && rawText.trim()
-      ? `\`\`\`\n${rawText.trim()}\n\`\`\``
-      : rawText;
+    const text = rawText;
     const currentFiles = files;
     setInput('');
     setFiles([]);
@@ -157,19 +153,10 @@ export function Chat({ chatId, initialMessages = [] }) {
                 stop={stop}
                 files={files}
                 setFiles={setFiles}
-                codeMode={codeMode}
-                onToggleCodeMode={() => setCodeMode((prev) => !prev)}
-                terminalMode={terminalMode}
-                onToggleTerminalMode={() => {
-                  setTerminalMode((prev) => {
-                    const next = !prev;
-                    if (next) setCodeMode(false);
-                    if (!next) setShellMode(false);
-                    return next;
-                  });
-                }}
-                shellMode={shellMode}
-                onToggleShellMode={() => setShellMode((prev) => !prev)}
+                codeActive={codeActive}
+                onToggleCode={isAdmin ? () => setCodeActive((prev) => !prev) : undefined}
+                codeSubMode={codeSubMode}
+                onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
               />
             </div>
           </div>
@@ -192,19 +179,10 @@ export function Chat({ chatId, initialMessages = [] }) {
             stop={stop}
             files={files}
             setFiles={setFiles}
-            codeMode={codeMode}
-            onToggleCodeMode={() => setCodeMode((prev) => !prev)}
-            terminalMode={terminalMode}
-            onToggleTerminalMode={() => {
-              setTerminalMode((prev) => {
-                const next = !prev;
-                if (next) setCodeMode(false);
-                if (!next) setShellMode(false);
-                return next;
-              });
-            }}
-            shellMode={shellMode}
-            onToggleShellMode={() => setShellMode((prev) => !prev)}
+            codeActive={codeActive}
+            onToggleCode={isAdmin ? () => setCodeActive((prev) => !prev) : undefined}
+            codeSubMode={codeSubMode}
+            onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
           />
         </>
       )}
