@@ -272,6 +272,54 @@
 
 ---
 
+## Milestone: v3.0 — Customer Launch (Code Mode)
+
+**Shipped:** 2026-03-20
+**Phases:** 10 (43-52, including gap closure + tech debt) | **Plans:** 19
+
+### What Was Built
+- Observability foundation: structured pino logging, error_log table, Sentry integration, health endpoint with per-instance metrics
+- Billing & usage tracking: usage_events table, per-instance metrics dashboard, 80% Slack warning, hard limit enforcement with clear messaging
+- Self-service onboarding: wizard with step persistence, programmatic GitHub/Docker/Slack verification, real job dispatch test
+- Team monitoring dashboard: cross-instance health overview with 30s auto-refresh
+- Commercial launch hardening: comprehensive README, deployment docs, security audit
+- Code Mode Unification (Phase 48): collapsed 3 chat toggles into 1 unified Code toggle with Plan/Code sub-mode dropdown
+- Interactive Code IDE (Phase 49): /code/{id} tabbed IDE page with DnD tabs, xterm.js Shell, Editor file tree, Interactive button in chat
+- Code Mode Polish (Phase 50): feature flag gate via codeWorkspace, FEATURES.json template, mobile touch DnD
+- Bug fixes (Phase 51): split-context import fix, Resume redirect loop fix
+- Tech debt cleanup (Phase 52): await linkChatToWorkspace, EditorView file-read Server Action, auth stub
+
+### What Worked
+- **E2E integration testing in audit**: Caught 2 real bugs (split-module context, resume redirect) that would have shipped broken. The integration checker reading actual source files is worth the token cost
+- **Feature flag infrastructure first**: FeaturesProvider/useFeature existed before Phase 50 needed it — wiring was a one-liner import
+- **Gap closure → tech debt → re-audit cycle**: Structured loop (audit → gaps → fix → re-audit) systematically drove issues to zero
+- **Single-plan phases for bug fixes**: Phases 51 and 52 each had 1 plan — minimal overhead for targeted fixes
+
+### What Was Inefficient
+- **Split-context bug was preventable**: The compiled `features-context.js` artifact on disk created a dual-module trap. The RESEARCH.md flagged "import from .js not .jsx" as a pitfall but the planner still used `.js` in the action
+- **3 phases for what could have been 1**: Phases 48-50 could potentially have been a single larger phase — the separation made sense for planning but added orchestration overhead
+- **Claude subscription auth was aspirational scope**: It was in the Phase 50 goal from the roadmap but no Anthropic OAuth provider exists — should have been caught at roadmap time, not during research
+
+### Patterns Established
+- `canUseCode = isAdmin && codeWorkspaceEnabled` — dual gate pattern (role AND feature flag)
+- `display: block/none` for tab panels preserving xterm.js state (not unmount/remount)
+- `ensureWorkspaceContainer` reuse — Interactive button uses same infrastructure as workspace launch
+- `codeWorkspaceId` FK on chats table for session continuity across devices
+- `readWorkspaceFile` with path guard (no `..`), size limit (1MB), and binary detection
+
+### Key Lessons
+1. **Integration checker finds bugs that per-phase verification misses**: Phase-level verification confirmed each piece worked. Only the cross-phase integration check caught that FeaturesProvider and useFeature used different React contexts
+2. **Compiled artifacts on disk are a module resolution trap**: If both `foo.js` and `foo.jsx` exist in the same directory, bundlers may resolve to either one depending on import path — always delete compiled duplicates
+3. **Status filters must be consistent end-to-end**: Resume button accepting `starting` while page.js rejected it created a redirect loop — status enums must match at every layer
+4. **Aspirational scope in roadmap goals wastes research time**: "Claude subscription auth" consumed researcher time only to conclude it's not implementable — better to scope it out at roadmap level
+
+### Cost Observations
+- Model mix: ~85% sonnet (executors/verifiers/researchers/checkers), ~15% opus (planners)
+- 5 phases planned and executed in one session (~2 hours wall clock)
+- Gap closure cycle (audit → fix → re-audit) added ~30 min but caught 2 real bugs
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -287,6 +335,7 @@
 | v2.0 | 4 | 14 | Full Platform — SSE streaming, MCP tools, multi-agent clusters, highest plans/day |
 | v2.1 | 10 | 12 | Upstream Feature Sync — cherry-pick from upstream, 192 files in 1 day, highest LOC delta |
 | v2.2 | 4 | 8 | Smart Operations — quality gates, terminal chat, superadmin portal, three-tier auth |
+| v3.0 | 10 | 19 | Customer Launch — observability, billing, onboarding, Code Mode IDE, feature flags |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -300,3 +349,5 @@
 8. **Wave-based ordering prevents dependency tangles** — v2.1 lesson; UI → auth → advanced features meant each wave could assume previous infrastructure
 9. **File-based state beats shell variables in containers** — v2.2 lesson; /tmp/gate_pass more reliable than environment variables for cross-function state in entrypoint scripts
 10. **Promise.allSettled for multi-instance queries** — v2.2 lesson; one offline instance shouldn't break the dashboard. Error-per-instance is the right default for distributed UIs
+11. **Integration checker catches cross-phase bugs** — v3.0 lesson; per-phase verification passed but cross-phase audit found split-context and redirect loop bugs
+12. **Compiled artifacts on disk are module traps** — v3.0 lesson; `foo.js` + `foo.jsx` in same directory creates dual-context bugs. Always delete compiled duplicates
