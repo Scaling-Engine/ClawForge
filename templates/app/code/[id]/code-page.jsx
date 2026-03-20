@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { SortableCodeTab } from './sortable-code-tab.jsx';
 import TerminalView from './terminal-view.jsx';
@@ -37,9 +37,11 @@ export default function CodePageClient({ workspaceId, repoSlug, featureBranch, u
   const [shellDisconnected, setShellDisconnected] = useState(false);
   const initializedRef = useRef(false);
 
-  // DnD sensor: 5px activation distance prevents click/drag conflicts
+  // DnD sensors: pointer (desktop), touch (mobile, 250ms delay prevents scroll conflict), keyboard (a11y)
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
   );
 
   const handleDragEnd = useCallback((event) => {
