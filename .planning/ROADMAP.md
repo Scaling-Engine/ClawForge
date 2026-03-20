@@ -246,13 +246,14 @@ Plans:
 
 ### Phase 49: Interactive Code IDE
 
-**Goal:** Cherry-pick upstream /code/{id} tabbed IDE page (Code + Shell + Editor tabs). Wire "Interactive" toggle to launch Docker containers and redirect. Link chats to workspaces via codeWorkspaceId FK. Tab system with DnD support.
-**Requirements**: TBD
+**Goal:** Add /code/{id} tabbed IDE page with Code, Shell, and Editor tabs. Wire Interactive button in chat to launch Docker workspace containers and redirect. Link chats to workspaces via codeWorkspaceId FK. DnD tab reordering.
+**Requirements**: IDE-01, IDE-02, IDE-03, IDE-04, IDE-05
 **Depends on:** Phase 48
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 49 to break down)
+- [ ] 49-01-PLAN.md — Schema migration (codeWorkspaceId FK), Server Actions, /code/[id] page shell (IDE-01, IDE-03)
+- [ ] 49-02-PLAN.md — Code IDE client components (tabs, DnD, terminal, editor) + Interactive button in chat (IDE-01, IDE-02, IDE-04, IDE-05)
 
 ### Phase 50: Code Mode Polish
 
@@ -266,4 +267,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-03-19 -- Phase 48 planned (1 plan)*
+*Last updated: 2026-03-20 -- Phase 49 planned (2 plans)*

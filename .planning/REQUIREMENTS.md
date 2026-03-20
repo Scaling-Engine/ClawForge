@@ -43,6 +43,14 @@
 
 - [x] **LAUNCH-01**: Existing operator Slack notification format is audited and confirmed to have zero breaking changes before external customer access is opened
 
+### Interactive Code IDE
+
+- **IDE-01**: /code/{id} page renders with Code, Shell, and Editor tabs with DnD reordering via @dnd-kit
+- **IDE-02**: Interactive button in chat input launches a Docker workspace container via ensureWorkspaceContainer and redirects to /code/{id}
+- **IDE-03**: codeWorkspaceId nullable FK column on chats table links chat sessions to their associated workspace
+- **IDE-04**: Shell tab connects to workspace container via WebSocket (xterm.js + addon-attach) with disconnect/reconnect support
+- **IDE-05**: Editor tab displays file tree from workspace container via requestFileTree Server Action
+
 ## v2 Requirements
 
 ### Billing
@@ -106,12 +114,17 @@
 | MON-02 | Phase 46 | Complete |
 | DOCS-01 | Phase 47 | Complete |
 | LAUNCH-01 | Phase 47 | Complete |
+| IDE-01 | Phase 49 | Planned |
+| IDE-02 | Phase 49 | Planned |
+| IDE-03 | Phase 49 | Planned |
+| IDE-04 | Phase 49 | Planned |
+| IDE-05 | Phase 49 | Planned |
 
 **Coverage:**
-- v1 requirements: 20 total
-- Mapped to phases: 20 (Phases 43-47)
-- Unmapped: 0 ✓
+- v1 requirements: 25 total
+- Mapped to phases: 25 (Phases 43-47, 49)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 — Phase mappings added by roadmapper*
+*Last updated: 2026-03-20 — Phase 49 IDE requirements added*
