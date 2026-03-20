@@ -3,12 +3,22 @@
 import { useState, useEffect } from 'react';
 import { getAgentName } from '../actions.js';
 
-export function Greeting() {
+export function Greeting({ codeActive = false }) {
   const [agentName, setAgentName] = useState('');
 
   useEffect(() => {
     getAgentName().then(setAgentName).catch(() => {});
   }, []);
+
+  if (codeActive) {
+    return (
+      <div className="w-full text-center">
+        <div className="font-semibold font-mono text-2xl md:text-3xl text-foreground">
+          What we coding today?
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full text-center">

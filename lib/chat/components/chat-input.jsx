@@ -42,7 +42,7 @@ function getEffectiveType(file) {
   return extMap[ext] || file.type || 'text/plain';
 }
 
-export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeActive = false, onToggleCode, codeSubMode = 'plan', onChangeCodeSubMode, onLaunchInteractive, isLaunching = false, linkedWorkspaceId = null, hasRepoSelected = false }) {
+export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeActive = false }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -268,60 +268,6 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
             >
               <PaperclipIcon size={16} />
             </button>
-
-            {/* Unified Code toggle — admin only (onToggleCode is undefined for non-admins) */}
-            {onToggleCode && (
-              <button
-                type="button"
-                onClick={onToggleCode}
-                className={cn(
-                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
-                  codeActive
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                aria-label="Toggle Code mode"
-                aria-pressed={codeActive}
-                disabled={isStreaming}
-                title="Code mode — routes to Claude Code CLI"
-              >
-                {'</>'}
-              </button>
-            )}
-
-            {/* Plan/Code sub-mode dropdown — visible only when Code toggle is active */}
-            {codeActive && onToggleCode && (
-              <select
-                value={codeSubMode}
-                onChange={(e) => onChangeCodeSubMode(e.target.value)}
-                className="text-xs bg-transparent border border-border rounded px-1 py-1 text-muted-foreground focus:outline-none"
-                disabled={isStreaming}
-                aria-label="Code sub-mode"
-              >
-                <option value="plan">Plan</option>
-                <option value="code">Code</option>
-              </select>
-            )}
-
-            {/* Interactive button — launches workspace or resumes existing */}
-            {codeActive && onToggleCode && (
-              <button
-                type="button"
-                onClick={onLaunchInteractive}
-                disabled={isStreaming || isLaunching || (!linkedWorkspaceId && !hasRepoSelected)}
-                title={!linkedWorkspaceId && !hasRepoSelected ? 'Select a repo first' : undefined}
-                className={cn(
-                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
-                  'text-muted-foreground hover:text-foreground',
-                  isLaunching && 'opacity-50 cursor-wait',
-                  (!linkedWorkspaceId && !hasRepoSelected) && 'opacity-50 cursor-not-allowed'
-                )}
-                aria-label="Launch interactive workspace"
-                aria-busy={isLaunching}
-              >
-                {isLaunching ? 'Launching...' : linkedWorkspaceId ? 'Resume' : 'Interactive'}
-              </button>
-            )}
 
             {/* Mic button — hidden if browser lacks AudioWorklet */}
             {voiceSupported && (

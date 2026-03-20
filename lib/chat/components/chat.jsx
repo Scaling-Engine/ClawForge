@@ -11,12 +11,13 @@ import { Greeting } from './greeting.js';
 import { useRepoChat } from '../repo-chat-context.js';
 import { launchWorkspace, getLinkedWorkspace } from './code/actions.js';
 import { useFeature } from '../features-context.jsx';
+import { getRepos, getBranches } from '../actions.js';
+import { cn } from '../utils.js';
 
 export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState([]);
   const [codeActive, setCodeActive] = useState(false);
-  const [codeSubMode, setCodeSubMode] = useState('plan'); // 'plan' | 'code'
   const [terminalSessionId, setTerminalSessionId] = useState(null);
   const hasNavigated = useRef(false);
   // Ref so the transport useMemo can read the latest sessionId without re-creating on every update
@@ -29,7 +30,42 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const codeWorkspaceEnabled = useFeature('codeWorkspace');
   const canUseCode = isAdmin && codeWorkspaceEnabled;
 
-  const { selectedRepo, selectedBranch } = useRepoChat();
+  const { selectedRepo, setSelectedRepo, selectedBranch, setSelectedBranch } = useRepoChat();
+
+  // Repo/branch state (moved from chat-header)
+  const [repos, setRepos] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const branchLoadingForRepo = useRef(null);
+
+  useEffect(() => {
+    getRepos().then(setRepos).catch(() => setRepos([]));
+  }, []);
+
+  const handleRepoChange = useCallback(async (slug) => {
+    if (!slug) {
+      setSelectedRepo(null);
+      setSelectedBranch(null);
+      setBranches([]);
+      return;
+    }
+    const repo = repos.find((r) => r.slug === slug);
+    if (!repo) return;
+    setSelectedRepo(repo);
+    setSelectedBranch(null);
+    setBranches([]);
+    setLoadingBranches(true);
+    branchLoadingForRepo.current = slug;
+    const result = await getBranches(repo.owner, repo.slug);
+    if (branchLoadingForRepo.current === slug) {
+      setBranches(result);
+      setLoadingBranches(false);
+    }
+  }, [repos, setSelectedRepo, setSelectedBranch]);
+
+  const handleBranchChange = useCallback((branch) => {
+    setSelectedBranch(branch || null);
+  }, [setSelectedBranch]);
 
   // Custom fetch wrapper that captures X-Terminal-Session-Id from response headers
   const terminalFetch = useCallback(async (input, init) => {
@@ -54,11 +90,10 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
           sessionId: codeActive ? terminalSessionIdRef.current : undefined,
           shellMode: false,
           thinkingEnabled: codeActive ? true : undefined,
-          codeSubMode: codeActive ? codeSubMode : undefined,
         },
         fetch: codeActive ? terminalFetch : undefined,
       }),
-    [chatId, selectedRepo, selectedBranch, codeActive, codeSubMode, terminalFetch]
+    [chatId, selectedRepo, selectedBranch, codeActive, terminalFetch]
   );
 
   const {
@@ -176,13 +211,117 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
     sendMessage({ text: newText });
   }, [messages, setMessages, sendMessage]);
 
+  const isStreaming = status === 'streaming' || status === 'submitted';
+
+  // Below-input control bar — rendered after each ChatInput
+  const BelowInputBar = (
+    <div className="mx-auto w-full max-w-4xl px-4 md:px-6 pb-2">
+      <div className="flex flex-wrap items-center gap-3 pt-2">
+        {/* Code pill toggle — admin only */}
+        {canUseCode && (
+          <button
+            type="button"
+            onClick={() => setCodeActive((prev) => !prev)}
+            disabled={isStreaming}
+            aria-pressed={codeActive}
+            aria-label="Toggle Code mode"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            <span
+              className={cn(
+                'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200',
+                codeActive ? 'bg-green-500' : 'bg-muted-foreground/30'
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200',
+                  codeActive ? 'translate-x-5' : 'translate-x-0'
+                )}
+              />
+            </span>
+            <span className="text-xs font-medium">Code</span>
+          </button>
+        )}
+
+        {/* Repo selector — visible only when Code is ON */}
+        {codeActive && (
+          <select
+            value={selectedRepo?.slug || ''}
+            onChange={(e) => handleRepoChange(e.target.value)}
+            disabled={isStreaming}
+            className="text-xs bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
+          >
+            <option value="">No repo selected</option>
+            {repos.map((r) => (
+              <option key={r.slug} value={r.slug}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Branch selector — visible only when Code is ON and a repo is selected */}
+        {codeActive && selectedRepo && (
+          <select
+            value={selectedBranch || ''}
+            onChange={(e) => handleBranchChange(e.target.value)}
+            disabled={isStreaming || loadingBranches}
+            className="text-xs bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
+          >
+            <option value="">{loadingBranches ? 'Loading...' : 'Select branch'}</option>
+            {branches.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Headless toggle — visible only when Code is ON */}
+        {codeActive && (
+          <button
+            type="button"
+            onClick={handleLaunchInteractive}
+            disabled={isStreaming || isLaunching || (!linkedWorkspaceId && !selectedRepo?.slug)}
+            aria-pressed={!!linkedWorkspaceId}
+            aria-label="Launch headless workspace"
+            title={!linkedWorkspaceId && !selectedRepo?.slug ? 'Select a repo first' : undefined}
+            className={cn(
+              'flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground',
+              (!linkedWorkspaceId && !selectedRepo?.slug) && 'opacity-50 cursor-not-allowed',
+              isLaunching && 'opacity-50 cursor-wait'
+            )}
+          >
+            <span
+              className={cn(
+                'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200',
+                linkedWorkspaceId ? 'bg-green-500' : 'bg-muted-foreground/30'
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200',
+                  linkedWorkspaceId ? 'translate-x-5' : 'translate-x-0'
+                )}
+              />
+            </span>
+            <span className="text-xs font-medium">
+              {isLaunching ? 'Launching...' : linkedWorkspaceId ? 'Resume' : 'Headless'}
+            </span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-svh flex-col">
       <ChatHeader chatId={chatId} />
       {messages.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center px-4 md:px-6">
           <div className="w-full max-w-4xl">
-            <Greeting />
+            <Greeting codeActive={codeActive} />
             {error && (
               <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
                 {error.message || 'Something went wrong. Please try again.'}
@@ -198,14 +337,8 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
                 files={files}
                 setFiles={setFiles}
                 codeActive={codeActive}
-                onToggleCode={canUseCode ? () => setCodeActive((prev) => !prev) : undefined}
-                codeSubMode={codeSubMode}
-                onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
-                onLaunchInteractive={canUseCode ? handleLaunchInteractive : undefined}
-                isLaunching={isLaunching}
-                linkedWorkspaceId={linkedWorkspaceId}
-                hasRepoSelected={!!selectedRepo?.slug}
               />
+              {BelowInputBar}
             </div>
           </div>
         </div>
@@ -228,14 +361,8 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
             files={files}
             setFiles={setFiles}
             codeActive={codeActive}
-            onToggleCode={canUseCode ? () => setCodeActive((prev) => !prev) : undefined}
-            codeSubMode={codeSubMode}
-            onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
-            onLaunchInteractive={canUseCode ? handleLaunchInteractive : undefined}
-            isLaunching={isLaunching}
-            linkedWorkspaceId={linkedWorkspaceId}
-            hasRepoSelected={!!selectedRepo?.slug}
           />
+          {BelowInputBar}
         </>
       )}
     </div>
