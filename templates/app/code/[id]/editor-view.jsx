@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { requestFileTree } from 'clawforge/ws/actions';
+import { requestFileTree, requestFileContent } from 'clawforge/ws/actions';
 
 /**
  * Editor tab content: file tree sidebar + file content display panel.
@@ -16,6 +16,25 @@ export default function EditorView({ workspaceId }) {
   const [expanded, setExpanded] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [fileContent, setFileContent] = useState(null);
+  const [fileLoading, setFileLoading] = useState(false);
+
+  const loadFileContent = useCallback(async (filePath) => {
+    if (!filePath) return;
+    setFileLoading(true);
+    setFileContent(null);
+    const result = await requestFileContent(workspaceId, filePath);
+    setFileContent(result);
+    setFileLoading(false);
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (selectedFile) {
+      loadFileContent(selectedFile);
+    } else {
+      setFileContent(null);
+    }
+  }, [selectedFile, loadFileContent]);
 
   const fetchFiles = useCallback(async () => {
     const result = await requestFileTree(workspaceId);
@@ -198,7 +217,7 @@ export default function EditorView({ workspaceId }) {
         overflow: 'auto',
       }}>
         {selectedFile ? (
-          <div style={{ width: '100%', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{
               padding: '8px 16px',
               backgroundColor: '#181825',
@@ -206,15 +225,27 @@ export default function EditorView({ workspaceId }) {
               color: '#a6adc8',
               fontSize: '12px',
               fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+              flexShrink: 0,
             }}>
               {selectedFile}
             </div>
-            <div style={{
-              padding: '16px',
-              color: '#585b70',
-              fontSize: '13px',
-            }}>
-              Select a file from the sidebar to view it here.
+            <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+              {fileLoading ? (
+                <span style={{ color: '#585b70', fontSize: '13px' }}>Loading...</span>
+              ) : fileContent?.error ? (
+                <span style={{ color: '#f38ba8', fontSize: '13px' }}>{fileContent.error}</span>
+              ) : (
+                <pre style={{
+                  margin: 0,
+                  color: '#cdd6f4',
+                  fontSize: '13px',
+                  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                  whiteSpace: 'pre',
+                  overflowX: 'auto',
+                }}>
+                  {fileContent?.content ?? ''}
+                </pre>
+              )}
             </div>
           </div>
         ) : (
