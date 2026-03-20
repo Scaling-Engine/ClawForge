@@ -234,6 +234,36 @@ Plans:
 **Total shipped:** 42 phases, 81 plans — all complete through v2.2
 **v3.0 in progress:** 5 phases (43-47), 5/20 requirements satisfied
 
+### Phase 48: Code Mode Unification
+
+**Goal:** Collapse three disconnected chat toggles (Code/Terminal/Shell) into one unified "Code" toggle that routes to /stream/terminal (existing SDK bridge). Kill backtick-wrapping code mode. Add Plan/Code sub-mode dropdown. Guard Code toggle behind admin role.
+**Requirements**: CODE-01, CODE-02, CODE-03, CODE-04, CODE-05
+**Depends on:** Phase 47
+**Plans:** 1 plan
+
+Plans:
+- [ ] 48-01-PLAN.md — State consolidation, unified Code toggle + sub-mode dropdown, admin guard (CODE-01, CODE-02, CODE-03, CODE-04, CODE-05)
+
+### Phase 49: Interactive Code IDE
+
+**Goal:** Cherry-pick upstream /code/{id} tabbed IDE page (Code + Shell + Editor tabs). Wire "Interactive" toggle to launch Docker containers and redirect. Link chats to workspaces via codeWorkspaceId FK. Tab system with DnD support.
+**Requirements**: TBD
+**Depends on:** Phase 48
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 49 to break down)
+
+### Phase 50: Code Mode Polish
+
+**Goal:** Feature-flag gate Code mode via features.codeWorkspace. Mobile session continuity (resumable sessions across devices). Claude subscription auth (OAuth login vs API key). Device-agnostic session persistence.
+**Requirements**: TBD
+**Depends on:** Phase 49
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 50 to break down)
+
 ---
 
-*Last updated: 2026-03-18 -- Phase 47 planned (2 plans)*
+*Last updated: 2026-03-19 -- Phase 48 planned (1 plan)*
