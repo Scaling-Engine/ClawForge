@@ -270,4 +270,17 @@ Plans:
 
 ---
 
-*Last updated: 2026-03-20 -- Phase 51 planned*
+### Phase 52: Tech Debt Cleanup
+
+**Goal:** Await linkChatToWorkspace for async safety. Wire EditorView file-read Server Action so files display content. Delete stale features-context.js esbuild artifact. Stub Claude subscription auth gate for future OAuth integration.
+**Requirements**: DEBT-01, DEBT-02, DEBT-03, DEBT-04
+**Depends on:** Phase 51
+**Tech Debt Closure:** Resolves all tech_debt items from v1.0 re-audit
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 52 to break down)
+
+---
+
+*Last updated: 2026-03-20 -- Phase 52 tech debt cleanup added*
