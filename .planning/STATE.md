@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: unknown
 stopped_at: Completed 52-01-PLAN.md
-last_updated: "2026-03-20T05:05:30.913Z"
+last_updated: "2026-03-20T13:29:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 10
@@ -139,6 +139,7 @@ The following files must not be modified structurally — additive changes only:
 | 2 | Update package.json version from 0.1.0 to 2.1.0 | 2026-03-16 | c7e1ca0 | [2-make-sure-the-version-on-the-web-app-mat](./quick/2-make-sure-the-version-on-the-web-app-mat/) |
 | 3 | Display agent name from SOUL.md in sidebar, chat header, greeting, and browser tab | 2026-03-16 | 0c4e473 | [3-make-instance-agent-name-prominently-vis](./quick/3-make-instance-agent-name-prominently-vis/) |
 | 260318-cot | Fix sidebar menu scroll cutoff and name toggle spacing | 2026-03-18 | 37a09fa | [260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-](./quick/260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-/) |
+| 260320-cxu | Add URL and agent name to instance docs (CLAUDE.md, DEPLOYMENT.md, OPERATOR_GUIDE.md) | 2026-03-20 | 3906c2f | [260320-cxu-clarify-that-https-strategyes-scalingeng](./quick/260320-cxu-clarify-that-https-strategyes-scalingeng/) |
 
 ## Session Continuity
 
