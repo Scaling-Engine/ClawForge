@@ -64,6 +64,15 @@ You need a VPS (any provider — Hetzner, DigitalOcean, AWS, etc.) with:
 
 Point a domain (e.g., `mybot.example.com`) to your server's IP address with a DNS A record.
 
+### Live Instance Domains
+
+| Domain | Instance | Agent Name | Env Var |
+|--------|----------|------------|---------|
+| clawforge.scalingengine.com | noah | Archie | NOAH_APP_HOSTNAME |
+| strategyes.scalingengine.com | strategyES | Epic | SES_APP_HOSTNAME |
+
+Each domain is routed by Traefik via `Host()` rules in `docker-compose.yml`. The hostname env vars (e.g., `SES_APP_HOSTNAME`) are set in `.env` on the VPS.
+
 ### 2. Scaffold and configure
 
 SSH into your server and scaffold the project:

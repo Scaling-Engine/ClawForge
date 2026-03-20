@@ -495,7 +495,7 @@ The `docker-compose.yml` orchestrates all instances plus a Traefik reverse proxy
 │                   Traefik                     │
 │         (TLS termination, routing)            │
 │  archie.domain.com → noah container           │
-│  epic.domain.com   → strategyES container     │
+│  strategyes.scalingengine.com → strategyES container │
 └──────────┬───────────────────┬───────────────┘
            │                   │
     ┌──────┴──────┐     ┌──────┴──────┐
@@ -703,7 +703,8 @@ docker compose restart {service-name}
 ### Epic (strategyES)
 
 - **Purpose:** StrategyES development agent for Jim
-- **Channels:** Slack only
+- **URL:** https://strategyes.scalingengine.com
+- **Channels:** Slack, Web Chat
 - **Repos:** strategyes-lab only (hard-scoped)
 - **MCP:** None configured
 - **Special:** Locked to a single repo — cannot access anything else
