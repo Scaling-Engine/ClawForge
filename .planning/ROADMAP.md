@@ -249,7 +249,7 @@ Plans:
 **Goal:** Add /code/{id} tabbed IDE page with Code, Shell, and Editor tabs. Wire Interactive button in chat to launch Docker workspace containers and redirect. Link chats to workspaces via codeWorkspaceId FK. DnD tab reordering.
 **Requirements**: IDE-01, IDE-02, IDE-03, IDE-04, IDE-05
 **Depends on:** Phase 48
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 49-01-PLAN.md — Schema migration (codeWorkspaceId FK), Server Actions, /code/[id] page shell (IDE-01, IDE-03)

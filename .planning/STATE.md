@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 49-01-PLAN.md
-last_updated: "2026-03-20T02:14:30.099Z"
+stopped_at: Completed 49-02-PLAN.md
+last_updated: "2026-03-20T02:22:20.337Z"
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 49 (interactive-code-ide) — EXECUTING
-Plan: 1 of 2
+Phase: 49 (interactive-code-ide) — COMPLETE
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -48,6 +48,13 @@ Plan: 1 of 2
 | Phase 47-commercial-launch-hardening P02 | 3 | 2 tasks | 2 files |
 | Phase 48-code-mode-unification P01 | 8 | 2 tasks | 3 files |
 | Phase 49-interactive-code-ide P01 | 8 | 2 tasks | 7 files |
+| Phase 49-interactive-code-ide P02 | 4 | 3 tasks | 6 files |
+
+**Phase 49-02 decisions:**
+- **IDE display-toggle pattern:** `display: block/none` for tab panels (not unmount) to preserve xterm.js Terminal instance across tab switches
+- **TerminalView self-contained:** Not imported from workspace/[id]/terminal.jsx — templates/ and lib/ cannot cross-import
+- **Interactive button guard:** `codeActive && onToggleCode` — same guard as sub-mode dropdown; only admins with Code mode on see it
+- **Inline close warning:** Unsafe workspace close shows inline panel in top bar (not modal) per UI-SPEC single-confirmation contract
 
 ## Accumulated Context
 
@@ -130,7 +137,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-20T02:14:30.093Z
-Stopped at: Completed 49-01-PLAN.md
+Last session: 2026-03-20T02:22:20.333Z
+Stopped at: Completed 49-02-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 45`
