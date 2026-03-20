@@ -137,7 +137,7 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
 
     setIsLaunching(true);
     try {
-      const { workspaceId } = await launchWorkspace({ chatId, repoSlug: selectedRepo.slug });
+      const { workspaceId } = await launchWorkspace({ chatId, repoSlug: `${selectedRepo.owner}/${selectedRepo.slug}` });
       router.push(`/code/${workspaceId}`);
     } catch (err) {
       console.error('Failed to launch workspace:', err);
