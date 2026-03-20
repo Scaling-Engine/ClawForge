@@ -1,5 +1,15 @@
 # Milestones
 
+## v1.0 ClawForge Platform (Shipped: 2026-03-20)
+
+**Phases completed:** 10 phases, 19 plans, 6 tasks
+
+**Key accomplishments:**
+
+- (none recorded)
+
+---
+
 ## v2.2 Smart Operations (Shipped: 2026-03-17)
 
 **Phases:** 39-42 (4 phases, 8 plans)
@@ -9,6 +19,7 @@
 **Archive:** milestones/v2.2-ROADMAP.md, milestones/v2.2-REQUIREMENTS.md
 
 **Key accomplishments:**
+
 - Smart execution: configurable quality gates (lint/typecheck/test) in entrypoint.sh with self-correction loop (max 1 retry) and per-repo merge policies (auto/gate-required/manual) in REPOS.json
 - Job control UI: cancel running Docker containers and retry failed jobs from web UI with admin role gating via DockerJobsList component
 - Embedded Claude Code terminal chat: Agent SDK streaming via UIMessageStream with live tool call visualization, unified diff rendering (diff2html), collapsible thinking panel, per-turn cost tracking, and shell mode toggle
@@ -27,6 +38,7 @@
 **Archive:** milestones/v2.1-ROADMAP.md, milestones/v2.1-REQUIREMENTS.md
 
 **Key accomplishments:**
+
 - DB-backed config system (AES-256-GCM encryption, SQLite config table, LLM provider listing) as foundation for all subsequent phases
 - Three new pages (Pull Requests with approve/reject, Runners status, Profile) plus sidebar navigation with PR badge count
 - Chat enhancements: Shiki syntax highlighting via @streamdown/code, interactive mode toggle routing headless vs workspace coding
@@ -48,6 +60,7 @@
 **Archive:** milestones/v2.1-ROADMAP.md (v2.0 phases included in v2.1 archive)
 
 **Key accomplishments:**
+
 - Headless log streaming: SSE endpoint, Docker log streaming, Slack edit-in-place status updates, semantic event filtering
 - Web UI: NextAuth session auth on Server Actions, repo/branch selector, feature flags system, live job streaming inline in chat
 - MCP tool layer: per-instance MCP_SERVERS.json, template variable resolution, --mcp-config flag, tool subset curation, pre-run context hydration
@@ -64,6 +77,7 @@
 **Archive:** milestones/v1.5-ROADMAP.md, milestones/v1.5-REQUIREMENTS.md
 
 **Key accomplishments:**
+
 - Workspace Docker image with ttyd 1.7.7 + tmux + Claude Code CLI, full container lifecycle (create/stop/start/destroy/auto-recover), idle timeout, and max concurrent limits
 - Custom HTTP server wrapping Next.js with ticket-based WebSocket auth (single-use, 30s TTL) and bidirectional binary proxy to ttyd inside containers
 - xterm.js browser terminal with multi-tab tmux sessions (ports 7681-7685), resize/reconnect, and git safety warnings on workspace close
@@ -82,6 +96,7 @@
 **Archive:** milestones/v1.4-ROADMAP.md, milestones/v1.4-REQUIREMENTS.md
 
 **Key accomplishments:**
+
 - Layer 2 context hydration: entrypoint injects STATE.md (4K cap), ROADMAP.md (6K cap), and last 10 git commits into job prompts, gated on GSD_HINT for quick vs full hydration
 - AGENT_QUICK.md variant for simple jobs with fallback chain: instance → defaults → full AGENT.md
 - Docker Engine API dispatch via dockerode: containers start in ~9 seconds vs ~60s via GitHub Actions, with full lifecycle management (create, wait, logs, cleanup)
@@ -99,6 +114,7 @@
 **Archive:** milestones/v1.3-ROADMAP.md, milestones/v1.3-REQUIREMENTS.md
 
 **Key accomplishments:**
+
 - `createInstanceJobTool` registered in LangGraph agent with Zod-validated schema and yaml@2.8.2 for comment-preserving docker-compose updates
 - Multi-turn conversational intake in EVENT_HANDLER.md — grouped config gathering (max 4 turns), optional field suppression, approval gate, clean cancellation
 - `buildInstanceJobDescription()` generates comprehensive job prompt with all 7 artifacts (Dockerfile, SOUL.md, AGENT.md, EVENT_HANDLER.md, REPOS.json, .env.example, docker-compose.yml update)
@@ -108,6 +124,7 @@
 - End-to-end pipeline validated: conversation → approval → job dispatch → PR with all artifacts verified
 
 ### Known Gaps
+
 - INTAKE-02 through INTAKE-05, SCAF-01 through SCAF-04: Code implemented and E2E validated, but phases 14/15 lack formal VERIFICATION.md
 - Phase 17.2 (Layer 2 Context Hydration) deferred to v1.4
 
@@ -119,6 +136,7 @@
 **Archive:** milestones/v1.0-ROADMAP.md (if exists)
 
 **Key accomplishments:**
+
 - Job containers run Claude Code CLI via `claude -p` with GSD installed globally
 - Preflight diagnostics, PostToolUse observability hook, template sync
 - Test harness for local Docker GSD verification
@@ -134,6 +152,7 @@
 **Archive:** milestones/v1.1-ROADMAP.md, milestones/v1.1-REQUIREMENTS.md
 
 **Key accomplishments:**
+
 - Pipeline hardening: zero-commit PR guard, 30-min runner timeout, failure stage detection (docker_pull/auth/claude)
 - Smart job prompts: structured FULL_PROMPT with CLAUDE.md injection (8k cap), package.json stack, GSD routing hints
 - Previous job context: follow-up jobs receive prior merged job summary scoped by thread ID
@@ -151,6 +170,7 @@
 **Archive:** milestones/v1.2-ROADMAP.md, milestones/v1.2-REQUIREMENTS.md
 
 **Key accomplishments:**
+
 - Per-instance REPOS.json config with `loadAllowedRepos()` + `resolveTargetRepo()` supporting case-insensitive slug/name/alias matching
 - SOUL.md and AGENT.md baked into job Docker image at `/defaults/` so cross-repo jobs have system prompt without clawforge config in working tree
 - `target_repo` threaded from LangGraph tool schema -> `create_job()` -> `target.json` sidecar on clawforge job branch
