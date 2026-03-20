@@ -44,7 +44,7 @@ Declared values (multiples of 4 only). Source: existing codebase patterns — `c
 | 3xl | 64px | Page-level spacing |
 
 Exceptions:
-- Sub-mode dropdown: `px-1 py-0.5` (4px / 2px) — intentionally compact to sit flush beside the Code toggle button without adding visual weight
+- Sub-mode dropdown: `px-1 py-1` (4px / 4px) — intentionally compact to sit flush beside the Code toggle button without adding visual weight
 - Code toggle button and sub-mode `<select>`: `px-2 py-1` (8px / 4px) — matches existing terminal/code mode toggle sizing exactly
 - Touch targets for all toolbar buttons: minimum 32px (current `p-2` on 16px icon = 32px clickable square) — acceptable for desktop-only tool; no mobile touch-target exception needed
 
@@ -84,7 +84,7 @@ Source: `templates/app/globals.css` — all values extracted from CSS custom pro
 
 **Disabled state:** No change to button color when `isStreaming` is true — opacity handled by cursor change only (existing pattern: `disabled={isStreaming}` without explicit disabled styling). Maintain this pattern.
 
-**Sub-mode `<select>` when Code is active:** `text-xs bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground focus:outline-none` — does not use accent color. The select is subordinate to the toggle.
+**Sub-mode `<select>` when Code is active:** `text-xs bg-transparent border border-border rounded px-1 py-1 text-muted-foreground focus:outline-none` — does not use accent color. The select is subordinate to the toggle.
 
 ---
 
@@ -130,7 +130,7 @@ Replaces the three existing buttons: Terminal toggle (`>_`), Shell toggle (`$`),
   <select
     value={codeSubMode}
     onChange={(e) => onChangeCodeSubMode(e.target.value)}
-    className="text-xs bg-transparent border border-border rounded px-1 py-0.5 text-muted-foreground focus:outline-none"
+    className="text-xs bg-transparent border border-border rounded px-1 py-1 text-muted-foreground focus:outline-none"
     disabled={isStreaming}
     aria-label="Code sub-mode"
   >
