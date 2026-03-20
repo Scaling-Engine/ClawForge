@@ -42,7 +42,7 @@ function getEffectiveType(file) {
   return extMap[ext] || file.type || 'text/plain';
 }
 
-export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeMode = false, onToggleCodeMode, terminalMode = false, onToggleTerminalMode, shellMode = false, onToggleShellMode }) {
+export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeActive = false, onToggleCode, codeSubMode = 'plan', onChangeCodeSubMode }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -269,63 +269,38 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
               <PaperclipIcon size={16} />
             </button>
 
-            {/* Terminal mode toggle */}
-            {onToggleTerminalMode && (
+            {/* Unified Code toggle — admin only (onToggleCode is undefined for non-admins) */}
+            {onToggleCode && (
               <button
                 type="button"
-                onClick={onToggleTerminalMode}
+                onClick={onToggleCode}
                 className={cn(
                   'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
-                  terminalMode
+                  codeActive
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
-                aria-label="Toggle terminal mode"
-                aria-pressed={terminalMode}
+                aria-label="Toggle Code mode"
+                aria-pressed={codeActive}
                 disabled={isStreaming}
-                title="Terminal mode"
-              >
-                {'>_'}
-              </button>
-            )}
-
-            {/* Shell mode toggle — only visible when terminal mode is active */}
-            {terminalMode && onToggleShellMode && (
-              <button
-                type="button"
-                onClick={onToggleShellMode}
-                className={cn(
-                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
-                  shellMode
-                    ? 'bg-orange-500/20 text-orange-400'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                aria-label="Toggle shell mode"
-                aria-pressed={shellMode}
-                disabled={isStreaming}
-                title="Shell mode — run bash commands"
-              >
-                {'$'}
-              </button>
-            )}
-
-            {/* Code mode toggle — hidden when terminal mode is active (mutually exclusive) */}
-            {!terminalMode && onToggleCodeMode && (
-              <button
-                type="button"
-                onClick={onToggleCodeMode}
-                className={cn(
-                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
-                  codeMode
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                aria-label="Toggle code mode"
-                aria-pressed={codeMode}
-                disabled={isStreaming}
+                title="Code mode — routes to Claude Code CLI"
               >
                 {'</>'}
               </button>
+            )}
+
+            {/* Plan/Code sub-mode dropdown — visible only when Code toggle is active */}
+            {codeActive && onToggleCode && (
+              <select
+                value={codeSubMode}
+                onChange={(e) => onChangeCodeSubMode(e.target.value)}
+                className="text-xs bg-transparent border border-border rounded px-1 py-1 text-muted-foreground focus:outline-none"
+                disabled={isStreaming}
+                aria-label="Code sub-mode"
+              >
+                <option value="plan">Plan</option>
+                <option value="code">Code</option>
+              </select>
             )}
 
             {/* Mic button — hidden if browser lacks AudioWorklet */}
@@ -378,7 +353,7 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
                 'flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground',
                 'placeholder:text-muted-foreground focus:outline-none',
                 'max-h-[200px]',
-                codeMode && 'font-mono'
+                codeActive && 'font-mono'
               )}
               disabled={isStreaming}
             />
