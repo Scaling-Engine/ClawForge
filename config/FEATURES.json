@@ -1,4 +1,5 @@
 {
   "codeMode": true,
-  "repoSelector": true
+  "repoSelector": true,
+  "codeWorkspace": true
 }

@@ -10,6 +10,7 @@ import { ChatHeader } from './chat-header.js';
 import { Greeting } from './greeting.js';
 import { useRepoChat } from '../repo-chat-context.js';
 import { launchWorkspace, getLinkedWorkspace } from './code/actions.js';
+import { useFeature } from '../features-context.js';
 
 export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const [input, setInput] = useState('');
@@ -24,6 +25,9 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const [isLaunching, setIsLaunching] = useState(false);
   const [linkedWorkspaceId, setLinkedWorkspaceId] = useState(null);
   const router = useRouter();
+
+  const codeWorkspaceEnabled = useFeature('codeWorkspace');
+  const canUseCode = isAdmin && codeWorkspaceEnabled;
 
   const { selectedRepo, selectedBranch } = useRepoChat();
 
@@ -194,10 +198,10 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
                 files={files}
                 setFiles={setFiles}
                 codeActive={codeActive}
-                onToggleCode={isAdmin ? () => setCodeActive((prev) => !prev) : undefined}
+                onToggleCode={canUseCode ? () => setCodeActive((prev) => !prev) : undefined}
                 codeSubMode={codeSubMode}
                 onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
-                onLaunchInteractive={handleLaunchInteractive}
+                onLaunchInteractive={canUseCode ? handleLaunchInteractive : undefined}
                 isLaunching={isLaunching}
                 linkedWorkspaceId={linkedWorkspaceId}
                 hasRepoSelected={!!selectedRepo?.slug}
@@ -224,10 +228,10 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
             files={files}
             setFiles={setFiles}
             codeActive={codeActive}
-            onToggleCode={isAdmin ? () => setCodeActive((prev) => !prev) : undefined}
+            onToggleCode={canUseCode ? () => setCodeActive((prev) => !prev) : undefined}
             codeSubMode={codeSubMode}
             onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
-            onLaunchInteractive={handleLaunchInteractive}
+            onLaunchInteractive={canUseCode ? handleLaunchInteractive : undefined}
             isLaunching={isLaunching}
             linkedWorkspaceId={linkedWorkspaceId}
             hasRepoSelected={!!selectedRepo?.slug}
