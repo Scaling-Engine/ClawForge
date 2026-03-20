@@ -250,7 +250,7 @@ Plans:
   3. New instances scaffolded via `npx thepopebot init` get `config/FEATURES.json` with `codeWorkspace: false` default
   4. Existing deployment `config/FEATURES.json` includes `codeWorkspace: true` so current users are unaffected
   5. DnD tab reordering on /code/{id} works on mobile touch devices via TouchSensor
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 50-01-PLAN.md — Feature flag gate, FEATURES.json template, mobile touch DnD (POL-01, POL-02, POL-03)
