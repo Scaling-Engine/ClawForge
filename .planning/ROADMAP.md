@@ -263,7 +263,7 @@ Plans:
 **Requirements**: FIX-01, FIX-02
 **Depends on:** Phase 50
 **Gap Closure:** Closes BUG-1-SPLIT-CONTEXT (HIGH) and BUG-2-RESUME-STARTING (MEDIUM) from v1.0 audit
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 51-01-PLAN.md — Fix split-context import and resume redirect loop (FIX-01, FIX-02)

@@ -129,13 +129,13 @@
 | POL-01 | Phase 50 | Planned |
 | POL-02 | Phase 50 | Planned |
 | POL-03 | Phase 50 | Planned |
-| FIX-01 | Phase 51 | Pending |
-| FIX-02 | Phase 51 | Pending |
+| FIX-01 | Phase 51 | Complete |
+| FIX-02 | Phase 51 | Complete |
 
 ### Gap Closure Requirements (Phase 51)
 
-- [ ] **FIX-01**: useFeature hook reads from the same React context that FeaturesProvider wraps — Code toggle and Interactive button render when codeWorkspace flag is true and user is admin
-- [ ] **FIX-02**: Resume button only appears for running workspaces — clicking Resume never causes a redirect loop back to /chats
+- [x] **FIX-01**: useFeature hook reads from the same React context that FeaturesProvider wraps — Code toggle and Interactive button render when codeWorkspace flag is true and user is admin
+- [x] **FIX-02**: Resume button only appears for running workspaces — clicking Resume never causes a redirect loop back to /chats
 
 **Coverage:**
 - v1 requirements: 30 total
