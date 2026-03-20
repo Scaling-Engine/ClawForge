@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 52-01-PLAN.md
-last_updated: "2026-03-20T13:29:00.000Z"
+stopped_at: Completed quick task 260320-e2g (checkpoint:human-verify at Task 3)
+last_updated: "2026-03-20T14:00:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 10
@@ -140,6 +140,7 @@ The following files must not be modified structurally — additive changes only:
 | 3 | Display agent name from SOUL.md in sidebar, chat header, greeting, and browser tab | 2026-03-16 | 0c4e473 | [3-make-instance-agent-name-prominently-vis](./quick/3-make-instance-agent-name-prominently-vis/) |
 | 260318-cot | Fix sidebar menu scroll cutoff and name toggle spacing | 2026-03-18 | 37a09fa | [260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-](./quick/260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-/) |
 | 260320-cxu | Add URL and agent name to instance docs (CLAUDE.md, DEPLOYMENT.md, OPERATOR_GUIDE.md) | 2026-03-20 | 3906c2f | [260320-cxu-clarify-that-https-strategyes-scalingeng](./quick/260320-cxu-clarify-that-https-strategyes-scalingeng/) |
+| 260320-e2g | Restructure chat UI to match upstream PopeBot layout (header, below-input controls, greeting) | 2026-03-20 | 0140ec8 | [260320-e2g-restructure-chat-ui-to-match-upstream-po](./quick/260320-e2g-restructure-chat-ui-to-match-upstream-po/) |
 
 ## Session Continuity
 
