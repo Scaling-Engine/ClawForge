@@ -263,11 +263,11 @@ Plans:
 **Requirements**: FIX-01, FIX-02
 **Depends on:** Phase 50
 **Gap Closure:** Closes BUG-1-SPLIT-CONTEXT (HIGH) and BUG-2-RESUME-STARTING (MEDIUM) from v1.0 audit
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 51 to break down)
+- [ ] 51-01-PLAN.md — Fix split-context import and resume redirect loop (FIX-01, FIX-02)
 
 ---
 
-*Last updated: 2026-03-20 -- Phase 51 gap closure added*
+*Last updated: 2026-03-20 -- Phase 51 planned*
