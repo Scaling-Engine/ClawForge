@@ -148,7 +148,7 @@ All new components under `lib/chat/components/code/` are picked up by the existi
 - **Close button:** Top-right of IDE page. Labeled "Close Workspace".
 - **Safe close:** If git status is clean (no uncommitted changes, no unpushed commits), close workspace immediately and redirect to `/chats`.
 - **Unsafe close confirmation:** If uncommitted changes or unpushed commits exist, show an inline warning panel (not a modal dialog) within the IDE top bar. Warning lists uncommitted file count and/or unpushed commit count.
-- **Warning panel CTAs:** "Close Anyway" (destructive — red) and "Cancel" (neutral). No additional confirmation required after "Close Anyway" — single confirmation only.
+- **Warning panel CTAs:** "Close Anyway" (destructive — red) and "Keep Working" (neutral — returns the user to the IDE with no state change, preserving all uncommitted work). No additional confirmation required after "Close Anyway" — single confirmation only.
 
 ### Shell Tab Disconnect / Reconnect
 
@@ -179,7 +179,7 @@ All new components under `lib/chat/components/code/` are picked up by the existi
 | Unsafe close warning heading | "You have unsaved changes" |
 | Unsafe close warning body | "{N} uncommitted file(s). Close anyway?" (uses exact count from git status) |
 | Close anyway button | "Close Anyway" |
-| Cancel close button | "Cancel" |
+| Cancel close button | "Keep Working" |
 | Maximum tabs reached | "Maximum of 5 terminal tabs reached." |
 | Workspace not found (page redirect) | No copy — immediate redirect to /chats on 404 |
 
@@ -214,6 +214,8 @@ All new components under `lib/chat/components/code/` are picked up by the existi
 - File tree sidebar: 240px fixed width, collapsible via "Files" toggle button. Toggled display — not animated slide (matches existing workspace-terminal-page pattern).
 - Content area: flex row. Tab content panels fill remaining width after sidebar (if visible).
 - All three tab panels are rendered in the DOM simultaneously. Only the active panel is visible (`display: block` / `display: none`). This preserves xterm.js instance state across tab switches.
+
+**Focal point declaration:** The active tab content panel (terminal viewport) is the primary visual anchor of the /code/{id} screen. It occupies the dominant portion of the viewport (flex: 1 — all space not taken by the 240px sidebar), uses the highest-contrast surface (#1e1e2e background, #cdd6f4 text), and is where all primary user interaction occurs. Every other element — the top bar, sidebar, tab strip — is supporting chrome. Visual weight and layout hierarchy must reinforce this: the top bar and sidebar use darker, lower-contrast values (#181825) to recede behind the terminal viewport.
 
 ### Chat Input Interactive Button Placement
 
