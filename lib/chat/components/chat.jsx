@@ -10,7 +10,7 @@ import { ChatHeader } from './chat-header.js';
 import { Greeting } from './greeting.js';
 import { useRepoChat } from '../repo-chat-context.js';
 import { launchWorkspace, getLinkedWorkspace } from './code/actions.js';
-import { useFeature } from '../features-context.js';
+import { useFeature } from '../features-context.jsx';
 
 export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const [input, setInput] = useState('');
