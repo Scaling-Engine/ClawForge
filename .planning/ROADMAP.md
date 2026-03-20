@@ -11,7 +11,7 @@
 - ✅ v2.0 Full Platform -- Phases 25-28 (shipped 2026-03-12)
 - ✅ v2.1 Upstream Feature Sync -- Phases 29-38 (shipped 2026-03-13)
 - ✅ v2.2 Smart Operations -- Phases 39-42 (shipped 2026-03-17)
-- 🔄 v3.0 Customer Launch -- Phases 43-47 (in progress)
+- ✅ v3.0 Customer Launch -- Phases 43-47 (shipped 2026-03-18)
 
 ## Phases
 
@@ -113,32 +113,32 @@
 
 </details>
 
-<details open>
-<summary>🔄 v3.0 Customer Launch (Phases 43-47) -- IN PROGRESS</summary>
+<details>
+<summary>✅ v3.0 Customer Launch (Phases 43-47) -- SHIPPED 2026-03-18</summary>
 
-- [ ] **Phase 43: Observability Foundation** - Error persistence, structured logging, Sentry, health endpoint
+- [x] **Phase 43: Observability Foundation** - Error persistence, structured logging, Sentry, health endpoint
   Plans:
-  - [ ] 43-01-PLAN.md — Error persistence and structured logging (OBS-01, OBS-02)
-  - [ ] 43-02-PLAN.md — Sentry integration and JSONL job logging (OBS-03, OBS-05)
-  - [ ] 43-03-PLAN.md — Health endpoint extension (OBS-04)
-- [ ] **Phase 44: Billing and Usage Tracking** - Usage events, per-instance limits, limit enforcement and warnings
+  - [x] 43-01-PLAN.md — Error persistence and structured logging (OBS-01, OBS-02)
+  - [x] 43-02-PLAN.md — Sentry integration and JSONL job logging (OBS-03, OBS-05)
+  - [x] 43-03-PLAN.md — Health endpoint extension (OBS-04)
+- [x] **Phase 44: Billing and Usage Tracking** - Usage events, per-instance limits, limit enforcement and warnings
   Plans:
-  - [ ] 44-01-PLAN.md — Schema, query helpers, enforcement logic, and tests (BILL-01, BILL-03, BILL-04, BILL-05)
-  - [ ] 44-02-PLAN.md — Enforcement gate in dispatch path + usage recording (BILL-01, BILL-03, BILL-04)
-  - [ ] 44-03-PLAN.md — Superadmin usage endpoint + admin billing page (BILL-02, BILL-05)
-- [ ] **Phase 45: Self-Service Onboarding** - Wizard, step verification, first-job dispatch, tooltips, empty states
+  - [x] 44-01-PLAN.md — Schema, query helpers, enforcement logic, and tests (BILL-01, BILL-03, BILL-04, BILL-05)
+  - [x] 44-02-PLAN.md — Enforcement gate in dispatch path + usage recording (BILL-01, BILL-03, BILL-04)
+  - [x] 44-03-PLAN.md — Superadmin usage endpoint + admin billing page (BILL-02, BILL-05)
+- [x] **Phase 45: Self-Service Onboarding** - Wizard, step verification, first-job dispatch, tooltips, empty states
   Plans:
-  - [ ] 45-01-PLAN.md — Schema, state module, middleware redirect, superadmin endpoint (ONB-01, ONB-02)
-  - [ ] 45-02-PLAN.md — Wizard UI, verification Server Actions, first-job dispatch (ONB-02, ONB-03, ONB-04)
-  - [ ] 45-03-PLAN.md — AGENT_* tooltips and actionable empty states (ONB-05, ONB-06)
-- [ ] **Phase 46: Team Monitoring Dashboard** - Cross-instance monitoring cards, consecutive-failure alerting
+  - [x] 45-01-PLAN.md — Schema, state module, middleware redirect, superadmin endpoint (ONB-01, ONB-02)
+  - [x] 45-02-PLAN.md — Wizard UI, verification Server Actions, first-job dispatch (ONB-02, ONB-03, ONB-04)
+  - [x] 45-03-PLAN.md — AGENT_* tooltips and actionable empty states (ONB-05, ONB-06)
+- [x] **Phase 46: Team Monitoring Dashboard** - Cross-instance monitoring cards, consecutive-failure alerting
   Plans:
-  - [ ] 46-01-PLAN.md — Backend: consecutive failure detection, alert module, monitoring Server Action (MON-01, MON-02)
-  - [ ] 46-02-PLAN.md — Frontend: monitoring dashboard component and page shell (MON-01)
-- [ ] **Phase 47: Commercial Launch Hardening** - Operator docs, Slack notification audit
+  - [x] 46-01-PLAN.md — Backend: consecutive failure detection, alert module, monitoring Server Action (MON-01, MON-02)
+  - [x] 46-02-PLAN.md — Frontend: monitoring dashboard component and page shell (MON-01)
+- [x] **Phase 47: Commercial Launch Hardening** - Operator docs, Slack notification audit
   Plans:
-  - [ ] 47-01-PLAN.md — Slack notification format audit (LAUNCH-01)
-  - [ ] 47-02-PLAN.md — Operator docs completion: troubleshooting, config reference, env vars (DOCS-01)
+  - [x] 47-01-PLAN.md — Slack notification format audit (LAUNCH-01)
+  - [x] 47-02-PLAN.md — Operator docs completion: troubleshooting, config reference, env vars (DOCS-01)
 
 </details>
 
@@ -181,11 +181,6 @@
   6. Repos, secrets, and MCP servers pages that have no items show an actionable empty state — not a blank table — with a prompt to add the first item
 **Plans:** 3/3 plans complete
 
-Plans:
-- [ ] 45-01-PLAN.md — Schema, state module, middleware redirect, superadmin endpoint (ONB-01, ONB-02)
-- [ ] 45-02-PLAN.md — Wizard UI, verification Server Actions, first-job dispatch (ONB-02, ONB-03, ONB-04)
-- [ ] 45-03-PLAN.md — AGENT_* tooltips and actionable empty states (ONB-05, ONB-06)
-
 ### Phase 46: Team Monitoring Dashboard
 **Goal**: The superadmin can see the health of every instance at a glance and receives automatic alerts when something is systematically wrong
 **Depends on**: Phase 45 (monitoring cards display onboarding state from `onboarding_state` table populated in Phase 45; also reads error and usage data from Phases 43 and 44)
@@ -195,10 +190,6 @@ Plans:
   2. After three consecutive job failures on any single instance, the superadmin receives a Slack alert — and if that instance continues failing, no further alerts arrive for that instance within the same hour
 **Plans:** 2/2 plans complete
 
-Plans:
-- [ ] 46-01-PLAN.md — Backend: consecutive failure detection, alert module, monitoring Server Action (MON-01, MON-02)
-- [ ] 46-02-PLAN.md — Frontend: monitoring dashboard component and page shell (MON-01)
-
 ### Phase 47: Commercial Launch Hardening
 **Goal**: External customers can be onboarded without operator intervention and existing operators are protected from notification regressions
 **Depends on**: Phase 46 (all capability phases must be functional before opening external access)
@@ -207,10 +198,6 @@ Plans:
   1. An external operator following only the published docs can deploy ClawForge on a fresh VPS, configure their instance, and dispatch a first job — without asking Noah or the team a single question
   2. Every `notifySlack()` call in the codebase has been reviewed and confirmed to produce identical message structure for Noah and StrategyES as it did before v3.0 — no existing Slack search queries or automations break
 **Plans:** 2/2 plans complete
-
-Plans:
-- [ ] 47-01-PLAN.md — Slack notification format audit (LAUNCH-01)
-- [ ] 47-02-PLAN.md — Operator docs completion: troubleshooting, config reference, env vars (DOCS-01)
 
 ## Progress
 
@@ -225,14 +212,11 @@ Plans:
 | 25-28 | v2.0 | 14/14 | Complete | 2026-03-12 |
 | 29-38 | v2.1 | 12/12 | Complete | 2026-03-13 |
 | 39-42 | v2.2 | 8/8 | Complete | 2026-03-17 |
-| 43 | 3/3 | Complete    | 2026-03-18 | - |
-| 44 | 3/3 | Complete    | 2026-03-18 | - |
-| 45 | 3/3 | Complete    | 2026-03-18 | - |
-| 46 | 2/2 | Complete    | 2026-03-18 | - |
-| 47 | 2/2 | Complete    | 2026-03-18 | - |
+| 43-47 | v3.0 | 13/13 | Complete | 2026-03-18 |
+| 48 | - | 1/1 | Complete | 2026-03-19 |
+| 49 | - | 2/2 | Complete | 2026-03-20 |
 
-**Total shipped:** 42 phases, 81 plans — all complete through v2.2
-**v3.0 in progress:** 5 phases (43-47), 5/20 requirements satisfied
+**Total shipped:** 49 phases, 97 plans — all complete through v3.0 + phases 48-49
 
 ### Phase 48: Code Mode Unification
 
@@ -242,7 +226,7 @@ Plans:
 **Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 48-01-PLAN.md — State consolidation, unified Code toggle + sub-mode dropdown, admin guard (CODE-01, CODE-02, CODE-03, CODE-04, CODE-05)
+- [x] 48-01-PLAN.md — State consolidation, unified Code toggle + sub-mode dropdown, admin guard (CODE-01, CODE-02, CODE-03, CODE-04, CODE-05)
 
 ### Phase 49: Interactive Code IDE
 
@@ -252,19 +236,25 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 49-01-PLAN.md — Schema migration (codeWorkspaceId FK), Server Actions, /code/[id] page shell (IDE-01, IDE-03)
-- [ ] 49-02-PLAN.md — Code IDE client components (tabs, DnD, terminal, editor) + Interactive button in chat (IDE-01, IDE-02, IDE-04, IDE-05)
+- [x] 49-01-PLAN.md — Schema migration (codeWorkspaceId FK), Server Actions, /code/[id] page shell (IDE-01, IDE-03)
+- [x] 49-02-PLAN.md — Code IDE client components (tabs, DnD, terminal, editor) + Interactive button in chat (IDE-01, IDE-02, IDE-04, IDE-05)
 
 ### Phase 50: Code Mode Polish
 
-**Goal:** Feature-flag gate Code mode via features.codeWorkspace. Mobile session continuity (resumable sessions across devices). Claude subscription auth (OAuth login vs API key). Device-agnostic session persistence.
-**Requirements**: TBD
+**Goal:** Gate Code mode behind `codeWorkspace` feature flag so operators can enable/disable without code changes. Add mobile touch support for /code/{id} DnD tabs. Ensure existing deployments are unaffected.
+**Requirements**: POL-01, POL-02, POL-03
 **Depends on:** Phase 49
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. Code toggle and Interactive button are hidden when `codeWorkspace` feature flag is false, even for admin users
+  2. Code toggle and Interactive button are visible when `codeWorkspace` is true AND user is admin
+  3. New instances scaffolded via `npx thepopebot init` get `config/FEATURES.json` with `codeWorkspace: false` default
+  4. Existing deployment `config/FEATURES.json` includes `codeWorkspace: true` so current users are unaffected
+  5. DnD tab reordering on /code/{id} works on mobile touch devices via TouchSensor
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 50 to break down)
+- [ ] 50-01-PLAN.md — Feature flag gate, FEATURES.json template, mobile touch DnD (POL-01, POL-02, POL-03)
 
 ---
 
-*Last updated: 2026-03-20 -- Phase 49 planned (2 plans)*
+*Last updated: 2026-03-20 -- Phase 50 planned (1 plan)*

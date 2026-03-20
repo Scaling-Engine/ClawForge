@@ -51,6 +51,12 @@
 - **IDE-04**: Shell tab connects to workspace container via WebSocket (xterm.js + addon-attach) with disconnect/reconnect support
 - **IDE-05**: Editor tab displays file tree from workspace container via requestFileTree Server Action
 
+### Code Mode Polish
+
+- **POL-01**: Code toggle and Interactive button gated behind `useFeature('codeWorkspace')` ANDed with isAdmin role check
+- **POL-02**: `config/FEATURES.json` template scaffolded with `codeWorkspace` flag for new instances (default false)
+- **POL-03**: /code/{id} DnD tabs support touch input on mobile via TouchSensor and keyboard via KeyboardSensor
+
 ## v2 Requirements
 
 ### Billing
@@ -89,6 +95,7 @@
 | Mobile app | Web-first |
 | Self-hosted Sentry / GlitchTip | Requires PostgreSQL, contradicts SQLite constraint |
 | Automated billing suspension | Too aggressive for early operators; soft limits + manual intervention preferred |
+| Claude subscription auth (OAuth) | No Anthropic OAuth provider exists; scope undefined — deferred until Anthropic publishes an OAuth spec |
 
 ## Traceability
 
@@ -119,12 +126,15 @@
 | IDE-03 | Phase 49 | Planned |
 | IDE-04 | Phase 49 | Planned |
 | IDE-05 | Phase 49 | Planned |
+| POL-01 | Phase 50 | Planned |
+| POL-02 | Phase 50 | Planned |
+| POL-03 | Phase 50 | Planned |
 
 **Coverage:**
-- v1 requirements: 25 total
-- Mapped to phases: 25 (Phases 43-47, 49)
+- v1 requirements: 28 total
+- Mapped to phases: 28 (Phases 43-47, 49-50)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-20 — Phase 49 IDE requirements added*
+*Last updated: 2026-03-20 — Phase 50 Code Mode Polish requirements added*
