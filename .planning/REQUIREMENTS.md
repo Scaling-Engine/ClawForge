@@ -131,10 +131,10 @@
 | POL-03 | Phase 50 | Planned |
 | FIX-01 | Phase 51 | Complete |
 | FIX-02 | Phase 51 | Complete |
-| DEBT-01 | Phase 52 | Pending |
-| DEBT-02 | Phase 52 | Pending |
-| DEBT-03 | Phase 52 | Pending |
-| DEBT-04 | Phase 52 | Pending |
+| DEBT-01 | Phase 52 | Complete |
+| DEBT-02 | Phase 52 | Complete |
+| DEBT-03 | Phase 52 | Complete |
+| DEBT-04 | Phase 52 | Complete |
 
 ### Gap Closure Requirements (Phase 51)
 
@@ -143,10 +143,10 @@
 
 ### Tech Debt Cleanup Requirements (Phase 52)
 
-- [ ] **DEBT-01**: linkChatToWorkspace is awaited in launchWorkspace Server Action for async safety
-- [ ] **DEBT-02**: EditorView displays file content when a file is clicked — file-read Server Action wired end-to-end
-- [ ] **DEBT-03**: Stale features-context.js esbuild artifact deleted from disk
-- [ ] **DEBT-04**: Claude subscription auth gate stubbed with clear extension point for future Anthropic OAuth
+- [x] **DEBT-01**: linkChatToWorkspace is awaited in launchWorkspace Server Action for async safety
+- [x] **DEBT-02**: EditorView displays file content when a file is clicked — file-read Server Action wired end-to-end
+- [x] **DEBT-03**: Stale features-context.js esbuild artifact deleted from disk
+- [x] **DEBT-04**: Claude subscription auth gate stubbed with clear extension point for future Anthropic OAuth
 
 **Coverage:**
 - v1 requirements: 34 total
