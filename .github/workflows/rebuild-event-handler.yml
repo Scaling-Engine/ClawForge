@@ -6,7 +6,8 @@ on:
     paths-ignore:
       - 'logs/**'
       - 'docs/**'
-      - 'templates/**'
+      - 'templates/docker/**'
+      - 'templates/config/**'
       - 'docker/job/**'
       - '*.md'
   workflow_dispatch:
