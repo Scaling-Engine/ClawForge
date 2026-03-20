@@ -7,7 +7,7 @@ import { SidebarProvider, SidebarInset } from './ui/sidebar.js';
 import { ChatNavProvider } from './chat-nav-context.js';
 import { getChatMessages, getFeatureFlags } from '../actions.js';
 import { FeaturesProvider } from '../features-context.jsx';
-import { RepoChatProvider } from '../repo-chat-context.jsx';
+import { RepoChatProvider } from '../repo-chat-context.js';
 
 /**
  * Main chat page component.
