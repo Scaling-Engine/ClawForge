@@ -141,6 +141,11 @@ EOF
 
 echo "=== PREFLIGHT COMPLETE ==="
 
+# 6c. Update GSD to latest version before running the job
+echo "=== GSD UPDATE ==="
+claude -p "/gsd:update" --output-format text 2>&1 || echo "WARNING: GSD update failed (non-fatal)"
+echo "=== GSD UPDATE COMPLETE ==="
+
 # NOTE: Steps 8 and 8c are intentionally reordered before Step 7.
 # GSD_HINT must be computed before system prompt assembly so we can
 # select between AGENT.md and AGENT_QUICK.md based on job complexity.

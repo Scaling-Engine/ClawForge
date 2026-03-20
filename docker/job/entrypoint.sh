@@ -82,6 +82,11 @@ EOF
 
 echo "=== PREFLIGHT COMPLETE ==="
 
+# 6c. Update GSD to latest version before running the job
+echo "=== GSD UPDATE ==="
+claude -p "/gsd:update" --output-format text 2>&1 || echo "WARNING: GSD update failed (non-fatal)"
+echo "=== GSD UPDATE COMPLETE ==="
+
 # 7. Build system prompt from config files
 SYSTEM_PROMPT=""
 if [ -f "/job/config/SOUL.md" ]; then
