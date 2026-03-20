@@ -139,9 +139,9 @@ export function RunnersPage({ session }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Runners</h1>
+          <h1 className="text-2xl font-semibold">Servers</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            GitHub Actions runners that execute agent jobs — shows which machines are available.
+            Machines that execute agent jobs — shows which servers are available and their status.
           </p>
           <p className="text-sm text-muted-foreground mt-0.5">
             {loading

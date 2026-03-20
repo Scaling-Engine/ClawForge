@@ -64,14 +64,30 @@ jobs:
       - name: Sync config into volumes
         run: |
           # Named config volumes shadow the image's /app/config/ —
-          # copy any new config files the image added but volumes don't have
+          # copy updated config files so volumes get latest content.
+          # Instance-specific configs (SOUL.md, EVENT_HANDLER.md, AGENT.md)
+          # are especially important since they define agent identity.
+
+          # Shared config files
           for CONTAINER in clawforge-noah clawforge-ses; do
-            for FILE in JOB_SUMMARY.md; do
+            for FILE in JOB_SUMMARY.md FEATURES.json; do
               if [ -f "config/$FILE" ]; then
                 docker cp "config/$FILE" "${CONTAINER}:/app/config/${FILE}"
-                echo "Copied $FILE -> $CONTAINER"
+                echo "Copied config/$FILE -> $CONTAINER"
               fi
             done
+          done
+
+          # Instance-specific config files
+          for FILE in SOUL.md EVENT_HANDLER.md AGENT.md REPOS.json; do
+            if [ -f "instances/noah/config/$FILE" ]; then
+              docker cp "instances/noah/config/$FILE" "clawforge-noah:/app/config/${FILE}"
+              echo "Copied noah/$FILE -> clawforge-noah"
+            fi
+            if [ -f "instances/strategyES/config/$FILE" ]; then
+              docker cp "instances/strategyES/config/$FILE" "clawforge-ses:/app/config/${FILE}"
+              echo "Copied strategyES/$FILE -> clawforge-ses"
+            fi
           done
 
       - name: Health check

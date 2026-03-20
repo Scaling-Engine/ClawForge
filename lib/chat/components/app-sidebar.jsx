@@ -113,7 +113,7 @@ export function AppSidebar({ user }) {
             </Tooltip>
           </SidebarMenuItem>
 
-          {/* Swarm */}
+          {/* Jobs (formerly Swarm) */}
           <SidebarMenuItem>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -124,16 +124,16 @@ export function AppSidebar({ user }) {
                   }}
                 >
                   <SwarmIcon size={16} />
-                  {!collapsed && <span>Swarm</span>}
+                  {!collapsed && <span>Jobs</span>}
                 </SidebarMenuButton>
               </TooltipTrigger>
               {collapsed && (
-                <TooltipContent side="right">Swarm</TooltipContent>
+                <TooltipContent side="right">Jobs</TooltipContent>
               )}
             </Tooltip>
           </SidebarMenuItem>
 
-          {/* Clusters */}
+          {/* Workflows (formerly Clusters) */}
           <SidebarMenuItem>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -144,11 +144,11 @@ export function AppSidebar({ user }) {
                   }}
                 >
                   <ClusterIcon size={16} />
-                  {!collapsed && <span>Clusters</span>}
+                  {!collapsed && <span>Workflows</span>}
                 </SidebarMenuButton>
               </TooltipTrigger>
               {collapsed && (
-                <TooltipContent side="right">Clusters</TooltipContent>
+                <TooltipContent side="right">Workflows</TooltipContent>
               )}
             </Tooltip>
           </SidebarMenuItem>
@@ -188,7 +188,7 @@ export function AppSidebar({ user }) {
             </Tooltip>
           </SidebarMenuItem>
 
-          {/* Runners */}
+          {/* Servers (formerly Runners) */}
           <SidebarMenuItem>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -200,11 +200,11 @@ export function AppSidebar({ user }) {
                   }}
                 >
                   <ServerIcon size={16} />
-                  {!collapsed && <span>Runners</span>}
+                  {!collapsed && <span>Servers</span>}
                 </SidebarMenuButton>
               </TooltipTrigger>
               {collapsed && (
-                <TooltipContent side="right">Runners</TooltipContent>
+                <TooltipContent side="right">Servers</TooltipContent>
               )}
             </Tooltip>
           </SidebarMenuItem>
