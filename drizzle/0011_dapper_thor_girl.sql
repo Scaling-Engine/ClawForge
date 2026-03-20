@@ -1,0 +1,1 @@
+ALTER TABLE `chats` ADD `code_workspace_id` text;
