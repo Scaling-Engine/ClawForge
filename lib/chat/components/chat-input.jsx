@@ -42,7 +42,7 @@ function getEffectiveType(file) {
   return extMap[ext] || file.type || 'text/plain';
 }
 
-export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeActive = false, onToggleCode, codeSubMode = 'plan', onChangeCodeSubMode }) {
+export function ChatInput({ input, setInput, onSubmit, status, stop, files, setFiles, codeActive = false, onToggleCode, codeSubMode = 'plan', onChangeCodeSubMode, onLaunchInteractive, isLaunching = false, linkedWorkspaceId = null, hasRepoSelected = false }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -301,6 +301,26 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
                 <option value="plan">Plan</option>
                 <option value="code">Code</option>
               </select>
+            )}
+
+            {/* Interactive button — launches workspace or resumes existing */}
+            {codeActive && onToggleCode && (
+              <button
+                type="button"
+                onClick={onLaunchInteractive}
+                disabled={isStreaming || isLaunching || (!linkedWorkspaceId && !hasRepoSelected)}
+                title={!linkedWorkspaceId && !hasRepoSelected ? 'Select a repo first' : undefined}
+                className={cn(
+                  'inline-flex items-center justify-center rounded-lg px-2 py-1 text-xs font-mono',
+                  'text-muted-foreground hover:text-foreground',
+                  isLaunching && 'opacity-50 cursor-wait',
+                  (!linkedWorkspaceId && !hasRepoSelected) && 'opacity-50 cursor-not-allowed'
+                )}
+                aria-label="Launch interactive workspace"
+                aria-busy={isLaunching}
+              >
+                {isLaunching ? 'Launching...' : linkedWorkspaceId ? 'Resume' : 'Interactive'}
+              </button>
             )}
 
             {/* Mic button — hidden if browser lacks AudioWorklet */}

@@ -3,11 +3,13 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Messages } from './messages.js';
 import { ChatInput } from './chat-input.js';
 import { ChatHeader } from './chat-header.js';
 import { Greeting } from './greeting.js';
 import { useRepoChat } from '../repo-chat-context.js';
+import { launchWorkspace, getLinkedWorkspace } from './code/actions.js';
 
 export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const [input, setInput] = useState('');
@@ -18,6 +20,10 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   const hasNavigated = useRef(false);
   // Ref so the transport useMemo can read the latest sessionId without re-creating on every update
   const terminalSessionIdRef = useRef(null);
+
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [linkedWorkspaceId, setLinkedWorkspaceId] = useState(null);
+  const router = useRouter();
 
   const { selectedRepo, selectedBranch } = useRepoChat();
 
@@ -65,6 +71,40 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
     transport,
     onError: (err) => console.error('Chat error:', err),
   });
+
+  // Check for linked workspace on mount and when chatId changes
+  useEffect(() => {
+    if (!chatId) return;
+    getLinkedWorkspace({ chatId }).then(({ workspace }) => {
+      if (workspace && (workspace.status === 'running' || workspace.status === 'starting')) {
+        setLinkedWorkspaceId(workspace.id);
+      } else {
+        setLinkedWorkspaceId(null);
+      }
+    }).catch(() => setLinkedWorkspaceId(null));
+  }, [chatId]);
+
+  // Launch workspace or navigate to existing linked workspace
+  const handleLaunchInteractive = useCallback(async () => {
+    // If already linked to a running workspace, just navigate
+    if (linkedWorkspaceId) {
+      router.push(`/code/${linkedWorkspaceId}`);
+      return;
+    }
+
+    // Guard: require a selected repo
+    if (!selectedRepo?.slug) return;
+    if (isLaunching) return;
+
+    setIsLaunching(true);
+    try {
+      const { workspaceId } = await launchWorkspace({ chatId, repoSlug: selectedRepo.slug });
+      router.push(`/code/${workspaceId}`);
+    } catch (err) {
+      console.error('Failed to launch workspace:', err);
+      setIsLaunching(false);
+    }
+  }, [chatId, selectedRepo, isLaunching, linkedWorkspaceId, router]);
 
   // After first message sent, update URL and notify sidebar
   useEffect(() => {
@@ -157,6 +197,10 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
                 onToggleCode={isAdmin ? () => setCodeActive((prev) => !prev) : undefined}
                 codeSubMode={codeSubMode}
                 onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
+                onLaunchInteractive={handleLaunchInteractive}
+                isLaunching={isLaunching}
+                linkedWorkspaceId={linkedWorkspaceId}
+                hasRepoSelected={!!selectedRepo?.slug}
               />
             </div>
           </div>
@@ -183,6 +227,10 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
             onToggleCode={isAdmin ? () => setCodeActive((prev) => !prev) : undefined}
             codeSubMode={codeSubMode}
             onChangeCodeSubMode={(mode) => setCodeSubMode(mode)}
+            onLaunchInteractive={handleLaunchInteractive}
+            isLaunching={isLaunching}
+            linkedWorkspaceId={linkedWorkspaceId}
+            hasRepoSelected={!!selectedRepo?.slug}
           />
         </>
       )}
