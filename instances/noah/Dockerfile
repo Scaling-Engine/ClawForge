@@ -18,6 +18,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 
+# Cache bust — changes on every deploy to ensure fresh source copy
+ARG CACHE_BUST=unknown
+
 # Copy core source
 COPY lib/ ./lib/
 COPY api/ ./api/
