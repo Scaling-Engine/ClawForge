@@ -80,7 +80,7 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
   useEffect(() => {
     if (!chatId) return;
     getLinkedWorkspace({ chatId }).then(({ workspace }) => {
-      if (workspace && (workspace.status === 'running' || workspace.status === 'starting')) {
+      if (workspace && workspace.status === 'running') {
         setLinkedWorkspaceId(workspace.id);
       } else {
         setLinkedWorkspaceId(null);
