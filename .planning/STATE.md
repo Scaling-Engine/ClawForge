@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 47-02-PLAN.md
-last_updated: "2026-03-18T03:50:19.065Z"
-last_activity: 2026-03-18 — Phase 47 Plan 02 executed (OPERATOR_GUIDE.md troubleshooting + v3.0 env var docs, .env.example with ONBOARDING_ENABLED and SLACK_OPERATOR_CHANNEL)
+status: unknown
+stopped_at: Completed 48-01-PLAN.md (code-mode-unification)
+last_updated: "2026-03-20T00:37:18.716Z"
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_phases: 8
+  completed_phases: 6
+  total_plans: 14
+  completed_plans: 14
 ---
 
 # Project State
@@ -21,18 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** v3.0 Customer Launch — stabilize + launch to external customers and internal team
+**Current focus:** Phase 48 — code-mode-unification
 
 ## Current Position
 
-Phase: 47 (Commercial Launch Hardening) — complete
-Plan: 02 complete (2/2 summaries done)
-Status: Phase 47 complete — operator documentation complete with troubleshooting guide, v3.0 env var reference, and VPS deployment runbook
-Last activity: 2026-03-18 — Phase 47 Plan 02 executed (OPERATOR_GUIDE.md troubleshooting + v3.0 env var docs, .env.example with ONBOARDING_ENABLED and SLACK_OPERATOR_CHANNEL)
-
-```
-Progress: [██████████] 100% — Phase 47: 2/2 plans complete — v3.0 milestone complete
-```
+Phase: 48 (code-mode-unification) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -54,6 +46,7 @@ Progress: [██████████] 100% — Phase 47: 2/2 plans complete
 | Phase 46 P02 | 2 | 2 tasks | 3 files |
 | Phase 47-commercial-launch-hardening P01 | 8 | 1 tasks | 1 files |
 | Phase 47-commercial-launch-hardening P02 | 3 | 2 tasks | 2 files |
+| Phase 48-code-mode-unification P01 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -88,6 +81,12 @@ Progress: [██████████] 100% — Phase 47: 2/2 plans complete
 - **Dynamic import for monitoring/alerts.js:** Consistent with getHealth() pattern, avoids circular dependency risk at module load time.
 - **MonitoringDashboard UI patterns:** getHealthColor returns muted color for null rate (no-data vs zero-rate distinction); UsageBar shows plain text when limit is null (unlimited); OnboardingBadge uses three states: Complete (green), in-progress with currentStep (yellow), N/A (gray).
 
+### Roadmap Evolution
+
+- Phase 48 added: Code Mode Unification — collapse three chat toggles into one unified Code toggle routing to /stream/terminal SDK bridge
+- Phase 49 added: Interactive Code IDE — cherry-pick upstream /code/{id} tabbed IDE page with Code+Shell+Editor tabs
+- Phase 50 added: Code Mode Polish — feature flags, mobile session continuity, Claude subscription auth
+
 ### Research Flags for Phase Planning
 
 - **Phase 44 (Billing):** Confirm whether workspace-hour billing is in v3.0 or deferred. If deferred, omit `workspace_hour` from `usage_events` schema to avoid dead columns.
@@ -97,6 +96,7 @@ Progress: [██████████] 100% — Phase 47: 2/2 plans complete
 ### Do-Not-Touch List
 
 The following files must not be modified structurally — additive changes only:
+
 - `lib/superadmin/client.js`
 - `verifySuperadminToken()` in `api/superadmin.js`
 - `lib/db/job-outcomes.js` (additive columns only)
@@ -129,7 +129,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-18T03:46:28.049Z
-Stopped at: Completed 47-02-PLAN.md
+Last session: 2026-03-20T00:37:18.714Z
+Stopped at: Completed 48-01-PLAN.md (code-mode-unification)
 Resume file: None
 Next action: `/gsd:plan-phase 45`

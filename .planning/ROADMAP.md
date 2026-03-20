@@ -239,7 +239,7 @@ Plans:
 **Goal:** Collapse three disconnected chat toggles (Code/Terminal/Shell) into one unified "Code" toggle that routes to /stream/terminal (existing SDK bridge). Kill backtick-wrapping code mode. Add Plan/Code sub-mode dropdown. Guard Code toggle behind admin role.
 **Requirements**: CODE-01, CODE-02, CODE-03, CODE-04, CODE-05
 **Depends on:** Phase 47
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 48-01-PLAN.md — State consolidation, unified Code toggle + sub-mode dropdown, admin guard (CODE-01, CODE-02, CODE-03, CODE-04, CODE-05)
