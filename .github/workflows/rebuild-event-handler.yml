@@ -53,15 +53,13 @@ jobs:
         run: |
           # Build from checkout (latest code), but use original project's
           # .env and project name so containers replace existing ones.
-          # CACHE_BUST ensures Docker doesn't use stale cached source layers.
-          CACHE_BUST="${GITHUB_SHA:-$(date +%s)}"
-          export CACHE_BUST
+          # CACHE_BUST env var is read by docker-compose.yml build.args
+          # to invalidate Docker layer cache for source COPY layers.
+          export CACHE_BUST="${GITHUB_SHA:-$(date +%s)}"
           docker compose \
             -p "${{ steps.setup.outputs.name }}" \
             --env-file "${{ steps.setup.outputs.dir }}/.env" \
-            up -d --build \
-            --build-arg CACHE_BUST="$CACHE_BUST" \
-            noah-event-handler ses-event-handler
+            up -d --build noah-event-handler ses-event-handler
 
       - name: Sync config into volumes
         run: |
