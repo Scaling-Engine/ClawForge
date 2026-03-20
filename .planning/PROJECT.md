@@ -8,9 +8,9 @@ A multi-channel AI agent platform that connects Claude Code CLI to messaging cha
 
 Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results without operator intervention.
 
-## Current State (after Phase 49)
+## Current State (after Phase 50)
 
-**Shipped:** v1.0 through v2.2 (Foundation → Smart Operations), Phase 48 (Code Mode Unification), Phase 49 (Interactive Code IDE)
+**Shipped:** v1.0 through v2.2 (Foundation → Smart Operations), Phase 48 (Code Mode Unification), Phase 49 (Interactive Code IDE), Phase 50 (Code Mode Polish)
 **Codebase:** ~62,000 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode + ws + xterm.js + @dnd-kit + AssemblyAI + @streamdown/code + @anthropic-ai/claude-agent-sdk + diff2html)
 **Instances:** 2 (Noah/Archie — full access, StrategyES/Epic — scoped to strategyes-lab)
 
