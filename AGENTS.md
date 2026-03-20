@@ -61,10 +61,12 @@ docker compose up    # Multi-instance orchestration
 
 ## Instances
 
-| Instance | Channels | Restriction |
-|----------|----------|-------------|
-| noah | Slack, Telegram, Web Chat | Noah's user ID |
-| strategyES | Slack only | Jim's user ID, specific channels |
+| Instance | Agent Name | URL | Channels | Restriction |
+|----------|------------|-----|----------|-------------|
+| noah | Archie | clawforge.scalingengine.com | Slack, Telegram, Web Chat | Noah's user ID |
+| strategyES | Epic | strategyes.scalingengine.com | Slack, Web Chat | Jim's user ID, specific channels |
+
+Agent names are read from `instances/{name}/config/SOUL.md` at runtime. The browser tab title, sidebar, chat header, and greeting all display the agent name dynamically.
 
 ## Rules
 
