@@ -1,5 +1,32 @@
 # Milestones
 
+## v1.0 ClawForge Platform (Shipped: 2026-03-21)
+
+**Phases completed:** 10 phases, 19 plans, 22 tasks
+
+**Key accomplishments:**
+
+- One-liner:
+- One-liner:
+- Superadmin health endpoint extended with errorCount24h, lastErrorAt, dbStatus probe, and per-instance job success rate — the data foundation for Phase 46 monitoring dashboard
+- SQLite billing foundation — usage_events + billing_limits tables, full CRUD helpers, and unlimited-by-default enforcement gate with 14 passing unit tests
+- Billing enforcement gate wired into createJobTool (blocks at limit, warns at 80%) and usage events recorded on both Docker and Actions completion paths
+- Task 1 — Data layer wiring:
+- One-liner:
+- Multi-step wizard with GitHub PAT, Docker socket, Slack webhook, and first-job verification — all with DB-persisted progress that resumes across browser sessions
+- Consecutive-failure Slack alerting (3-failure threshold, 1hr cooldown) and cross-instance monitoring dashboard Server Action using queryAllInstances health+usage+onboarding
+- One-liner:
+- Full audit of 14 Slack notification call sites across 5 files confirming PASS — no pre-v3.0 formats changed by v3.0 work, and 3 new notifications are operator-channel-only
+- Operator-ready docs: 10-error troubleshooting guide, v3.0 env var reference (SENTRY_DSN, ONBOARDING_ENABLED, SLACK_OPERATOR_CHANNEL), and ClawForge-specific VPS deployment runbook replacing upstream thepopebot scaffold instructions
+- One-liner:
+- One-liner:
+- Tabbed Code IDE page at /code/{id} with DnD-sortable Code/Shell/Editor tabs, xterm.js Shell tab via WebSocket, file tree Editor tab, and Interactive button in chat input that launches workspace and redirects
+- One-liner:
+- One-liner:
+- One-liner:
+
+---
+
 ## v1.0 ClawForge Platform (Shipped: 2026-03-20)
 
 **Phases completed:** 10 phases, 19 plans, 6 tasks

@@ -8,9 +8,9 @@ A multi-channel AI agent platform that connects Claude Code CLI to messaging cha
 
 Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results without operator intervention.
 
-## Current State (v1.0 shipped 2026-03-20)
+## Current State (v1.0 shipped 2026-03-21)
 
-**Shipped:** v1.0 — 43 phases, 81 plans, 730+ commits
+**Shipped:** v1.0 — 52 phases, 100 plans, 750+ commits
 **Codebase:** ~42,000 LOC JavaScript (Next.js + LangGraph + Drizzle ORM + dockerode + ws + xterm.js + @dnd-kit + AssemblyAI + @streamdown/code + @anthropic-ai/claude-agent-sdk + diff2html)
 **Instances:** 2 (Noah/Archie — full access, StrategyES/Epic — scoped to strategyes-lab)
 **Timeline:** 2026-02-01 → 2026-03-20 (48 days)
@@ -70,23 +70,9 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - **Superadmin portal**: single-login instance switching, health dashboard (30s auto-refresh), cross-instance job search via API proxy
 - **Three-tier roles**: user → admin → superadmin, AGENT_SUPERADMIN_TOKEN for M2M auth between hub and instances
 
-## Current Milestone: v3.0 Customer Launch
+## Current Milestone: None (v1.0 complete)
 
-**Goal:** Stabilize the platform for production reliability and launch ClawForge to external customers and the internal Scaling Engine team with self-service onboarding, operator docs, usage-based access control, and team monitoring.
-
-**Target features:**
-- Bug fixes, polish, and UX papercuts across all existing features
-- Observability: error logging, health checks, alerting
-- Performance: faster job starts, reduced resource waste
-- Reliability hardening: retry logic, graceful degradation, edge case coverage
-- Self-service onboarding flow for new instance operators
-- Operator documentation (deployment runbook, config reference, troubleshooting)
-- Demo experience for showcasing to prospective customers
-- Billing / access control: per-customer instance limits, usage tracking, tiered access
-- Team self-service setup without operator intervention
-- Training materials (SOPs, in-app tooltips)
-- Enhanced role-based access beyond current user/admin/superadmin
-- Team monitoring dashboard: all instances health, active jobs, errors
+v1.0 milestone complete. All 34 requirements satisfied, 52 phases shipped. Run `/gsd:new-milestone` to start next milestone.
 
 ## Requirements
 
@@ -171,9 +157,9 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - ✓ Superadmin portal: single-login instance switching, health dashboard, cross-instance job search — v2.2
 - ✓ Three-tier roles: user → admin → superadmin with AGENT_SUPERADMIN_TOKEN M2M auth — v2.2
 
-### Active — v3.0 Customer Launch
+### Active
 
-(Requirements being defined — see REQUIREMENTS.md when complete)
+(No active milestone — run `/gsd:new-milestone` to define next requirements)
 
 ## Previous Milestones
 
@@ -322,4 +308,4 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
 ---
-*Last updated: 2026-03-17 — v3.0 Customer Launch milestone started*
+*Last updated: 2026-03-21 after v1.0 milestone complete*
