@@ -215,8 +215,11 @@
 | 43-47 | v3.0 | 13/13 | Complete | 2026-03-18 |
 | 48 | - | 1/1 | Complete | 2026-03-19 |
 | 49 | - | 2/2 | Complete | 2026-03-20 |
+| 50 | - | 1/1 | Complete | 2026-03-20 |
+| 51 | - | 1/1 | Complete | 2026-03-20 |
+| 52 | - | 1/1 | Complete | 2026-03-20 |
 
-**Total shipped:** 49 phases, 97 plans — all complete through v3.0 + phases 48-49
+**Total shipped:** 52 phases, 100 plans — all complete through v3.0 + phases 48-52
 
 ### Phase 48: Code Mode Unification
 
@@ -253,7 +256,7 @@ Plans:
 **Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 50-01-PLAN.md — Feature flag gate, FEATURES.json template, mobile touch DnD (POL-01, POL-02, POL-03)
+- [x] 50-01-PLAN.md — Feature flag gate, FEATURES.json template, mobile touch DnD (POL-01, POL-02, POL-03)
 
 ---
 
@@ -266,7 +269,7 @@ Plans:
 **Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 51-01-PLAN.md — Fix split-context import and resume redirect loop (FIX-01, FIX-02)
+- [x] 51-01-PLAN.md — Fix split-context import and resume redirect loop (FIX-01, FIX-02)
 
 ---
 
@@ -279,8 +282,8 @@ Plans:
 **Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 52-01-PLAN.md — Await linkChatToWorkspace, wire EditorView file-read, delete stale artifact, auth stub (DEBT-01, DEBT-02, DEBT-03, DEBT-04)
+- [x] 52-01-PLAN.md — Await linkChatToWorkspace, wire EditorView file-read, delete stale artifact, auth stub (DEBT-01, DEBT-02, DEBT-03, DEBT-04)
 
 ---
 
-*Last updated: 2026-03-20 -- Phase 52 plan created*
+*Last updated: 2026-03-20 -- All phases 43-52 marked complete*
