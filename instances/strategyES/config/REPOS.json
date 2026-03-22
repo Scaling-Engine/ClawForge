@@ -8,6 +8,15 @@
       "dispatch": "docker",
       "qualityGates": [],
       "mergePolicy": "auto"
+    },
+    {
+      "owner": "ScalingEngine",
+      "slug": "neurostory",
+      "name": "NeuroStory",
+      "aliases": ["neurostory", "ns"],
+      "dispatch": "docker",
+      "qualityGates": [],
+      "mergePolicy": "auto"
     }
   ]
 }
