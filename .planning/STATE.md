@@ -141,10 +141,11 @@ The following files must not be modified structurally — additive changes only:
 | 260318-cot | Fix sidebar menu scroll cutoff and name toggle spacing | 2026-03-18 | 37a09fa | [260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-](./quick/260318-cot-fix-sidebar-menu-scroll-cutoff-and-name-/) |
 | 260320-cxu | Add URL and agent name to instance docs (CLAUDE.md, DEPLOYMENT.md, OPERATOR_GUIDE.md) | 2026-03-20 | 3906c2f | [260320-cxu-clarify-that-https-strategyes-scalingeng](./quick/260320-cxu-clarify-that-https-strategyes-scalingeng/) |
 | 260320-e2g | Restructure chat UI to match upstream PopeBot layout (header, below-input controls, greeting) | 2026-03-20 | 0140ec8 | [260320-e2g-restructure-chat-ui-to-match-upstream-po](./quick/260320-e2g-restructure-chat-ui-to-match-upstream-po/) |
+| 260321-w4q | Enhance notification cards with job status indicators, PR links, and job ID headers | 2026-03-22 | da278aa | [260321-w4q-fix-job-result-visibility-and-error-log-](./quick/260321-w4q-fix-job-result-visibility-and-error-log-/) |
 
 ## Session Continuity
 
-Last session: 2026-03-20T13:27:00.000Z
-Stopped at: Completed quick task 260320-cxu
+Last session: 2026-03-22T03:16:58Z
+Stopped at: Completed quick task 260321-w4q
 Resume file: None
 Next action: `/gsd:plan-phase 45`
