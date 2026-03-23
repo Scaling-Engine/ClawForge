@@ -148,10 +148,11 @@ The following files must not be modified structurally — additive changes only:
 | 260323-gn7 | Auto-generate PR body with commit list, files changed, and diff stats in job entrypoint | 2026-03-23 | c27af17 | [260323-gn7-auto-generate-pr-body-md-in-job-entrypoi](./quick/260323-gn7-auto-generate-pr-body-md-in-job-entrypoi/) |
 | 260323-kif | Create CLUSTER.json with 4 roles, wire defaults/ into Dockerfiles, add /admin/clusters CRUD page | 2026-03-23 | ed91c17 | [260323-kif-create-cluster-json-wire-into-dockerfile](./quick/260323-kif-create-cluster-json-wire-into-dockerfile/) |
 | 260323-ks4 | Rename user-facing Clusters/Workflows to Subagents, rewrite 11 docs as operator guides, create SUBAGENTS.md | 2026-03-23 | a0b327b | [260323-ks4-rename-clusters-to-subagents-rewrite-doc](./quick/260323-ks4-rename-clusters-to-subagents-rewrite-doc/) |
+| 260323-n1e | Add job image rebuild CI workflow, HTTP health check with Slack alert, generateBuildId in next.config.mjs | 2026-03-23 | 7b4f0cf | [260323-n1e-improve-deployment-auto-rebuild-job-imag](./quick/260323-n1e-improve-deployment-auto-rebuild-job-imag/) |
 
 ## Session Continuity
 
-Last session: 2026-03-23T00:00:00Z
-Stopped at: Completed quick task 260323-ks4
+Last session: 2026-03-23T20:38:07Z
+Stopped at: Completed quick task 260323-n1e
 Resume file: None
 Next action: `/gsd:plan-phase 45`
