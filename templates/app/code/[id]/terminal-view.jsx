@@ -3,10 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { requestTerminalTicket } from 'clawforge/ws/actions';
 
+// How long (ms) to wait for ws.onopen before declaring a connection timeout.
+// Covers cases where the HTTP upgrade request hangs with no server response.
+const CONNECT_TIMEOUT_MS = 30_000;
+
 /**
  * Shell tab content: xterm.js terminal connected via WebSocket to workspace container.
  * Self-contained component with dynamic imports to avoid SSR issues.
  * Handles disconnect/reconnect flow via requestTerminalTicket Server Action.
+ * Includes a 30s connection timeout so "Connecting to terminal..." never hangs forever.
  *
  * @param {object} props
  * @param {string} props.workspaceId - Workspace UUID
@@ -30,7 +35,21 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
     let ws = null;
     let fitAddon = null;
     let resizeHandler = null;
+    let connectTimeout = null;
     let disposed = false;
+
+    function handleDisconnect(reason) {
+      if (!disposed) {
+        if (connectTimeout) {
+          clearTimeout(connectTimeout);
+          connectTimeout = null;
+        }
+        setDisconnectReason(reason);
+        setIsDisconnected(true);
+        setIsConnecting(false);
+        onDisconnect?.();
+      }
+    }
 
     async function init() {
       // Dynamic imports to avoid SSR issues with xterm.js DOM dependencies
@@ -67,15 +86,33 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
       ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
 
+      // Connection timeout: if ws.onopen doesn't fire within CONNECT_TIMEOUT_MS,
+      // force-close the WebSocket and show an error with a retry button.
+      // This prevents the "Connecting to terminal..." state from hanging indefinitely
+      // when the server doesn't respond to the HTTP upgrade (e.g. server not running,
+      // reverse proxy issue, or workspace container unreachable).
+      connectTimeout = setTimeout(() => {
+        if (!disposed && ws.readyState !== WebSocket.OPEN) {
+          console.warn('[terminal] connection timeout after', CONNECT_TIMEOUT_MS / 1000, 's');
+          ws.close();
+          handleDisconnect(
+            'Connection timed out — workspace may still be starting. Try reconnecting in a moment.'
+          );
+        }
+      }, CONNECT_TIMEOUT_MS);
+
       // ttyd binary protocol constants
       const TTYD_OUTPUT = 0x30;  // '0' — terminal output
       const TTYD_SET_TITLE = 0x31; // '1' — set window title
       const TTYD_SET_PREFS = 0x32; // '2' — set preferences
       const TTYD_INPUT = 0x30;   // '0' — terminal input
-      const TTYD_RESIZE = 0x31;  // '1' — resize: cols,rows
 
       ws.onopen = () => {
         console.log('[terminal] WebSocket connected');
+        if (connectTimeout) {
+          clearTimeout(connectTimeout);
+          connectTimeout = null;
+        }
         setIsConnecting(false);
         // Send initial resize to ttyd
         const { cols, rows } = term;
@@ -125,28 +162,18 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
       setTimeout(() => fitAddon.fit(), 100);
 
       ws.onclose = (event) => {
-        if (!disposed) {
-          const reason = event.reason || (event.code === 4404 ? 'Workspace not found or not running' :
-            event.code === 4500 ? 'Server error connecting to workspace container' :
-            event.code === 1006 ? 'Connection lost (network issue or server restart)' :
-            event.code === 401 ? 'Authentication failed (ticket expired)' :
-            `Closed (code ${event.code})`);
-          console.log(`[terminal] WebSocket closed: code=${event.code} reason=${reason}`);
-          setDisconnectReason(reason);
-          setIsDisconnected(true);
-          setIsConnecting(false);
-          onDisconnect?.();
-        }
+        const reason = event.reason || (event.code === 4404 ? 'Workspace not found or not running' :
+          event.code === 4500 ? 'Server error connecting to workspace container' :
+          event.code === 1006 ? 'Connection lost (network issue or container stopped)' :
+          event.code === 401 ? 'Authentication failed — ticket expired, click Reconnect' :
+          `Closed (code ${event.code})`);
+        console.log(`[terminal] WebSocket closed: code=${event.code} reason=${reason}`);
+        handleDisconnect(reason);
       };
 
       ws.onerror = (event) => {
-        if (!disposed) {
-          console.error('[terminal] WebSocket error:', event);
-          setDisconnectReason('Connection error — check browser console for details');
-          setIsDisconnected(true);
-          setIsConnecting(false);
-          onDisconnect?.();
-        }
+        console.error('[terminal] WebSocket error:', event);
+        handleDisconnect('Connection error — check browser console for details');
       };
 
       // Handle window resize
@@ -162,6 +189,7 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
 
     return () => {
       disposed = true;
+      if (connectTimeout) clearTimeout(connectTimeout);
       if (resizeHandler) window.removeEventListener('resize', resizeHandler);
       if (ws && ws.readyState <= 1) ws.close();
       if (term) term.dispose();
@@ -177,6 +205,7 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
       setCurrentTicket(newTicket);
     } catch (err) {
       console.error('Failed to reconnect terminal:', err);
+      setDisconnectReason(err.message || 'Failed to get a new terminal ticket — workspace may not be running');
     } finally {
       setIsReconnecting(false);
     }

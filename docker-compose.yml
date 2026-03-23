@@ -74,6 +74,7 @@ services:
       INSTANCE_NAME: noah
       DOCKER_NETWORK: ${NOAH_DOCKER_NETWORK:-clawforge_noah-net}
       JOB_IMAGE: ${NOAH_JOB_IMAGE:-scalingengine/clawforge:job-latest}
+      WORKSPACE_IMAGE: ${NOAH_WORKSPACE_IMAGE:-scalingengine/clawforge:workspace-latest}
       AGENT_SECRETS: ${NOAH_AGENT_SECRETS:-{}}
       AGENT_LLM_SECRETS: ${NOAH_AGENT_LLM_SECRETS:-{}}
     volumes:
@@ -126,6 +127,7 @@ services:
       INSTANCE_NAME: strategyES
       DOCKER_NETWORK: ${SES_DOCKER_NETWORK:-clawforge_strategyES-net}
       JOB_IMAGE: ${SES_JOB_IMAGE:-scalingengine/clawforge:job-latest}
+      WORKSPACE_IMAGE: ${SES_WORKSPACE_IMAGE:-scalingengine/clawforge:workspace-latest}
       AGENT_SECRETS: ${SES_AGENT_SECRETS:-{}}
       AGENT_LLM_SECRETS: ${SES_AGENT_LLM_SECRETS:-{}}
     volumes:

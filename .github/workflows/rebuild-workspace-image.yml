@@ -1,0 +1,42 @@
+name: Rebuild Workspace Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/workspace/**'
+      - 'templates/docker/workspace/**'
+  workflow_dispatch:
+
+concurrency:
+  group: workspace-image-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: [self-hosted, clawforge]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+
+      - name: Build workspace image
+        run: |
+          docker build -t scalingengine/clawforge:workspace-latest ./docker/workspace/
+
+      - name: Verify image
+        run: |
+          IMAGE_ID=$(docker image inspect scalingengine/clawforge:workspace-latest --format '{{.Id}}')
+          echo "Image ID: $IMAGE_ID"
+          # Verify ttyd is installed
+          docker run --rm scalingengine/clawforge:workspace-latest which ttyd
+          # Verify tmux is installed
+          docker run --rm scalingengine/clawforge:workspace-latest which tmux
+
+      - name: Print summary
+        run: |
+          IMAGE_ID=$(docker image inspect scalingengine/clawforge:workspace-latest --format '{{.Id}}')
+          echo "Workspace image rebuild complete"
+          echo "Image: scalingengine/clawforge:workspace-latest"
+          echo "ID: $IMAGE_ID"
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
