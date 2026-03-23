@@ -143,10 +143,11 @@ The following files must not be modified structurally — additive changes only:
 | 260320-e2g | Restructure chat UI to match upstream PopeBot layout (header, below-input controls, greeting) | 2026-03-20 | 0140ec8 | [260320-e2g-restructure-chat-ui-to-match-upstream-po](./quick/260320-e2g-restructure-chat-ui-to-match-upstream-po/) |
 | 260321-w4q | Enhance notification cards with job status indicators, PR links, and job ID headers | 2026-03-22 | da278aa | [260321-w4q-fix-job-result-visibility-and-error-log-](./quick/260321-w4q-fix-job-result-visibility-and-error-log-/) |
 | 260323-c16 | Enable Claude Max subscription auth: operator docs, admin badge, entrypoint log line | 2026-03-23 | 36daf76 | [260323-c16-enable-claude-max-subscription-auth-for-](./quick/260323-c16-enable-claude-max-subscription-auth-for-/) |
+| 260323-e4s | Create in-app /support page with expandable platform guides replacing external URL redirect | 2026-03-23 | 2ed7b84 | [260323-e4s-create-in-app-support-page-with-platform](./quick/260323-e4s-create-in-app-support-page-with-platform/) |
 
 ## Session Continuity
 
-Last session: 2026-03-22T03:16:58Z
-Stopped at: Completed quick task 260323-c16
+Last session: 2026-03-23T00:00:00Z
+Stopped at: Completed quick task 260323-e4s
 Resume file: None
 Next action: `/gsd:plan-phase 45`
