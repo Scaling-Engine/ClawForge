@@ -36,4 +36,5 @@ WORKDIR /workspace
 
 EXPOSE 7681
 
+# Built by rebuild-workspace-image.yml
 ENTRYPOINT ["/entrypoint.sh"]
