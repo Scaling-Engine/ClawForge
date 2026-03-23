@@ -1,130 +1,111 @@
-# Chat Integrations
+# Connecting Slack & Telegram
 
-## Built-in Chat Interfaces
+This guide covers how to connect your ClawForge agent to Slack and Telegram, in addition to the built-in web chat interface.
 
-### Web Chat
+---
 
-The web chat interface is included out of the box at your APP_URL. No additional configuration needed.
+## Web Chat (Built-In)
 
-- **Streaming responses** — AI responses stream in real-time via the Vercel AI SDK
-- **File uploads** — Send images, PDFs, and text files for the AI to process
-- **Chat history** — Browse past conversations grouped by date, resume any chat
-- **Job management** — Create and monitor agent jobs from the Swarm page
-- **Notifications** — Job completion alerts with unread badges
-- **API key management** — Generate and manage API keys from Settings
+The web chat interface is included automatically at your `APP_URL`. No additional setup needed.
 
-### Telegram (Optional)
+**Features:**
+- Streaming AI responses in real-time
+- File uploads — send images, PDFs, and text files
+- Chat history — browse and resume past conversations grouped by date
+- Job management — create and monitor agent jobs
+- Notifications — job completion alerts with unread badges
 
-Connect a Telegram bot to chat with your agent on the go:
+---
+
+## Slack
+
+Each instance needs its own Slack app (with its own workspace, tokens, and OAuth scopes). Instances are never shared.
+
+### Setup Steps
+
+1. Create a new Slack app at [api.slack.com](https://api.slack.com/apps)
+2. Under **Event Subscriptions**, enable events and set the Request URL to `https://{APP_URL}/api`
+3. Subscribe to bot events: `message.channels`, `message.groups`, `message.im`, `app_mention`
+4. Under **OAuth & Permissions**, install the app to your workspace
+5. Copy the **Bot Token** (starts with `xoxb-`) and **Signing Secret**
+6. Add these to your `.env`:
+   ```
+   SLACK_BOT_TOKEN=xoxb-...
+   SLACK_SIGNING_SECRET=...
+   SLACK_ALLOWED_USERS=U12345,U67890
+   ```
+7. Invite your bot to relevant channels
+
+**Optional:** Set `SLACK_ALLOWED_CHANNELS` to a comma-separated list of channel IDs to restrict your agent to specific channels.
+
+### How Slack Threading Works
+
+When you message the agent in Slack and it dispatches a job, the notification comes back as a **reply in the same thread**. The agent remembers which thread started each job and routes responses back there automatically.
+
+---
+
+## Telegram
+
+### Automated Setup
 
 ```bash
 npm run setup-telegram
 ```
 
-The setup wizard configures your bot token, webhook, and chat ID. Once connected, message your bot directly to chat or create jobs. Supports text, voice messages (transcribed via OpenAI Whisper), photos, and documents.
+The setup wizard guides you through:
+1. Entering your bot token (from @BotFather)
+2. Setting a webhook secret
+3. Getting your Telegram chat ID (by messaging your bot a verification code)
 
-See [Configuration](CONFIGURATION.md) for manual Telegram setup instructions.
+### Manual Setup
+
+If you can't run the setup script (e.g., deploying to a cloud platform):
+
+1. Set environment variables:
+   ```
+   TELEGRAM_BOT_TOKEN=...
+   TELEGRAM_WEBHOOK_SECRET=...
+   TELEGRAM_VERIFICATION=verify-abc12345
+   ```
+
+2. Register the webhook:
+   ```bash
+   curl -X POST https://your-app.url/api/telegram/register \
+     -H "Content-Type: application/json" \
+     -H "x-api-key: YOUR_API_KEY" \
+     -d '{"bot_token": "YOUR_BOT_TOKEN", "webhook_url": "https://your-app.url/api/telegram/webhook"}'
+   ```
+
+3. Message your bot with your verification code (e.g., `verify-abc12345`). It replies with your Telegram chat ID.
+
+4. Add that chat ID to `TELEGRAM_ALLOWED_USERS` and restart.
+
+### What Telegram Supports
+
+- Text messages — sent directly to your agent
+- Voice messages — transcribed to text before processing (requires `ASSEMBLYAI_API_KEY` for real-time transcription; falls back to OpenAI Whisper if configured)
+- Photos and documents — attached as files for the agent to process
 
 ---
 
-## Channel Adapter Architecture
+## Channel Architecture
 
-thepopebot uses a channel adapter pattern to normalize messages across different chat platforms. The AI layer is channel-agnostic — it receives the same normalized message format regardless of the source.
+All three channels (Slack, Telegram, web) normalize messages to the same internal format before passing them to the LangGraph agent. The agent is completely channel-agnostic — it receives the same `{ threadId, text, attachments, metadata }` structure regardless of source.
 
-### Base Class
-
-`lib/channels/base.js` defines the `ChannelAdapter` interface:
-
-| Method | Description |
-|--------|-------------|
-| `receive(request)` | Parse incoming webhook into normalized message data (or `null` to ignore) |
-| `acknowledge(metadata)` | Show message receipt (e.g., Telegram thumbs-up reaction) |
-| `startProcessingIndicator(metadata)` | Show activity while AI processes (e.g., typing indicator). Returns a stop function |
-| `sendResponse(threadId, text, metadata)` | Send a complete response back to the channel |
-| `supportsStreaming` (getter) | Whether the channel supports real-time streaming (e.g., web chat) |
-
-### Normalized Message Format
-
-All adapters return the same shape from `receive()`:
-
-```javascript
-{
-  threadId: string,      // Channel-specific thread/chat identifier
-  text: string,          // Message text (voice messages are pre-transcribed)
-  attachments: [         // Non-text content for the AI
-    { category: "image", mimeType: "image/jpeg", data: Buffer },
-    { category: "document", mimeType: "application/pdf", data: Buffer }
-  ],
-  metadata: object       // Channel-specific data (message IDs, chat IDs, etc.)
-}
-```
-
-Voice/audio messages are fully resolved by the adapter — transcribed to text and included in the `text` field, not passed as attachments.
-
-### Reference Implementation
-
-`lib/channels/telegram.js` (`TelegramAdapter`) is the reference implementation. It handles:
-- Webhook secret validation
-- Chat ID authorization
-- Text, voice/audio (Whisper transcription), photo, and document messages
-- Thumbs-up reaction on receipt, typing indicator during processing
+This means:
+- Adding a new channel doesn't require any changes to the AI layer
+- The same agent behavior, persona, and tools work across all channels
+- Notification routing works correctly regardless of which channel started the job
 
 ---
 
 ## Adding a New Channel
 
-To add a new chat channel (e.g., Discord, Slack, WhatsApp):
+If you want to add Discord, WhatsApp, or any other platform that supports webhooks:
 
-1. **Create an adapter** extending `ChannelAdapter` in `lib/channels/`:
+1. Create an adapter in `lib/channels/` that extends the `ChannelAdapter` base class
+2. Implement `receive()`, `acknowledge()`, `startProcessingIndicator()`, and `sendResponse()`
+3. Add a factory function in `lib/channels/index.js`
+4. Add a webhook route in `api/index.js`
 
-```javascript
-import { ChannelAdapter } from './base.js';
-
-class DiscordAdapter extends ChannelAdapter {
-  async receive(request) {
-    // Parse the incoming webhook, validate auth, return normalized message
-    // Return null to ignore the message
-  }
-
-  async acknowledge(metadata) {
-    // Optional: react to the message
-  }
-
-  startProcessingIndicator(metadata) {
-    // Optional: show typing indicator
-    return () => {}; // Return stop function
-  }
-
-  async sendResponse(threadId, text, metadata) {
-    // Send the AI's response back to the channel
-  }
-}
-```
-
-2. **Add a factory function** in `lib/channels/index.js`:
-
-```javascript
-import { DiscordAdapter } from './discord.js';
-
-export function getDiscordAdapter(botToken) {
-  // Lazy singleton pattern (see getTelegramAdapter for reference)
-}
-```
-
-3. **Add a webhook route** in `api/index.js` to handle incoming messages from the new channel.
-
-4. **The AI layer needs zero changes** — it's channel-agnostic. It receives normalized messages and returns responses regardless of the source channel.
-
----
-
-## Potential Integrations
-
-The adapter pattern makes it straightforward to add any channel that supports webhooks:
-
-- **Discord** — Bot webhooks, slash commands
-- **Slack** — Events API, slash commands
-- **WhatsApp** — Business API webhooks
-- **SMS** — Twilio webhooks
-- **Email** — Inbound email parsing (SendGrid, Mailgun)
-
-All follow the same pattern: receive webhook, normalize to `{ threadId, text, attachments, metadata }`, send response back.
+The AI layer requires zero changes. See `lib/channels/telegram.js` for a reference implementation.

@@ -1,179 +1,146 @@
-# Customization
+# Customizing Your Agent
 
-## The Operating System
-
-The `config/` directory is the agent's brain — it defines who the agent is and how it behaves.
-
-| File | Purpose |
-|------|---------|
-| `SOUL.md` | Agent identity, personality traits, and values |
-| `EVENT_HANDLER.md` | Event handler system prompt |
-| `JOB_SUMMARY.md` | Prompt for summarizing completed jobs |
-| `HEARTBEAT.md` | Self-monitoring behavior |
-| `AGENT.md` | Agent runtime environment |
-| `CRONS.json` | Scheduled job definitions |
-| `TRIGGERS.json` | Webhook trigger definitions |
-
-Each job automatically gets its own `logs/<JOB_ID>/job.md` file created by the event handler. Jobs are created via Telegram chat, webhooks, or cron schedules.
+This guide covers how to shape your agent's personality, behavior, and capabilities — from how it introduces itself to what tools it can use.
 
 ---
 
-## Using Your Bot
+## The Config Files
 
-There are several ways to interact with your agent — web chat, Telegram, webhooks, and scheduled jobs. See [Chat Integrations](CHAT_INTEGRATIONS.md) for details on adding other channels.
+Everything about your agent's identity and behavior is defined in three files in `instances/{name}/config/`:
 
-### Web Chat
+| File | Controls |
+|------|---------|
+| `SOUL.md` | Who the agent is — name, personality, scope restrictions |
+| `EVENT_HANDLER.md` | How the agent converses — what it can do, how it creates jobs, what context it has |
+| `AGENT.md` | How job containers behave — git conventions, GSD skill usage, project context |
 
-Visit your APP_URL to access the built-in web chat interface. Features include:
+These files are loaded at runtime. Changes take effect after restarting the event handler container (or the dev server).
 
-- **Streaming responses** — AI responses stream in real-time
-- **File uploads** — Send images, PDFs, and text files
-- **Chat history** — Browse and resume past conversations
-- **Job management** — Create and monitor agent jobs from the Swarm page
+---
 
-The web chat is available out of the box after setup — no additional configuration needed.
+## SOUL.md — Personality and Identity
 
-### Telegram Chat (Optional)
+This is injected into every conversation as system context. It defines who the agent is.
 
-Connect a Telegram bot to chat with your agent on the go. Set up with:
+**Structure:**
+```markdown
+# Your Identity
 
-```bash
-npm run setup-telegram
+You are [Name], [description].
+
+## Scope
+
+- You can access: [repos/systems]
+- You cannot access: [restrictions]
+
+## Personality
+
+[Communication style, tone, how it handles uncertainty]
 ```
 
-The bot uses your LLM to understand requests and can:
+**What to customize:**
+- The agent's name and role description
+- Which repos and systems it's allowed to access
+- Tone and communication style (formal vs. casual, verbose vs. concise)
+- How it should handle out-of-scope requests
 
-- **Chat** — Have a conversation, ask questions, get information
-- **Create jobs** — Say "create a job to..." and the bot will spawn an autonomous agent
+---
 
-**Security:** During setup, you'll verify your chat ID. Once configured, the bot only responds to messages from your authorized chat and ignores everyone else.
+## EVENT_HANDLER.md — Conversational Behavior
 
-#### Voice Messages
+This is the longest config file. It controls how the conversational agent behaves. Key sections:
 
-Send voice notes to your bot and they'll be transcribed using OpenAI Whisper.
+1. **Your Role** — What this agent does in one paragraph
+2. **Scope Restrictions** — Hard limits on what it can access
+3. **Available Tools** — Which LangGraph tools are active for this instance
+4. **Project Context** — Tech stack, conventions, common patterns (for scoped instances)
+5. **Job Creation Flow** — The approval gate: always propose a job description and wait for confirmation before dispatching
+6. **GSD Command Reference** — Available workflow skill commands
 
-**Requirements:**
-- `OPENAI_API_KEY` in your `.env` file
+**Tip:** For a new scoped instance, copy `instances/strategyES/config/EVENT_HANDLER.md` and update:
+- The role description
+- The scope restriction (which repo)
+- The project context (stack and conventions)
 
-The bot automatically detects voice messages and transcribes them before processing.
+---
 
-### Webhooks
+## AGENT.md — Job Container Behavior
 
-Create jobs programmatically via HTTP:
+Instructions that Claude Code reads at the start of every job container execution. Shorter than EVENT_HANDLER.md. Key sections:
 
-```bash
-curl -X POST https://your-app-url/api/create-job \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: YOUR_API_KEY" \
-  -d '{"job": "Update the README with installation instructions"}'
-```
+1. **Working directory** — Where the agent works inside the container
+2. **Git conventions** — Commit message format, branch naming
+3. **GSD skills** — Which structured workflow commands to use and when
+4. **Project context** — Stack and conventions the agent needs to know to do good work
 
-API keys are managed via the web UI Settings page.
+---
 
-### Scheduled Jobs
+## Scheduled Jobs (CRONS.json)
 
-Define recurring jobs in `config/CRONS.json`:
+Define recurring jobs that run on a schedule:
 
 ```json
 [
   {
     "name": "daily-check",
     "schedule": "0 9 * * *",
-    "job": "Check for dependency updates",
+    "job": "Check for dependency updates and open a PR if any are outdated",
     "enabled": true
   }
 ]
 ```
 
-Set `"enabled": true` to activate a scheduled job.
+Cron schedule format: `minute hour day month weekday`. Set `"enabled": false` to temporarily pause a job.
 
 ---
 
-## Skills
+## Webhook Triggers (TRIGGERS.json)
 
-Add custom skills for the agent in `.pi/skills/`. Skills extend the agent's capabilities with specialized tools and behaviors.
+Define jobs that fire when an external webhook arrives:
+
+```json
+[
+  {
+    "name": "on-pr-merged",
+    "event": "pr.merged",
+    "job": "Update the changelog with the merged PR description",
+    "enabled": true
+  }
+]
+```
 
 ---
 
-## Security
+## Available Agent Tools
 
-| What the AI tries | What happens |
-|-------------------|--------------|
-| `echo $ANTHROPIC_API_KEY` | Empty |
-| `echo $GH_TOKEN` | Empty |
-| `cat /proc/self/environ` | Secrets missing |
-| Claude API calls | Work normally |
-| GitHub CLI commands | Work normally |
+The LangGraph agent in the event handler has access to these tools (configurable per instance in `EVENT_HANDLER.md`):
 
-### How Secret Protection Works
+| Tool | What It Does |
+|------|-------------|
+| `create_job` | Dispatch an autonomous coding job to a job container |
+| `get_job_status` | Check the status of a running or completed job |
+| `get_system_technical_specs` | Read the CLAUDE.md architecture docs |
+| `get_project_state` | Fetch `STATE.md` and `ROADMAP.md` from a repo |
+| `start_coding` | Open an interactive code workspace |
+| `list_workspaces` | List active workspaces |
+| `create_cluster_job` | Start a multi-agent subagent run |
+| `web_search` | Search the web via Brave Search API |
 
-1. GitHub passes a single `SECRETS` env var (base64-encoded JSON with all credentials)
-2. The entrypoint decodes the JSON and exports each key as an env var
-3. Pi starts - SDKs read their env vars (ANTHROPIC_API_KEY, gh CLI uses GH_TOKEN)
-4. The `env-sanitizer` extension filters ALL secret keys from bash subprocess env
-5. The LLM can't `echo $ANYTHING` - subprocess env is filtered
-6. Other extensions still have full `process.env` access
+Not all tools are available to all instances. The `EVENT_HANDLER.md` for each instance controls which tools the agent can use.
 
-**What's Protected:**
+---
 
-Any key in the `SECRETS` JSON is automatically filtered from the LLM's bash environment. The `SECRETS` variable itself is also filtered.
+## MCP Servers for Jobs
 
-```bash
-# If your SECRETS contains:
-{"GH_TOKEN": "...", "ANTHROPIC_API_KEY": "...", "MY_CUSTOM_KEY": "..."}
+Add external tools (like Brave Search, GitHub API, database clients) to job containers via `MCP_SERVERS.json`. See [Settings & Configuration](CONFIGURATION.md) for the format and `AGENT_LLM_*` secret convention.
 
-# Then all of these return empty:
-echo $GH_TOKEN           # empty
-echo $ANTHROPIC_API_KEY  # empty
-echo $MY_CUSTOM_KEY      # empty
-```
+---
 
-### LLM-Accessible Secrets
+## Web Chat Behavior
 
-Sometimes you want the LLM to have access to certain credentials - browser logins, skill API keys, or service passwords. Use `LLM_SECRETS` for these.
+The web chat interface uses your agent's `SOUL.md` for persona and `EVENT_HANDLER.md` for capabilities. Changes to those files immediately affect web chat behavior after a container restart.
 
-```bash
-# Protected (filtered from LLM)
-SECRETS=$(echo -n '{"GH_TOKEN":"ghp_xxx","ANTHROPIC_API_KEY":"sk-ant-xxx"}' | base64)
-
-# Accessible to LLM (not filtered)
-LLM_SECRETS=$(echo -n '{"BROWSER_PASSWORD":"mypass123"}' | base64)
-```
-
-| Credential Type | Put In | Why |
-|-----------------|--------|-----|
-| `GH_TOKEN` | `SECRETS` | Agent shouldn't push to arbitrary repos |
-| `ANTHROPIC_API_KEY` | `SECRETS` | Agent shouldn't leak billing keys |
-| Browser login password | `LLM_SECRETS` | Skills may need to authenticate |
-| Third-party API key for a skill | `LLM_SECRETS` | Skills need these to function |
-
-### Implementation
-
-The `env-sanitizer` extension in `.pi/extensions/` dynamically filters secrets:
-
-```typescript
-const bashTool = createBashTool(process.cwd(), {
-  spawnHook: ({ command, cwd, env }) => {
-    const filteredEnv = { ...env };
-    if (process.env.SECRETS) {
-      try {
-        for (const key of Object.keys(JSON.parse(process.env.SECRETS))) {
-          delete filteredEnv[key];
-        }
-      } catch {}
-    }
-    delete filteredEnv.SECRETS;
-    return { command, cwd, env: filteredEnv };
-  },
-});
-```
-
-No special Docker flags required. Works on any host.
-
-### Custom Extensions
-
-The env-sanitizer protects against the **AI agent** accessing secrets through bash. Extension code itself can access `process.env` directly - this is by design.
-
-**Best practices:**
-- Don't create tools that echo environment variables to the agent
-- Review extension code before adding to your agent
+You can also:
+- Toggle features on/off via `/admin/chat`
+- Enable/disable voice input via `/admin/voice`
+- Manage users and roles via `/admin/users`

@@ -1,50 +1,69 @@
-# Auto-Merge Controls
+# Auto-Merge Rules
 
-By default, job PRs that only modify files under `logs/` are automatically squash-merged. You can control this behavior with two **GitHub repository variables** (Settings → Secrets and variables → Actions → Variables tab).
+This guide explains how ClawForge automatically merges job PRs and how you can control that behavior.
 
 ---
 
-## `AUTO_MERGE`
+## How Auto-Merge Works
 
-Kill switch for all auto-merging.
+When your agent completes a job, it creates a pull request. The `auto-merge.yml` GitHub Actions workflow then checks whether the changed files are within your allowed paths. If yes, the PR is squash-merged automatically. If no, it stays open for your review.
+
+By default, only changes to `logs/` auto-merge. This means your agent can write job logs automatically, but any code changes require your approval.
+
+---
+
+## Controlling Auto-Merge
+
+Set these as **GitHub repository variables** (Settings → Secrets and variables → Actions → Variables tab):
+
+### `AUTO_MERGE`
+
+The master kill switch for all auto-merging.
 
 | Value | Behavior |
 |-------|----------|
 | *(unset or any value)* | Auto-merge enabled |
-| `false` | Auto-merge disabled — all job PRs stay open for manual review |
+| `false` | Auto-merge disabled — all job PRs stay open |
 
----
+### `ALLOWED_PATHS`
 
-## `ALLOWED_PATHS`
-
-Comma-separated path prefixes that the agent is allowed to modify and still get auto-merged. If any changed file falls outside these prefixes, the PR stays open.
+Comma-separated path prefixes. If any changed file falls outside these paths, the PR stays open.
 
 | Value | Behavior |
 |-------|----------|
 | *(unset)* | Defaults to `/logs` — only log files auto-merge |
-| `/` | Everything allowed — all job PRs auto-merge |
-| `/logs` | Only log changes auto-merge |
+| `/` | Everything auto-merges |
+| `/logs` | Only changes to `logs/` auto-merge |
+| `/logs,/docs` | Changes to either `logs/` or `docs/` auto-merge |
 
-Path prefixes are matched from the repo root. A leading `/` is optional (`logs` and `/logs` are equivalent).
+Path prefixes are matched from the repo root. A leading `/` is optional — `logs` and `/logs` are equivalent.
 
 ---
 
-## Examples
+## Common Configurations
 
-Allow all agent changes to auto-merge (original behavior):
-```
-AUTO_MERGE = (unset)
-ALLOWED_PATHS = /
-```
-
-Require manual review for everything:
-```
-AUTO_MERGE = false
-```
-
-Only auto-merge log changes:
+**Safe default — require review for all code changes:**
 ```
 ALLOWED_PATHS = /logs
 ```
 
-If a PR is blocked, the workflow logs which files were outside the allowed paths so you can see exactly why.
+**Require manual review for everything:**
+```
+AUTO_MERGE = false
+```
+
+**Trust the agent completely — auto-merge everything:**
+```
+ALLOWED_PATHS = /
+```
+
+**Allow specific areas:**
+```
+ALLOWED_PATHS = /logs,/docs,/scripts
+```
+
+---
+
+## Debugging Blocked PRs
+
+If a PR is blocked from auto-merging, the workflow logs will show exactly which files were outside the allowed paths. Check the GitHub Actions run for your `auto-merge.yml` workflow to see the specific files that triggered the block.

@@ -1,50 +1,111 @@
-# Admin Panel Architecture — ClawForge
+# Admin Settings Guide
 
-## Overview
+This guide covers everything in the admin panel — user management, GitHub configuration, secrets, voice settings, and more. The admin panel lives at `{APP_URL}/admin`.
 
-Admin panel at `/admin/*` replaces the simpler `/settings/` structure. Provides operator-level management of GitHub secrets, user roles, instance configuration, voice settings, and webhook management.
+---
 
-## Route Structure
+## Accessing the Admin Panel
 
-```
-/admin/
-├── general          # Instance name, LLM model, general config
-├── github           # GitHub token, repo access, webhook URLs
-├── users            # User role management (admin/user)
-├── secrets          # GitHub secrets CRUD (AGENT_* convention)
-├── voice            # AssemblyAI config, voice toggle
-├── chat             # Chat settings, code mode defaults
-└── webhooks         # Incoming/outgoing webhook management
-```
+You need the `admin` role to access `/admin/*` pages. The first user to sign in gets `admin` by default. All subsequent users get the `user` role (chat access only). Change roles via `/admin/users`.
 
-## Auth & Roles
+If you don't have admin access, you'll be redirected to a "Forbidden" page. Ask an existing admin to promote your account.
 
-- `role` column on users table with `admin` (full access) and `user` (chat only) values
-- Admin middleware checks role before rendering `/admin/*` pages
-- Non-admin users redirected to `/forbidden` boundary page
-- NextAuth session includes role claim for client-side conditional rendering
-- API-key-protected routes (Slack events, Telegram webhooks) bypass role checks
+---
+
+## Admin Pages
+
+### General (`/admin/general`)
+
+Basic instance configuration:
+- **Instance name** — The display name for this instance
+- **LLM provider** — Switch between Anthropic, OpenAI, and Google
+- **LLM model** — Override the default model for your chosen provider
+
+Changes here take effect on next page load (no restart required).
+
+### Repos (`/admin/repos`)
+
+View and manage which GitHub repositories this instance can target for jobs.
+
+### Subagents (`/admin/subagents`)
+
+Create and manage subagent definitions — multi-agent pipelines where specialized roles execute sequentially. See the [Using Subagents](SUBAGENTS.md) guide for a full walkthrough.
+
+### Instances (`/admin/instances`)
+
+View and manage ClawForge instances. Useful in multi-instance deployments.
+
+### Crons (`/admin/crons`)
+
+Manage scheduled jobs that run on a recurring schedule (defined in `CRONS.json`).
+
+### Triggers (`/admin/triggers`)
+
+Manage webhook triggers that can dispatch jobs based on external events.
+
+### Secrets (`/admin/secrets`)
+
+Manage GitHub repository secrets that are passed to job containers. These are stored with AES-256-GCM encryption.
+
+**Secret naming convention:**
+- `AGENT_*` — Passed to job containers, but NOT visible to the LLM
+- `AGENT_LLM_*` — Passed to job containers AND visible to the LLM
+
+The UI shows blue "Container" badges for `AGENT_*` secrets and purple "Container+LLM" badges for `AGENT_LLM_*` secrets, so you can see at a glance what level of access each secret has.
+
+**Adding a secret:**
+1. Click "Add Secret"
+2. Enter the secret name (must start with `AGENT_`)
+3. Enter the value
+4. Save — the value is encrypted and stored
+
+**Deleting a secret:** Click the delete icon next to the secret and confirm.
+
+Values are always masked in the UI (last 4 characters visible). Full values are never displayed after creation.
+
+### Users (`/admin/users`)
+
+Manage who has access to your instance:
+- **admin** — Full access including the admin panel
+- **user** — Chat and workspace access only
+
+To promote a user to admin, click the role toggle next to their name.
+
+### Voice (`/admin/voice`)
+
+Configure voice input settings:
+- Toggle voice input on/off
+- Set your AssemblyAI API key
+
+### Chat (`/admin/chat`)
+
+Chat-related configuration:
+- Code mode defaults
+- Other chat behavior settings
+
+### Webhooks (`/admin/webhooks`)
+
+View and manage incoming and outgoing webhooks for this instance.
+
+### Billing (`/admin/billing`)
+
+View usage statistics and manage billing limits. Admins can see monthly job counts and set soft limits that generate warnings when approaching threshold.
+
+---
+
+## User Roles Summary
+
+| Role | Can Chat | Can Use Workspaces | Can Access /admin |
+|------|----------|-------------------|-------------------|
+| `admin` | Yes | Yes | Yes (full) |
+| `user` | Yes | Yes | No |
+
+API-key-protected routes (Slack events, Telegram webhooks) bypass role checks entirely — they use their own authentication mechanism.
+
+---
 
 ## Config Storage
 
-- DB-backed key-value config table via `lib/db/config.js`
-- `getConfig(key)` / `setConfig(key, value)` — typed accessors
-- Config values cached per-request, not globally (config changes apply on next dispatch)
-- GitHub secrets managed via `lib/github-api.js` wrapper around GitHub REST API
+Admin settings are stored in a key-value config table in SQLite. Config changes apply on the next request — no restart required for most settings.
 
-## GitHub Secrets Management
-
-- `lib/github-api.js` wraps GitHub REST API for secrets/variables CRUD
-- Secrets encrypted with Node `crypto` (AES-256-GCM) before storage
-- UI shows masked values (last 4 characters) — never full secret
-- AGENT_* prefix convention enforced: AGENT_ (container-only), AGENT_LLM_ (LLM-accessible)
-- Deletion requires confirmation modal with secret name re-entry
-
-## Migration Path (v2.1)
-
-The `/settings/` → `/admin/` migration happens in Phase 33:
-1. Create `/admin/` layout with sidebar navigation
-2. Move existing settings pages to new routes
-3. Add new pages (users, secrets, webhooks)
-4. Redirect `/settings/*` → `/admin/*` for backwards compat
-5. Remove redirects after transition period
+GitHub secrets are managed via the GitHub REST API and stored encrypted in the database.

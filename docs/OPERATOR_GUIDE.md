@@ -1,69 +1,49 @@
-# ClawForge Operator Guide
+# Getting Started
 
-How to set up and manage ClawForge instances, agents, repos, channels, and clusters.
-
----
-
-## Table of Contents
-
-1. [Core Concepts](#core-concepts)
-2. [Instance Architecture](#instance-architecture)
-3. [Creating a New Instance](#creating-a-new-instance)
-4. [Configuring an Instance](#configuring-an-instance)
-5. [Channel Setup](#channel-setup)
-6. [Repository Configuration](#repository-configuration)
-7. [MCP Server Configuration](#mcp-server-configuration)
-8. [Cluster Configuration](#cluster-configuration)
-9. [Environment Variables](#environment-variables)
-10. [Admin Panel](#admin-panel)
-11. [GitHub Secrets](#github-secrets)
-12. [Deployment](#deployment)
-13. [Troubleshooting](#troubleshooting)
-14. [Current Instances Reference](#current-instances-reference)
+This guide walks you through everything you need to know to set up and manage your ClawForge instance — creating agents, connecting channels, configuring repos, and running your first job.
 
 ---
 
-## Core Concepts
+## What Is ClawForge?
 
-ClawForge is a two-layer system:
+ClawForge is a two-layer AI agent platform. You chat with your agent (Archie, Epic, or whatever you've named it) via Slack, Telegram, or web chat. When you ask it to build something, it spins up a Docker container running Claude Code CLI, executes the task autonomously, and sends you back a pull request.
 
-- **Layer 1 — Event Handler** (always-on): A Next.js app running a LangGraph agent. This is the conversational AI that users talk to via Slack, Telegram, or Web Chat.
-- **Layer 2 — Job Container** (per-task): A Docker container running Claude Code CLI. Spun up on demand, executes a task, creates a PR, shuts down.
+**Layer 1 — Your Conversational Agent** (always on): A Next.js app powered by a LangGraph AI agent. This is the agent you talk to. It understands your requests and dispatches jobs.
 
-The only link between layers is a `job.md` text file pushed to a `job/{UUID}` branch. The Event Handler writes it, the Job Container reads and executes it.
+**Layer 2 — Job Containers** (spun up on demand): Docker containers that run Claude Code CLI. Each job gets its own container, executes the task, creates a PR, then shuts down.
 
-**Each instance is fully isolated**: its own Docker container, network, volumes, environment variables, config files, and channel connections. Instance "noah" cannot see instance "strategyES" and vice versa.
+The two layers communicate through a single text file (`job.md`) pushed to a git branch. Clean isolation, no shared state.
+
+**Each instance is fully isolated**: its own Docker container, network, volumes, environment variables, and channel connections. The "noah" instance cannot see the "strategyES" instance.
 
 ---
 
-## Instance Architecture
+## Instance Structure
 
 Every instance lives in `instances/{name}/` and has this structure:
 
 ```
 instances/{name}/
-├── Dockerfile            # Builds the Event Handler image for this instance
+├── Dockerfile            # Builds the event handler image for this instance
 ├── .env.example          # Template for required environment variables
 └── config/
     ├── SOUL.md           # Agent identity and personality
     ├── EVENT_HANDLER.md  # How the conversational layer behaves
-    ├── AGENT.md          # How the job container agent behaves
+    ├── AGENT.md          # How job containers behave
     ├── REPOS.json        # Allowed repositories this instance can target
-    ├── AGENT_QUICK.md    # (optional) Lightweight agent prompt for simple jobs
-    ├── MCP_SERVERS.json  # (optional) MCP tools available to job containers
-    └── CLUSTER.json      # (optional) Multi-agent cluster definitions
+    ├── AGENT_QUICK.md    # (optional) Lightweight prompt for simple jobs
+    ├── MCP_SERVERS.json  # (optional) External tools for job containers
+    └── CLUSTER.json      # (optional) Subagent definitions
 ```
-
-### What Each Config File Does
 
 | File | Purpose | Who reads it |
 |------|---------|-------------|
-| `SOUL.md` | Core identity — name, personality, scope restrictions | Event Handler LangGraph agent |
-| `EVENT_HANDLER.md` | Conversational behavior — tools, job flow, approval gates, GSD reference | Event Handler LangGraph agent |
-| `AGENT.md` | Job execution instructions — how to use Claude Code CLI, git behavior, GSD skills | Job Container (Layer 2) |
-| `REPOS.json` | Which GitHub repos this instance is allowed to target | Event Handler (repo resolution) |
-| `MCP_SERVERS.json` | External tools (Brave search, GitHub API, etc.) available during jobs | Job Container (via `--mcp-config`) |
-| `CLUSTER.json` | Multi-agent pipeline definitions for complex tasks | Cluster coordinator |
+| `SOUL.md` | Core identity — name, personality, scope | LangGraph agent (Layer 1) |
+| `EVENT_HANDLER.md` | Conversational behavior — tools, job flow, approval gates | LangGraph agent (Layer 1) |
+| `AGENT.md` | Job execution instructions — git behavior, GSD skills | Job container (Layer 2) |
+| `REPOS.json` | Which GitHub repos this instance can target | Event handler (repo resolution) |
+| `MCP_SERVERS.json` | External tools (Brave search, GitHub API) for jobs | Job container via `--mcp-config` |
+| `CLUSTER.json` | Subagent pipeline definitions for complex tasks | Cluster coordinator |
 
 ---
 
@@ -71,15 +51,15 @@ instances/{name}/
 
 ### Method 1: Conversational (via Archie)
 
-Ask Archie (the noah instance) to create a new instance. The Event Handler has a `create_instance_job` tool with a multi-turn intake flow:
+Ask Archie to create a new instance. The event handler has a `create_instance_job` tool with a guided intake flow:
 
 1. Tell Archie you want to create a new instance
 2. Archie asks for:
    - **Name** (slug, lowercase, no spaces) — e.g., `acmecorp`
-   - **Purpose** — what the instance is for (used to author persona files)
+   - **Purpose** — what the instance is for
    - **Allowed repos** — GitHub repo slugs it can target
    - **Channels** — slack, telegram, and/or web
-   - **Slack user IDs** (if Slack enabled) — who can interact
+   - **Slack user IDs** (if Slack enabled)
    - **Telegram chat ID** (if Telegram enabled)
 3. Review and approve the job description
 4. Archie dispatches a job that generates all instance files and updates `docker-compose.yml`
@@ -93,7 +73,7 @@ Copy an existing instance directory and modify:
 cp -r instances/noah instances/acmecorp
 ```
 
-Then edit each config file (see [Configuring an Instance](#configuring-an-instance) below).
+Then edit each config file as described below.
 
 ---
 
@@ -101,9 +81,7 @@ Then edit each config file (see [Configuring an Instance](#configuring-an-instan
 
 ### SOUL.md — Identity
 
-Defines who the agent "is." This is injected as system context into every LangGraph conversation.
-
-**Key sections to customize:**
+Defines who the agent is. This is injected as system context into every conversation.
 
 ```markdown
 # Your Identity
@@ -120,15 +98,14 @@ You are [Agent Name], [description of role and personality].
 [How the agent should communicate — formal, casual, technical, etc.]
 ```
 
-**Example — Scoped instance (Epic for StrategyES):**
+**Scoped instance example (Epic for StrategyES):**
 ```markdown
 You are Epic, the StrategyES development agent.
 You help Jim and the team build StrategyES.
 You can ONLY access the strategyes-lab repository.
-You cannot access any other repositories, systems, or files.
 ```
 
-**Example — Full-access instance (Archie for Noah):**
+**Full-access instance example (Archie for Noah):**
 ```markdown
 You are Archie, Noah's personal AI development agent.
 You have full access to all configured repositories.
@@ -136,49 +113,24 @@ You have full access to all configured repositories.
 
 ### EVENT_HANDLER.md — Conversational Behavior
 
-The longest config file. Controls how the Event Handler behaves in conversation. Key sections:
+Controls how the agent behaves in conversation. Key sections to customize:
 
 1. **Your Role** — One paragraph on what this agent does
 2. **Scope Restrictions** — What repos/systems are off-limits
-3. **Tools available** — Which LangGraph tools the agent can use:
-   - `create_job` — dispatch autonomous work
-   - `get_job_status` — check job progress
-   - `get_system_technical_specs` — read architecture docs
-   - `get_project_state` — fetch STATE.md/ROADMAP.md from a repo (full-access instances only)
-   - `start_coding` — open interactive workspace (if enabled)
-   - `list_workspaces` — list active workspaces
-   - `create_cluster_job` — start multi-agent cluster run
+3. **Tools available** — Which tools the agent can use (create_job, get_job_status, etc.)
 4. **Context about the target project** — Stack, conventions, patterns
-5. **GSD Command Reference** — Available GSD skills for structured work
-6. **Job Creation Flow** — The approval gate (NEVER auto-dispatch)
-7. **Interactive Mode** — How `[INTERACTIVE_MODE: true]` triggers workspace mode
+5. **Job Creation Flow** — The approval gate (agent always asks before dispatching)
 
-**For a new scoped instance**, the simplest approach: copy `instances/strategyES/config/EVENT_HANDLER.md` and replace:
-- The role description
-- The scope restriction (which repo)
-- The project context section (stack, conventions)
+For a new scoped instance, copy `instances/strategyES/config/EVENT_HANDLER.md` and replace the role description, scope restriction, and project context section.
 
 ### AGENT.md — Job Container Behavior
 
-Instructions baked into the Docker image that Claude Code reads when executing jobs. Shorter than EVENT_HANDLER.md. Key sections:
+Instructions that Claude Code reads when executing jobs. Key sections:
 
 1. **Working directory** — Where in the container the agent operates
 2. **Git behavior** — Commit conventions, branch naming
-3. **GSD skills reference** — Available skills for structured execution
+3. **GSD skills reference** — Available structured workflow commands
 4. **Project-specific context** — Stack and conventions (for scoped instances)
-
-### Dockerfile — Event Handler Image
-
-Each instance gets its own Dockerfile that:
-
-1. Starts from `node:22-bookworm-slim`
-2. Installs system deps (`git`, `gh`, `pm2`)
-3. Copies the full app source + templates
-4. Copies instance-specific config files into `/app/config/`
-5. Runs the build (`esbuild` + `next build`)
-6. Starts via PM2
-
-**To customize**: The only lines you typically change are the `COPY` commands for config files. The rest is boilerplate.
 
 ---
 
@@ -186,11 +138,11 @@ Each instance gets its own Dockerfile that:
 
 ### Web Chat
 
-Included automatically at `APP_URL`. No additional configuration needed — just set `APP_URL` in the environment.
+Included automatically at `APP_URL`. No additional configuration needed.
 
 ### Slack
 
-Each instance needs its **own Slack app** (separate workspace, tokens, and scopes).
+Each instance needs its **own Slack app** (separate tokens and scopes).
 
 **Required environment variables:**
 ```
@@ -231,7 +183,6 @@ This registers the webhook URL with Telegram's API.
 
 Controls which GitHub repos an instance can target. Located at `instances/{name}/config/REPOS.json`.
 
-**Format:**
 ```json
 [
   {
@@ -244,56 +195,15 @@ Controls which GitHub repos an instance can target. Located at `instances/{name}
 ]
 ```
 
-**Fields:**
-
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | Yes | Full `owner/repo` GitHub path |
 | `slug` | Yes | Short identifier used in commands |
 | `aliases` | No | Alternative names users can type |
-| `dispatch` | No | `"docker"` (default) or `"actions"` — how jobs run |
+| `dispatch` | No | `"docker"` (default, ~9s) or `"actions"` (~60s) |
 | `description` | No | Human-readable description shown to the agent |
 
-**Dispatch methods:**
-- `docker` — Job runs in a local Docker container via dockerode (~9 second start)
-- `actions` — Job runs via GitHub Actions workflow (~60 second start)
-
-**Multi-repo example (Archie/noah):**
-```json
-[
-  {
-    "name": "ScalingEngine/clawforge",
-    "slug": "clawforge",
-    "aliases": ["cf", "claw"],
-    "dispatch": "docker"
-  },
-  {
-    "name": "ScalingEngine/neurostory",
-    "slug": "neurostory",
-    "aliases": ["ns"],
-    "dispatch": "docker"
-  }
-]
-```
-
-**Single-repo example (Epic/strategyES):**
-```json
-[
-  {
-    "name": "ScalingEngine/strategyes-lab",
-    "slug": "strategyes-lab",
-    "dispatch": "docker"
-  }
-]
-```
-
-### How repo resolution works
-
-When a user says "fix a bug in strategyes-lab", the Event Handler:
-1. Loads `REPOS.json`
-2. Tries to match against `slug`, `name`, or `aliases` (case-insensitive)
-3. If matched → dispatches to that repo
-4. If not matched → returns an error listing available repos
+When a user says "fix a bug in strategyes-lab", the agent loads `REPOS.json`, matches against `slug`/`name`/`aliases`, and dispatches to that repo.
 
 ---
 
@@ -303,7 +213,6 @@ When a user says "fix a bug in strategyes-lab", the Event Handler:
 
 Defines external tool servers available to job containers. Located at `instances/{name}/config/MCP_SERVERS.json`.
 
-**Format:**
 ```json
 {
   "mcpServers": {
@@ -314,84 +223,18 @@ Defines external tool servers available to job containers. Located at `instances
         "BRAVE_API_KEY": "{{AGENT_LLM_BRAVE_API_KEY}}"
       },
       "allowedTools": ["brave_web_search"]
-    },
-    "github": {
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-github"],
-      "env": {
-        "GITHUB_TOKEN": "{{AGENT_LLM_GITHUB_TOKEN}}"
-      },
-      "allowedTools": ["search_repositories", "list_commits"]
     }
   }
 }
 ```
 
-**Key points:**
-- Template variables like `{{AGENT_LLM_BRAVE_API_KEY}}` are resolved at runtime from environment variables
-- `allowedTools` whitelists which tools from each server the agent can use
-- The file is passed to Claude Code via `--mcp-config` flag
-- This is **optional** — instances work fine without MCP servers
+Template variables like `{{AGENT_LLM_BRAVE_API_KEY}}` are resolved at runtime from environment variables. This is **optional** — instances work without MCP servers.
 
 ---
 
-## Cluster Configuration
+## Subagent Configuration
 
-### CLUSTER.json
-
-Defines multi-agent pipelines where specialized agents execute sequentially on a shared workspace. Located at `instances/{name}/config/CLUSTER.json`.
-
-**Format:**
-```json
-{
-  "clusters": [
-    {
-      "name": "code-review-pipeline",
-      "roles": [
-        {
-          "name": "researcher",
-          "systemPrompt": "You are a code research agent. Analyze the codebase and identify patterns, potential issues, and areas for improvement. Write your findings to /tmp/shared/research.md.",
-          "allowedTools": ["Read", "Grep", "Glob", "Bash"]
-        },
-        {
-          "name": "reviewer",
-          "systemPrompt": "You are a code reviewer. Read /tmp/shared/research.md and create a detailed code review with actionable recommendations. Write to /tmp/shared/review.md.",
-          "allowedTools": ["Read", "Write", "Edit", "Grep", "Glob"]
-        },
-        {
-          "name": "implementer",
-          "systemPrompt": "You are an implementation agent. Read /tmp/shared/review.md and implement the recommended changes.",
-          "allowedTools": ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
-        }
-      ]
-    }
-  ]
-}
-```
-
-**How clusters work:**
-
-1. User triggers a cluster run (via conversation or the `create_cluster_job` tool)
-2. The coordinator loads the cluster definition from `CLUSTER.json`
-3. Each role runs **sequentially** in its own Docker container
-4. Agents share data via a shared Docker volume mounted at `/tmp/shared/`
-5. A label-based state machine tracks progress (pending → running → completed/failed)
-6. Slack thread notifications update as each agent completes
-7. Hard iteration limits prevent runaway execution
-
-**Each role has:**
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | Yes | Role identifier (e.g., "researcher", "writer") |
-| `systemPrompt` | Yes | Instructions for this agent — what to do, where to write output |
-| `allowedTools` | Yes | Claude Code tools this agent can use |
-
-**Tips for writing cluster roles:**
-- Each agent should write its output to a known path in `/tmp/shared/`
-- Later agents should read from those paths
-- Keep tool lists minimal — each agent only needs what its role requires
-- The `systemPrompt` is the only thing distinguishing agents, so be specific
+See the [Using Subagents](SUBAGENTS.md) guide for a full walkthrough of setting up and running multi-agent pipelines.
 
 ---
 
@@ -403,15 +246,15 @@ Each instance needs its own set of environment variables. In `docker-compose.yml
 
 | Variable | Description |
 |----------|-------------|
-| `APP_URL` | Public URL for this instance (e.g., `https://archie.yourdomain.com`) |
-| `AUTH_SECRET` | NextAuth session encryption key (generate with `openssl rand -hex 32`) |
+| `APP_URL` | Public URL for this instance |
+| `AUTH_SECRET` | NextAuth session encryption key |
 | `GITHUB_TOKEN` | GitHub PAT with repo access |
-| `GITHUB_OWNER` | GitHub org/user (e.g., `ScalingEngine`) |
-| `GITHUB_REPO` | GitHub repo for job branches (e.g., `clawforge`) |
+| `GITHUB_OWNER` | GitHub org/user |
+| `GITHUB_REPO` | GitHub repo for job branches |
 | `LLM_PROVIDER` | `anthropic`, `openai`, or `google` |
 | `LLM_MODEL` | Model ID (e.g., `claude-sonnet-4-20250514`) |
 | `ANTHROPIC_API_KEY` | API key for the LLM provider |
-| `INSTANCE_NAME` | Instance slug (e.g., `noah`, `strategyES`) |
+| `INSTANCE_NAME` | Instance slug (e.g., `noah`) |
 | `DOCKER_NETWORK` | Docker network name (e.g., `noah-net`) |
 | `JOB_IMAGE` | Docker image for job containers |
 
@@ -420,9 +263,8 @@ Each instance needs its own set of environment variables. In `docker-compose.yml
 | Variable | Description |
 |----------|-------------|
 | `SLACK_BOT_TOKEN` | Slack bot OAuth token |
-| `SLACK_SIGNING_SECRET` | Slack signing secret for webhook verification |
+| `SLACK_SIGNING_SECRET` | Slack signing secret |
 | `SLACK_ALLOWED_USERS` | Comma-separated Slack user IDs |
-| `SLACK_ALLOWED_CHANNELS` | (optional) Restrict to specific channels |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token |
 | `TELEGRAM_WEBHOOK_SECRET` | Webhook verification secret |
 | `TELEGRAM_ALLOWED_USERS` | Comma-separated Telegram user IDs |
@@ -435,46 +277,37 @@ Each instance needs its own set of environment variables. In `docker-compose.yml
 | `AGENT_LLM_*` | Passed to job containers AND accessible by the LLM |
 | No prefix | Not passed to job containers at all |
 
-Example: `AGENT_LLM_BRAVE_API_KEY` → available to MCP servers in the job container. `AGENT_GITHUB_TOKEN` → available to scripts but hidden from the LLM.
+### Optional Variables
 
-### Observability & Billing Variables
-
-Added in v3.0 (Phases 43–46). All are optional — ClawForge operates without them.
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SENTRY_DSN` | No | Sentry project DSN for server-side error tracking. When unset, Sentry is fully disabled (zero network calls). |
-| `NEXT_PUBLIC_SENTRY_DSN` | No | Sentry DSN for client-side error capture. Must match `SENTRY_DSN`. Both must be set for full coverage. |
-| `ONBOARDING_ENABLED` | No | Set to `true` to redirect new users to the onboarding wizard on first login. Remove or set to any other value to disable. Remove once setup is complete. |
-| `SLACK_OPERATOR_CHANNEL` | No | Slack channel ID for operational alerts (billing 80% threshold warnings, consecutive failure alerts). When unset, alerts are silently skipped — jobs always proceed. |
+| Variable | Description |
+|----------|-------------|
+| `SENTRY_DSN` | Sentry DSN for server-side error tracking |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for client-side error capture |
+| `ONBOARDING_ENABLED` | Set to `true` to show onboarding wizard on first login |
+| `SLACK_OPERATOR_CHANNEL` | Slack channel ID for billing and alert notifications |
 
 ---
 
 ## Claude Max Subscription Auth
 
-By default, ClawForge job containers authenticate with Claude using `ANTHROPIC_API_KEY` (pay-per-use). If you have a Claude Max, Team, or Enterprise subscription, you can switch to subscription-based auth using `CLAUDE_CODE_OAUTH_TOKEN`. This is cheaper for heavy job volumes and does not consume API credits.
+By default, job containers authenticate via `ANTHROPIC_API_KEY` (pay-per-use). If you have a Claude Max, Team, or Enterprise subscription, you can switch to subscription auth using `CLAUDE_CODE_OAUTH_TOKEN`.
 
-The existing `AGENT_LLM_SECRETS` pipeline handles the injection automatically — no code changes are needed.
+### Setup
 
-### Setup Steps
+1. **Generate the token.** Run `claude setup-token` on any machine with a browser. This opens an OAuth flow and outputs a token in the format `sk-ant-oat01-...`.
 
-1. **Generate the token.** Run `claude setup-token` on any machine with a browser — your local machine, the VPS host, or a ClawForge workspace terminal. This opens an OAuth flow and outputs a long-lived token in the format `sk-ant-oat01-...`.
-
-2. **Add to LLM secrets.** In your `.env` file, add `CLAUDE_CODE_OAUTH_TOKEN` to the `{INSTANCE}_AGENT_LLM_SECRETS` JSON for each instance:
+2. **Add to LLM secrets** in your `.env`:
    ```
    NOAH_AGENT_LLM_SECRETS={"CLAUDE_CODE_OAUTH_TOKEN":"sk-ant-oat01-YOUR_TOKEN_HERE"}
    ```
 
-3. **Remove the API key (recommended).** If switching exclusively to subscription auth, remove `ANTHROPIC_API_KEY` from the JSON to avoid auth precedence conflicts. If you keep both, `CLAUDE_CODE_OAUTH_TOKEN` takes priority when set.
+3. **Remove the API key** if switching exclusively to subscription auth:
    ```
-   # Subscription only (recommended when switching):
+   # Subscription only (recommended):
    NOAH_AGENT_LLM_SECRETS={"CLAUDE_CODE_OAUTH_TOKEN":"sk-ant-oat01-..."}
-
-   # Both (subscription primary, API key as fallback):
-   NOAH_AGENT_LLM_SECRETS={"CLAUDE_CODE_OAUTH_TOKEN":"sk-ant-oat01-...","ANTHROPIC_API_KEY":"sk-ant-..."}
    ```
 
-4. **Restart the event handler.**
+4. **Restart the event handler:**
    ```bash
    docker compose up -d {instance}-event-handler
    ```
@@ -484,272 +317,69 @@ The existing `AGENT_LLM_SECRETS` pipeline handles the injection automatically �
    Auth method: subscription (CLAUDE_CODE_OAUTH_TOKEN)
    ```
 
-### Token Lifecycle
-
-| Aspect | Detail |
-|--------|--------|
-| Generated by | `claude setup-token` (interactive OAuth browser flow) |
-| Token format | `sk-ant-oat01-...` |
-| Token lifetime | ~1 year (long-lived) |
-| Refresh | Claude Code CLI handles access token refresh automatically |
-| Re-auth | Run `claude setup-token` again when the refresh token expires |
-
-### Pitfalls
-
-- **Never use `--bare` in job containers.** The `--bare` flag skips OAuth credential reads. ClawForge uses plain `claude -p` (without `--bare`), so subscription auth works correctly. Do not add `--bare` to the entrypoint.
-- **GitHub Actions dispatch path.** If any repos use `"dispatch": "actions"` in `REPOS.json`, the GitHub Actions runner does not use Docker env vars — it reads GitHub repo secrets directly. For those repos, also add `AGENT_LLM_CLAUDE_CODE_OAUTH_TOKEN` as a GitHub repo secret.
-- **Monitor for token expiry.** The OAuth token does not send expiry notifications. Watch for auth-stage job failures as the token approaches its one-year lifetime and re-run `claude setup-token` proactively.
+The token is long-lived (~1 year). Claude Code CLI handles refresh automatically. Re-run `claude setup-token` when the refresh token expires.
 
 ---
 
 ## Admin Panel
 
-Accessible at `{APP_URL}/admin` for users with the `admin` role.
-
-### Pages
-
-| Route | Purpose |
-|-------|---------|
-| `/admin/general` | Instance name, LLM provider/model selection |
-| `/admin/github` | GitHub owner/repo, token status |
-| `/admin/users` | User CRUD, role assignment (admin/user) |
-| `/admin/secrets` | GitHub secrets management (AGENT_* prefix) |
-| `/admin/voice` | Voice input settings (AssemblyAI) |
-| `/admin/chat` | Chat configuration |
-| `/admin/webhooks` | Webhook display and configuration |
-
-### Auth Roles
-
-- **admin** — Full access to all admin pages
-- **user** — Can use chat and workspaces, blocked from `/admin/*` routes
-
-The first user to sign in gets `admin` role by default. Subsequent users get `user` role. Change roles via `/admin/users`.
-
-### Managing GitHub Secrets
-
-The secrets page (`/admin/secrets`) lets you manage secrets that are passed to job containers:
-
-1. Secrets are encrypted at rest with AES-256-GCM (Node `crypto`)
-2. Values are masked in the UI (last 4 characters visible)
-3. The `AGENT_*` prefix convention is enforced
-4. Deletion requires a confirmation modal
+Accessible at `{APP_URL}/admin` for users with the `admin` role. See the [Admin Settings Guide](ADMIN_PANEL.md) for full details.
 
 ---
 
 ## Deployment
 
-### Docker Compose (Production)
-
-The `docker-compose.yml` orchestrates all instances plus a Traefik reverse proxy:
-
-```
-┌──────────────────────────────────────────────┐
-│                   Traefik                     │
-│         (TLS termination, routing)            │
-│  archie.domain.com → noah container           │
-│  strategyes.scalingengine.com → strategyES container │
-└──────────┬───────────────────┬───────────────┘
-           │                   │
-    ┌──────┴──────┐     ┌──────┴──────┐
-    │ noah-net    │     │ ses-net     │
-    │ (isolated)  │     │ (isolated)  │
-    │ Port 3000   │     │ Port 3000   │
-    └─────────────┘     └─────────────┘
-```
-
-**Adding a new instance to docker-compose.yml:**
-
-1. Add a new service block (copy an existing one)
-2. Set a unique `container_name` (e.g., `clawforge-acme`)
-3. Point `build.context` to `instances/acmecorp`
-4. Create a new network (e.g., `acme-net`)
-5. Add prefixed env vars (e.g., `ACME_APP_URL`, `ACME_SLACK_BOT_TOKEN`, etc.)
-6. Add Traefik labels for hostname routing
-7. Add named volumes for data and config persistence
-
-### Deploy to a Fresh VPS
-
-**Server prerequisites** — Any VPS (Hetzner, DigitalOcean, AWS, etc.) with:
-- Docker + Docker Compose
-- Node.js 22+
-- Git and GitHub CLI (`gh`)
-- A domain pointed to the server's IP (DNS A record)
-
-**Deployment steps:**
-
-```bash
-# 1. Clone the ClawForge repository
-git clone https://github.com/ScalingEngine/clawforge.git
-cd clawforge
-
-# 2. Copy the env template and fill in all values
-cp .env.example .env
-# Edit .env — set APP_URL, API keys, Slack tokens, GitHub token, etc.
-
-# 3. Install dependencies
-npm install
-
-# 4. Build the Next.js app (must run before starting containers)
-npm run build
-
-# 5. Start all services
-docker compose up -d
-```
-
-Ports 80 and 443 must be open on your server. Port 80 is required even with HTTPS — Let's Encrypt uses it for the ACME HTTP challenge to verify domain ownership.
-
-**Enable HTTPS (Let's Encrypt):**
-
-The `docker-compose.yml` has Let's Encrypt support built in but commented out. Three edits to enable it:
-
-a) Add your email to `.env`:
-```
-LETSENCRYPT_EMAIL=you@example.com
-```
-
-b) In `docker-compose.yml`, uncomment the TLS lines in the traefik service command:
-```yaml
-- --entrypoints.web.http.redirections.entrypoint.to=websecure
-- --entrypoints.web.http.redirections.entrypoint.scheme=https
-- --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}
-- --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
-- --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-```
-
-c) In the event-handler labels, switch from HTTP to HTTPS:
-```yaml
-# - traefik.http.routers.event-handler.entrypoints=web
-- traefik.http.routers.event-handler.entrypoints=websecure
-- traefik.http.routers.event-handler.tls.certresolver=letsencrypt
-```
-
-### Build and Start
-
-```bash
-# Build all instances
-docker compose build
-
-# Start everything
-docker compose up -d
-
-# Rebuild one instance after config changes
-docker compose build noah-event-handler
-docker compose up -d noah-event-handler
-```
+See [Deploying Your Instance](DEPLOYMENT.md) for VPS deployment, Docker Compose setup, and HTTPS configuration.
 
 ---
 
 ## Troubleshooting
 
-Common problems operators encounter, with symptoms and fixes.
+### Container crash-loop: "Could not find a production build"
 
-### 1. Container crash-loop: "Could not find a production build"
-
-**Symptom:** PM2 restarts endlessly; logs show `Could not find a production build in '/app/.next'`
-
-**Cause:** `npm run build` was not run before `docker compose up`, or `.next/` is missing from the bind mount.
-
-**Fix:** Run the build on the host, then restart the affected service:
+**Fix:** Run the build on the host, then restart:
 ```bash
 npm run build
 docker compose restart {service-name}
 ```
 
-### 2. Job container exits immediately (exit code 1)
+### Job container exits immediately (exit code 1)
 
-**Symptom:** Job dispatches but completes in under 5 seconds with failure status.
+**Fix:** Verify `AGENT_SECRETS` is valid JSON. Confirm the GitHub token has `contents:write` and `pull_requests:write` on target repos.
 
-**Cause:** Missing or invalid `AGENT_SECRETS` / `AGENT_LLM_SECRETS`, or the GitHub token lacks required scopes.
+### Slack webhook returns 401 or "invalid_auth"
 
-**Fix:** Verify `AGENT_SECRETS` is valid JSON. Confirm the GitHub token (`GH_TOKEN`) has `contents:write` and `pull_requests:write` on all target repositories.
+**Fix:** Regenerate the signing secret in Slack app settings, update `SLACK_SIGNING_SECRET` in `.env`, rebuild and restart the container.
 
-### 3. Slack webhook returns 401 or "invalid_auth"
+### Docker network not found on job dispatch
 
-**Symptom:** Bot doesn't respond to messages; logs show signature verification failure.
-
-**Cause:** `SLACK_SIGNING_SECRET` doesn't match the Slack app's signing secret, or the bot token has expired.
-
-**Fix:** Regenerate the signing secret in Slack app settings, update `SLACK_SIGNING_SECRET` in `.env`, then rebuild and restart the container.
-
-### 4. ONBOARDING_ENABLED redirect loop
-
-**Symptom:** Browser redirects infinitely between `/` and `/onboarding`.
-
-**Cause:** `ONBOARDING_ENABLED=true` is set but the onboarding page is not accessible (build error or missing route).
-
-**Fix:** Confirm `npm run build` completed without errors. Verify `templates/app/onboarding/page.js` exists. Remove `ONBOARDING_ENABLED` after onboarding completes.
-
-### 5. Docker network not found on job dispatch
-
-**Symptom:** Job dispatch fails with `network {name} not found`.
-
-**Cause:** The `DOCKER_NETWORK` env var doesn't match the actual Docker network name. Docker Compose prefixes with the project name.
-
-**Fix:** Find the actual network name and update your env var:
+**Fix:** Find the actual network name (Docker Compose may prefix with project name):
 ```bash
 docker network ls | grep {name}
-# Example: clawforge_noah-net
 # Update: NOAH_DOCKER_NETWORK=clawforge_noah-net
 ```
 
-### 6. Billing limit blocks jobs unexpectedly
+### Billing limit blocks jobs unexpectedly
 
-**Symptom:** Job dispatch returns "Monthly job limit reached" but the instance has not dispatched many jobs.
+**Fix:** Check limits via `/admin/billing`. Superadmin can adjust at `/admin/superadmin/billing`.
 
-**Cause:** The `billing_limits` table has a low limit set, or the period boundary crossed a month during calculation.
-
-**Fix:** Check limits via `/admin/billing`. Superadmin can adjust limits at `/admin/superadmin/billing`.
-
-### 7. Sentry not capturing errors
-
-**Symptom:** Errors occur in the app but nothing appears in the Sentry dashboard.
-
-**Cause:** `SENTRY_DSN` is not set (server errors), or `NEXT_PUBLIC_SENTRY_DSN` is not set (client errors need the public DSN).
-
-**Fix:** Set both variables in `.env`, then rebuild:
-```bash
-npm run build
-docker compose restart {service-name}
-```
-
-### 8. GitHub webhook not triggering notifications
-
-**Symptom:** Jobs complete (PR is created) but no notification appears in Slack or Telegram.
-
-**Cause:** `GH_WEBHOOK_SECRET` mismatch, or the webhook URL is not pointing to `{APP_URL}/api/github/webhook`.
-
-**Fix:** Verify the webhook configuration in GitHub repository settings. The secret must match `GH_WEBHOOK_SECRET` exactly.
-
-### 9. "better-sqlite3 is not compatible with Edge Runtime"
-
-**Symptom:** Build error or runtime crash mentioning `better-sqlite3` and Edge Runtime.
-
-**Cause:** A middleware or Edge function is importing a module that transitively imports `better-sqlite3`.
-
-**Fix:** Database operations must run in Server Components or API routes — never in middleware. Trace the import chain to find which module is pulling in `better-sqlite3` from an Edge context.
-
-### 10. Workspace container starts but terminal shows blank screen
-
-**Symptom:** Workspace opens in the browser but the ttyd terminal shows nothing.
-
-**Cause:** The WebSocket proxy cannot connect to ttyd inside the container, or the container port mapping is incorrect.
+### Workspace terminal shows blank screen
 
 **Fix:**
 1. Confirm the workspace container is running: `docker ps`
-2. Verify `APP_URL` matches the URL in the browser exactly (including port if non-standard)
+2. Verify `APP_URL` matches the URL in your browser exactly
 3. Check the browser console for WebSocket connection errors
 
 ---
 
-## Current Instances Reference
+## Current Instances
 
 ### Archie (noah)
 
 - **Purpose:** Noah's personal AI dev agent, full repo access
+- **URL:** clawforge.scalingengine.com
 - **Channels:** Slack, Telegram, Web Chat
 - **Repos:** clawforge, neurostory (expandable)
-- **MCP:** Brave search, GitHub API
-- **Special:** Can create new instances via `create_instance_job`
 - **Config:** `instances/noah/config/`
 
 ### Epic (strategyES)
@@ -758,13 +388,11 @@ docker compose restart {service-name}
 - **URL:** https://strategyes.scalingengine.com
 - **Channels:** Slack, Web Chat
 - **Repos:** strategyes-lab only (hard-scoped)
-- **MCP:** None configured
-- **Special:** Locked to a single repo — cannot access anything else
 - **Config:** `instances/strategyES/config/`
 
 ---
 
-## Quick Reference: New Instance Checklist
+## New Instance Checklist
 
 1. [ ] Create `instances/{name}/config/` directory
 2. [ ] Write `SOUL.md` — who is this agent?
@@ -781,4 +409,4 @@ docker compose restart {service-name}
 13. [ ] Create admin user via first login
 14. [ ] Configure secrets via `/admin/secrets` if needed
 15. [ ] (Optional) Add `MCP_SERVERS.json` for external tools
-16. [ ] (Optional) Add `CLUSTER.json` for multi-agent pipelines
+16. [ ] (Optional) Add `CLUSTER.json` for subagent pipelines
