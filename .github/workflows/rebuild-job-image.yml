@@ -1,0 +1,38 @@
+name: Rebuild Job Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/job/**'
+      - 'templates/docker/job/**'
+  workflow_dispatch:
+
+concurrency:
+  group: job-image-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: [self-hosted, clawforge]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+
+      - name: Build job image
+        run: |
+          docker build -t scalingengine/clawforge:job-latest ./docker/job/
+
+      - name: Verify image
+        run: |
+          IMAGE_ID=$(docker image inspect scalingengine/clawforge:job-latest --format '{{.Id}}')
+          echo "Image ID: $IMAGE_ID"
+
+      - name: Print summary
+        run: |
+          IMAGE_ID=$(docker image inspect scalingengine/clawforge:job-latest --format '{{.Id}}')
+          echo "Job image rebuild complete"
+          echo "Image: scalingengine/clawforge:job-latest"
+          echo "ID: $IMAGE_ID"
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
