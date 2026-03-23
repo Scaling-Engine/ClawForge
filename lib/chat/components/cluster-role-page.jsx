@@ -120,7 +120,7 @@ export function ClusterRolePage({ session, runId, roleId }) {
           <div className="mb-6">
             <h1 className="text-xl font-semibold mb-1">{roleId}</h1>
             <p className="text-xs text-muted-foreground">
-              Cluster: {run.clusterName} | Run: {runId.slice(0, 8)}...
+              Subagent: {run.clusterName} | Run: {runId.slice(0, 8)}...
             </p>
           </div>
 
@@ -128,7 +128,7 @@ export function ClusterRolePage({ session, runId, roleId }) {
           {configNotFound ? (
             <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 mb-6">
               <p className="text-sm text-yellow-500">
-                Role configuration not found. The cluster config may have changed since this run.
+                Role configuration not found. The subagent config may have changed since this run.
               </p>
             </div>
           ) : roleConfig ? (

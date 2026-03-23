@@ -124,14 +124,14 @@ function ClusterForm({ initial, isNew, onSave, onCancel }) {
   return (
     <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-4 space-y-3">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium">{isNew ? 'Add Cluster' : `Edit ${initial.name}`}</h3>
+        <h3 className="text-sm font-medium">{isNew ? 'Add Subagent' : `Edit ${initial.name}`}</h3>
         <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-foreground">
           <XIcon size={14} />
         </button>
       </div>
 
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">Cluster Name *</label>
+        <label className="block text-xs text-muted-foreground mb-1">Subagent Name *</label>
         <input
           type="text"
           value={name}
@@ -143,12 +143,12 @@ function ClusterForm({ initial, isNew, onSave, onCancel }) {
       </div>
 
       <div>
-        <label className="block text-xs text-muted-foreground mb-1">Cluster System Prompt (optional)</label>
+        <label className="block text-xs text-muted-foreground mb-1">Subagent System Prompt (optional)</label>
         <textarea
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           className="w-full rounded-md border bg-background px-3 py-1.5 text-sm min-h-[60px]"
-          placeholder="High-level instructions shared across all roles in this cluster..."
+          placeholder="High-level instructions shared across all roles in this subagent..."
         />
       </div>
 
@@ -193,7 +193,7 @@ function ClusterForm({ initial, isNew, onSave, onCancel }) {
           disabled={saving}
           className="text-xs px-3 py-1.5 rounded-md bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
         >
-          {saving ? 'Saving...' : isNew ? 'Add Cluster' : 'Save Changes'}
+          {saving ? 'Saving...' : isNew ? 'Add Subagent' : 'Save Changes'}
         </button>
       </div>
     </form>
@@ -324,7 +324,7 @@ export function AdminClustersPage() {
     <>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-foreground">
-          {!loading && `${clusters.length} cluster${clusters.length !== 1 ? 's' : ''} configured`}
+          {!loading && `${clusters.length} subagent${clusters.length !== 1 ? 's' : ''} configured`}
         </p>
         {editing !== 'new' && (
           <button
@@ -332,7 +332,7 @@ export function AdminClustersPage() {
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-foreground text-background hover:bg-foreground/90"
           >
             <PlusIcon size={12} />
-            Add Cluster
+            Add Subagent
           </button>
         )}
       </div>
@@ -354,15 +354,15 @@ export function AdminClustersPage() {
           <div className="text-4xl mb-4">
             <ClusterIcon size={40} />
           </div>
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">No clusters configured</h3>
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">No subagents configured</h3>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-md">
-            Clusters define multi-agent teams. Add a cluster with roles to enable parallel agent dispatch.
+            Subagents are multi-agent teams. Add a subagent with roles to enable parallel agent dispatch.
           </p>
           <button
             onClick={() => setEditing('new')}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
           >
-            Add First Cluster
+            Add First Subagent
           </button>
         </div>
       ) : (

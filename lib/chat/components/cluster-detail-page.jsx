@@ -68,7 +68,7 @@ export function ClusterDetailPage({ session, runId }) {
       {loading && (
         <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground justify-center">
           <SpinnerIcon size={16} />
-          Loading cluster run...
+          Loading subagent run...
         </div>
       )}
 

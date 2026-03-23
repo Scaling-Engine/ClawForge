@@ -133,7 +133,7 @@ export function AppSidebar({ user }) {
             </Tooltip>
           </SidebarMenuItem>
 
-          {/* Workflows (formerly Clusters) */}
+          {/* Subagents */}
           <SidebarMenuItem>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -144,11 +144,11 @@ export function AppSidebar({ user }) {
                   }}
                 >
                   <ClusterIcon size={16} />
-                  {!collapsed && <span>Workflows</span>}
+                  {!collapsed && <span>Subagents</span>}
                 </SidebarMenuButton>
               </TooltipTrigger>
               {collapsed && (
-                <TooltipContent side="right">Workflows</TooltipContent>
+                <TooltipContent side="right">Subagents</TooltipContent>
               )}
             </Tooltip>
           </SidebarMenuItem>

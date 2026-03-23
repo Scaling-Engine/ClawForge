@@ -177,7 +177,7 @@ function ClusterDefinitions({ clusters, loading }) {
         <div className="rounded-full bg-muted p-4 mb-4">
           <ClusterIcon size={24} />
         </div>
-        <p className="text-sm font-medium mb-1">No clusters configured</p>
+        <p className="text-sm font-medium mb-1">No subagents configured</p>
         <p className="text-xs text-muted-foreground max-w-sm">
           Add a <span className="font-mono">CLUSTER.json</span> to your config directory.
         </p>
@@ -311,7 +311,7 @@ function RunHistory({ runs, loading }) {
   if (!runs || runs.length === 0) {
     return (
       <div className="text-sm text-muted-foreground py-4 text-center">
-        No cluster runs yet.
+        No subagent runs yet.
       </div>
     );
   }
@@ -352,16 +352,16 @@ export function ClustersPage({ session }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Workflows</h1>
+          <h1 className="text-2xl font-semibold">Subagents</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Multi-agent workflows — chain multiple agents together to tackle complex tasks in sequence.
+            Multi-agent subagents — chain multiple agents together to tackle complex tasks in sequence.
           </p>
         </div>
       </div>
 
       {/* Cluster Definitions */}
       <section className="mb-8">
-        <h2 className="text-base font-semibold mb-3">Cluster Definitions</h2>
+        <h2 className="text-base font-semibold mb-3">Subagent Definitions</h2>
         <ClusterDefinitions clusters={clusters} loading={loadingConfig} />
       </section>
 
