@@ -18,6 +18,8 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
   const termRef = useRef(null);
   const instanceRef = useRef(null);
   const [isDisconnected, setIsDisconnected] = useState(false);
+  const [disconnectReason, setDisconnectReason] = useState('');
+  const [isConnecting, setIsConnecting] = useState(true);
   const [currentTicket, setCurrentTicket] = useState(ticket);
   const [isReconnecting, setIsReconnecting] = useState(false);
 
@@ -60,6 +62,8 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
       // Build WebSocket URL from window location
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${proto}//${window.location.host}/ws/terminal/${workspaceId}?ticket=${currentTicket}&port=${port}`;
+      console.log('[terminal] connecting to:', wsUrl);
+      setIsConnecting(true);
       ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
 
@@ -71,6 +75,8 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
       const TTYD_RESIZE = 0x31;  // '1' — resize: cols,rows
 
       ws.onopen = () => {
+        console.log('[terminal] WebSocket connected');
+        setIsConnecting(false);
         // Send initial resize to ttyd
         const { cols, rows } = term;
         const resizeMsg = new TextEncoder().encode(`1${JSON.stringify({ columns: cols, rows })}`);
@@ -118,16 +124,27 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
       // Fit again after setup
       setTimeout(() => fitAddon.fit(), 100);
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         if (!disposed) {
+          const reason = event.reason || (event.code === 4404 ? 'Workspace not found or not running' :
+            event.code === 4500 ? 'Server error connecting to workspace container' :
+            event.code === 1006 ? 'Connection lost (network issue or server restart)' :
+            event.code === 401 ? 'Authentication failed (ticket expired)' :
+            `Closed (code ${event.code})`);
+          console.log(`[terminal] WebSocket closed: code=${event.code} reason=${reason}`);
+          setDisconnectReason(reason);
           setIsDisconnected(true);
+          setIsConnecting(false);
           onDisconnect?.();
         }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (event) => {
         if (!disposed) {
+          console.error('[terminal] WebSocket error:', event);
+          setDisconnectReason('Connection error — check browser console for details');
           setIsDisconnected(true);
+          setIsConnecting(false);
           onDisconnect?.();
         }
       };
@@ -174,19 +191,24 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '16px',
+        gap: '12px',
         backgroundColor: '#1e1e2e',
       }}>
         <span style={{ color: '#f38ba8', fontSize: '14px' }}>
-          Terminal disconnected.
+          Terminal disconnected
         </span>
+        {disconnectReason && (
+          <span style={{ color: '#a6adc8', fontSize: '12px', maxWidth: '400px', textAlign: 'center' }}>
+            {disconnectReason}
+          </span>
+        )}
         <button
           onClick={handleReconnect}
           disabled={isReconnecting}
           aria-label="Reconnect terminal"
           style={{
             padding: '8px 24px',
-            fontSize: '14px',
+            fontSize: '13px',
             backgroundColor: '#a6e3a1',
             color: '#1e1e2e',
             border: 'none',
@@ -197,6 +219,23 @@ export default function TerminalView({ workspaceId, port, ticket, onDisconnect }
         >
           {isReconnecting ? 'Reconnecting...' : 'Reconnect'}
         </button>
+      </div>
+    );
+  }
+
+  if (isConnecting) {
+    return (
+      <div style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#1e1e2e',
+        color: '#a6adc8',
+        fontSize: '13px',
+      }}>
+        Connecting to terminal...
       </div>
     );
   }

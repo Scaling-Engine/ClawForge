@@ -34,6 +34,8 @@ export default function CodePageClient({ workspaceId, repoSlug, featureBranch, u
 
   // Shell tab terminal state
   const [shellTicket, setShellTicket] = useState(null);
+  const [shellError, setShellError] = useState(null);
+  const [shellLoading, setShellLoading] = useState(true);
   const [shellDisconnected, setShellDisconnected] = useState(false);
   const initializedRef = useRef(false);
 
@@ -61,11 +63,16 @@ export default function CodePageClient({ workspaceId, repoSlug, featureBranch, u
     initializedRef.current = true;
 
     async function initShell() {
+      setShellLoading(true);
+      setShellError(null);
       try {
         const { ticket } = await requestTerminalTicket(workspaceId, 7681);
         setShellTicket(ticket);
       } catch (err) {
         console.error('Failed to initialize shell terminal:', err);
+        setShellError(err.message || 'Failed to get terminal ticket');
+      } finally {
+        setShellLoading(false);
       }
     }
     initShell();
@@ -319,12 +326,63 @@ export default function CodePageClient({ workspaceId, repoSlug, featureBranch, u
               )}
 
               {tab.id === 'shell' && (
-                <TerminalView
-                  workspaceId={workspaceId}
-                  port={7681}
-                  ticket={shellTicket}
-                  onDisconnect={() => setShellDisconnected(true)}
-                />
+                shellLoading ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    color: '#a6adc8',
+                    fontSize: '13px',
+                    gap: '8px',
+                  }}>
+                    <span style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>Connecting to workspace terminal...</span>
+                  </div>
+                ) : shellError ? (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    gap: '12px',
+                  }}>
+                    <span style={{ color: '#f38ba8', fontSize: '14px' }}>Terminal connection failed</span>
+                    <span style={{ color: '#a6adc8', fontSize: '12px', maxWidth: '400px', textAlign: 'center' }}>{shellError}</span>
+                    <button
+                      onClick={async () => {
+                        setShellLoading(true);
+                        setShellError(null);
+                        try {
+                          const { ticket } = await requestTerminalTicket(workspaceId, 7681);
+                          setShellTicket(ticket);
+                        } catch (err) {
+                          setShellError(err.message || 'Failed to get terminal ticket');
+                        } finally {
+                          setShellLoading(false);
+                        }
+                      }}
+                      style={{
+                        padding: '8px 24px',
+                        fontSize: '13px',
+                        backgroundColor: '#a6e3a1',
+                        color: '#1e1e2e',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : (
+                  <TerminalView
+                    workspaceId={workspaceId}
+                    port={7681}
+                    ticket={shellTicket}
+                    onDisconnect={() => setShellDisconnected(true)}
+                  />
+                )
               )}
 
               {tab.id === 'editor' && (
