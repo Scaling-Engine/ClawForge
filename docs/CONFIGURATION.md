@@ -21,6 +21,7 @@ All environment variables for the Event Handler (set in `.env` in your project r
 | `LLM_PROVIDER` | LLM provider: `anthropic`, `openai`, or `google` (default: `anthropic`) | No |
 | `LLM_MODEL` | LLM model name override (provider-specific default if unset) | No |
 | `ANTHROPIC_API_KEY` | API key for Anthropic provider | For anthropic provider |
+| `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude Max subscription auth (alternative to `ANTHROPIC_API_KEY`). Generated via `claude setup-token`. Added to `AGENT_LLM_SECRETS` JSON — see the Operator Guide for setup steps. | For subscription auth |
 | `OPENAI_API_KEY` | API key for OpenAI provider / Whisper voice transcription | For openai provider or voice |
 | `GOOGLE_API_KEY` | API key for Google provider | For google provider |
 | `DATABASE_PATH` | Override SQLite database location (default: `data/thepopebot.sqlite`) | No |
