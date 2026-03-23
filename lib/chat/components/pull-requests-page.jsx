@@ -248,6 +248,13 @@ function PRRow({ pr, onRemove, showStatusBadge }) {
       {/* Expanded section: file list */}
       {expanded && (
         <div className="border-t border-border bg-muted/10 p-4">
+          {/* PR description */}
+          {pr.body && pr.body !== 'Automated job by ClawForge' && (
+            <div className="mb-4 rounded-md bg-muted/30 p-3">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Description</p>
+              <pre className="text-xs text-foreground/80 whitespace-pre-wrap font-mono leading-relaxed">{pr.body}</pre>
+            </div>
+          )}
           {loadingFiles ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
               <SpinnerIcon size={14} />
