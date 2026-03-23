@@ -106,7 +106,8 @@ jobs:
             fi
 
             # HTTP health check inside container
-            HTTP_STATUS=$(docker exec "$CONTAINER" curl -sf http://localhost:80/api/ping 2>/dev/null; echo $?)
+            docker exec "$CONTAINER" curl -sf http://localhost:80/api/ping > /dev/null 2>&1
+            HTTP_STATUS=$?
             if [ "$HTTP_STATUS" -eq 0 ]; then
               echo "${CONTAINER}: HTTP health check PASSED"
             else
