@@ -7,6 +7,11 @@ import { SortableCodeTab } from './sortable-code-tab.jsx';
 import TerminalView from './terminal-view.jsx';
 import EditorView from './editor-view.jsx';
 import { requestTerminalTicket, requestGitStatus, closeWorkspaceAction } from 'clawforge/ws/actions';
+import { AppSidebar, SidebarProvider, SidebarInset, ChatNavProvider } from 'clawforge/chat';
+
+function defaultNavigateToChat(id) {
+  window.location.href = id ? `/chat/${id}` : '/';
+}
 
 const INITIAL_TABS = [
   { id: 'code', label: 'Code' },
@@ -120,15 +125,19 @@ export default function CodePageClient({ workspaceId, repoSlug, featureBranch, u
   const activeTabIndex = tabs.findIndex((t) => t.id === activeTabId);
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: '#1e1e2e',
-      color: '#cdd6f4',
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-    }}>
+    <ChatNavProvider value={{ activeChatId: null, navigateToChat: defaultNavigateToChat }}>
+      <SidebarProvider>
+        <AppSidebar user={user} />
+        <SidebarInset>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100svh',
+            backgroundColor: '#1e1e2e',
+            color: '#cdd6f4',
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            overflow: 'hidden',
+          }}>
       {/* Top bar */}
       <div style={{
         display: 'flex',
@@ -392,6 +401,9 @@ export default function CodePageClient({ workspaceId, repoSlug, featureBranch, u
           ))}
         </div>
       </div>
-    </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </ChatNavProvider>
   );
 }
