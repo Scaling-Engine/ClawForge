@@ -24,6 +24,7 @@ ARG CACHE_BUST=unknown
 # Copy core source
 COPY lib/ ./lib/
 COPY api/ ./api/
+COPY docs/ ./docs/
 COPY drizzle/ ./drizzle/
 COPY drizzle.config.js ./
 
