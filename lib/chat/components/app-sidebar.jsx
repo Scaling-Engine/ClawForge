@@ -325,7 +325,7 @@ export function AppSidebar({ user }) {
               <TooltipTrigger asChild>
                 <SidebarMenuButton
                   className={collapsed ? 'justify-center' : ''}
-                  onClick={() => window.open('https://scalingengine.com', '_blank')}
+                  onClick={() => { window.location.href = '/support'; }}
                 >
                   <LifeBuoyIcon size={16} />
                   {!collapsed && <span>Support</span>}
