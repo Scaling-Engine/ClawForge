@@ -48,6 +48,8 @@ COPY instances/noah/config/REPOS.json ./config/REPOS.json
 # so it survives named volume mounts over config/ and serves as the seed for DB migration.
 RUN mkdir -p ./defaults
 COPY instances/noah/config/REPOS.json ./defaults/REPOS.json
+# CLUSTER.json is shared across instances (in config/, not instance-specific)
+COPY config/CLUSTER.json ./defaults/CLUSTER.json
 
 # Build JSX components (esbuild: .jsx → .js)
 RUN npm run build
