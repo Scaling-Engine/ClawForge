@@ -44,6 +44,11 @@ COPY instances/strategyES/config/EVENT_HANDLER.md ./config/EVENT_HANDLER.md
 COPY instances/strategyES/config/AGENT.md ./config/AGENT.md
 COPY instances/strategyES/config/REPOS.json ./config/REPOS.json
 
+# Copy REPOS.json to defaults/ — this directory is NOT mounted as a Docker volume,
+# so it survives named volume mounts over config/ and serves as the seed for DB migration.
+RUN mkdir -p ./defaults
+COPY instances/strategyES/config/REPOS.json ./defaults/REPOS.json
+
 # Build JSX components (esbuild: .jsx → .js)
 RUN npm run build
 
