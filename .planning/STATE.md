@@ -145,10 +145,11 @@ The following files must not be modified structurally — additive changes only:
 | 260323-c16 | Enable Claude Max subscription auth: operator docs, admin badge, entrypoint log line | 2026-03-23 | 36daf76 | [260323-c16-enable-claude-max-subscription-auth-for-](./quick/260323-c16-enable-claude-max-subscription-auth-for-/) |
 | 260323-e4s | Create in-app /support page with expandable platform guides replacing external URL redirect | 2026-03-23 | 2ed7b84 | [260323-e4s-create-in-app-support-page-with-platform](./quick/260323-e4s-create-in-app-support-page-with-platform/) |
 | 260323-gcl | Enhance PR page with filter tabs (Open/Approved-Merged/All), expandable rows with inline diffs via DiffView | 2026-03-23 | b8716b2 | [260323-gcl-enhance-pr-page-with-expandable-diffs-fi](./quick/260323-gcl-enhance-pr-page-with-expandable-diffs-fi/) |
+| 260323-gn7 | Auto-generate PR body with commit list, files changed, and diff stats in job entrypoint | 2026-03-23 | c27af17 | [260323-gn7-auto-generate-pr-body-md-in-job-entrypoi](./quick/260323-gn7-auto-generate-pr-body-md-in-job-entrypoi/) |
 
 ## Session Continuity
 
 Last session: 2026-03-23T00:00:00Z
-Stopped at: Completed quick task 260323-gcl
+Stopped at: Completed quick task 260323-gn7
 Resume file: None
 Next action: `/gsd:plan-phase 45`
