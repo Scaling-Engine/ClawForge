@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { CheckIcon, SettingsSliderIcon } from './icons.js';
-import { getConfigValues, updateConfigAction } from '../actions.js';
+import { getConfigValues, updateConfigAction, getJobAuthMethod } from '../actions.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config Field
@@ -162,6 +162,7 @@ function ConfigSection({ title, children }) {
 export function AdminGeneralPage() {
   const [config, setConfig] = useState({});
   const [loading, setLoading] = useState(true);
+  const [authInfo, setAuthInfo] = useState(null);
 
   function loadConfig() {
     setLoading(true);
@@ -175,6 +176,7 @@ export function AdminGeneralPage() {
 
   useEffect(() => {
     loadConfig();
+    getJobAuthMethod().then(setAuthInfo).catch(() => {});
   }, []);
 
   if (loading) {
@@ -192,6 +194,30 @@ export function AdminGeneralPage() {
       <p className="text-sm text-muted-foreground mb-4">
         Platform configuration. Changes take effect on next job dispatch.
       </p>
+
+      <ConfigSection title="Job Container Auth">
+        <div className="flex items-center gap-3 py-2">
+          <div className="w-48 shrink-0">
+            <label className="text-sm font-medium">Auth Method</label>
+            <p className="text-[10px] text-muted-foreground font-mono">AGENT_LLM_SECRETS</p>
+          </div>
+          {authInfo ? (
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                authInfo.method === 'subscription' ? 'bg-green-500/15 text-green-600' :
+                authInfo.method === 'api-key' ? 'bg-blue-500/15 text-blue-600' :
+                'bg-orange-500/15 text-orange-600'
+              }`}>
+                {authInfo.method === 'subscription' ? 'Subscription' :
+                 authInfo.method === 'api-key' ? 'API Key' : 'Not Configured'}
+              </span>
+              <span className="text-xs text-muted-foreground">{authInfo.detail}</span>
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground">Loading...</span>
+          )}
+        </div>
+      </ConfigSection>
 
       <ConfigSection title="LLM">
         <ConfigField

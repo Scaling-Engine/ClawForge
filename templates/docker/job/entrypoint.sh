@@ -115,6 +115,16 @@ echo "Working directory: $(pwd)"
 echo "Job ID: ${JOB_ID}"
 echo "Dispatch mode: ${DISPATCH_MODE:-actions}"
 
+# Detect auth method for observability
+if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+    AUTH_METHOD="subscription (CLAUDE_CODE_OAUTH_TOKEN)"
+elif [ -n "$ANTHROPIC_API_KEY" ]; then
+    AUTH_METHOD="api-key (ANTHROPIC_API_KEY)"
+else
+    AUTH_METHOD="none detected"
+fi
+echo "Auth method: ${AUTH_METHOD}"
+
 # Verify GSD is present (fail-fast)
 if [ ! -d "${HOME}/.claude/commands/gsd/" ]; then
     echo "ERROR: GSD not installed at ${HOME}/.claude/commands/gsd/" | tee "${LOG_DIR}/preflight.md"
@@ -133,6 +143,7 @@ cat > "${LOG_DIR}/preflight.md" << EOF
 | Working directory | $(pwd) |
 | Timestamp | $(date -u +"%Y-%m-%dT%H:%M:%SZ") |
 | Dispatch mode | ${DISPATCH_MODE:-actions} |
+| Auth method | ${AUTH_METHOD} |
 
 ## GSD Commands Present
 
