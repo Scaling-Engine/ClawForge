@@ -1,6 +1,7 @@
 import { auth } from 'clawforge/auth';
 import { redirect } from 'next/navigation';
 import { getWorkspace } from 'clawforge/db/workspaces';
+import CodePageLoader from './code-page-loader.jsx';
 
 /**
  * Server component for the Code IDE page.
@@ -17,11 +18,8 @@ export default async function CodePage({ params }) {
     redirect('/chats');
   }
 
-  // Dynamic import of client component (avoids SSR issues with xterm.js)
-  const { default: CodePageClient } = await import('./code-page.jsx');
-
   return (
-    <CodePageClient
+    <CodePageLoader
       workspaceId={workspace.id}
       repoSlug={workspace.repoSlug}
       featureBranch={workspace.featureBranch}
