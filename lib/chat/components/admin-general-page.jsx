@@ -156,6 +156,43 @@ function ConfigSection({ title, children }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Auth Field with Help Toggle
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AuthFieldWithHelp({ label, configKey, value, onSaved, helpTitle, helpSteps, helpNote }) {
+  const [showHelp, setShowHelp] = useState(false);
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 pt-2">
+        <div className="flex-1">
+          <ConfigField label={label} configKey={configKey} value={value} isSecret onSaved={onSaved} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowHelp(!showHelp)}
+          className="text-[11px] px-1.5 py-0.5 rounded border text-muted-foreground hover:bg-accent hover:text-foreground shrink-0"
+          title={showHelp ? 'Hide instructions' : 'How to find this'}
+        >
+          ?
+        </button>
+      </div>
+      {showHelp && (
+        <div className="ml-[12.5rem] mt-1 mb-2 rounded-md border bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground mb-1.5">{helpTitle}</p>
+          <ol className="list-decimal list-inside space-y-1">
+            {helpSteps.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
+          {helpNote && <p className="mt-2 text-[10px] opacity-75">{helpNote}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -217,19 +254,33 @@ export function AdminGeneralPage() {
             <span className="text-xs text-muted-foreground">Loading...</span>
           )}
         </div>
-        <ConfigField
+        <AuthFieldWithHelp
           label="Claude Subscription Token"
           configKey="CLAUDE_CODE_OAUTH_TOKEN"
           value={config.CLAUDE_CODE_OAUTH_TOKEN}
-          isSecret
           onSaved={() => { loadConfig(); getJobAuthMethod().then(setAuthInfo); }}
+          helpTitle="How to find your Claude subscription token"
+          helpSteps={[
+            'Open a terminal on the machine where Claude Code is logged in',
+            'Run: claude auth status — verify you see "loggedIn: true"',
+            'Run: security find-generic-password -s "Claude Code-credentials" -a "$(whoami)" -w | python3 -c "import sys,json; print(json.loads(sys.stdin.read())[\'claudeAiOauth\'][\'accessToken\'])"',
+            'Copy the token that starts with sk-ant-oat01-... and paste it above',
+          ]}
+          helpNote="Uses your Claude Max/Pro subscription. No API billing — included in your plan."
         />
-        <ConfigField
+        <AuthFieldWithHelp
           label="Anthropic API Key"
           configKey="ANTHROPIC_API_KEY"
           value={config.ANTHROPIC_API_KEY}
-          isSecret
           onSaved={() => { loadConfig(); getJobAuthMethod().then(setAuthInfo); }}
+          helpTitle="How to find your Anthropic API key"
+          helpSteps={[
+            'Go to console.anthropic.com and sign in',
+            'Navigate to Settings → API Keys',
+            'Click "Create Key" or copy an existing one',
+            'Paste the key that starts with sk-ant-api03-... above',
+          ]}
+          helpNote="Pay-per-use API billing. Used as fallback if no subscription token is set."
         />
       </ConfigSection>
 
