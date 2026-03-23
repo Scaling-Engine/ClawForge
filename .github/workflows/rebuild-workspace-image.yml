@@ -28,10 +28,10 @@ jobs:
         run: |
           IMAGE_ID=$(docker image inspect scalingengine/clawforge:workspace-latest --format '{{.Id}}')
           echo "Image ID: $IMAGE_ID"
-          # Verify ttyd is installed
-          docker run --rm scalingengine/clawforge:workspace-latest which ttyd
+          # Verify ttyd is installed (override entrypoint to avoid repo clone)
+          docker run --rm --entrypoint which scalingengine/clawforge:workspace-latest ttyd
           # Verify tmux is installed
-          docker run --rm scalingengine/clawforge:workspace-latest which tmux
+          docker run --rm --entrypoint which scalingengine/clawforge:workspace-latest tmux
 
       - name: Print summary
         run: |
