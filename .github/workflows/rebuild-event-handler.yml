@@ -95,13 +95,48 @@ jobs:
           echo "Waiting for containers to stabilize..."
           sleep 15
           FAILED=0
+          set +e
           for CONTAINER in clawforge-noah clawforge-ses; do
+            # Docker health status check
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo "unknown")
-            echo "${CONTAINER}: ${STATUS}"
+            echo "${CONTAINER} docker status: ${STATUS}"
             if [ "$STATUS" != "healthy" ]; then
+              echo "${CONTAINER}: docker health check FAILED (status: ${STATUS})"
+              FAILED=1
+            fi
+
+            # HTTP health check inside container
+            HTTP_STATUS=$(docker exec "$CONTAINER" curl -sf http://localhost:80/api/ping 2>/dev/null; echo $?)
+            if [ "$HTTP_STATUS" -eq 0 ]; then
+              echo "${CONTAINER}: HTTP health check PASSED"
+            else
+              echo "${CONTAINER}: HTTP health check FAILED (curl exit: ${HTTP_STATUS})"
               FAILED=1
             fi
           done
+          set -e
+
           if [ "$FAILED" -eq 1 ]; then
-            echo "Warning: not all containers healthy yet (may still be starting)"
+            echo "Not all containers are healthy after rebuild."
+
+            # Load .env to get Slack credentials
+            ENV_FILE="${{ steps.setup.outputs.dir }}/.env"
+            if [ -f "$ENV_FILE" ]; then
+              set -o allexport
+              # shellcheck disable=SC1090
+              source "$ENV_FILE"
+              set +o allexport
+            fi
+
+            if [ -n "$SLACK_BOT_TOKEN" ] && [ -n "$SLACK_OPERATOR_CHANNEL" ]; then
+              curl -s -X POST https://slack.com/api/chat.postMessage \
+                -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data "{\"channel\":\"$SLACK_OPERATOR_CHANNEL\",\"text\":\"Deploy alert: Not all ClawForge containers are healthy after rebuild. Check VPS.\"}"
+              echo "Slack notification sent to $SLACK_OPERATOR_CHANNEL"
+            else
+              echo "Warning: SLACK_BOT_TOKEN or SLACK_OPERATOR_CHANNEL not set — skipping Slack notification"
+            fi
+
+            exit 1
           fi
