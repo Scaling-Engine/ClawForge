@@ -198,8 +198,8 @@ export function AdminGeneralPage() {
       <ConfigSection title="Job Container Auth">
         <div className="flex items-center gap-3 py-2">
           <div className="w-48 shrink-0">
-            <label className="text-sm font-medium">Auth Method</label>
-            <p className="text-[10px] text-muted-foreground font-mono">AGENT_LLM_SECRETS</p>
+            <label className="text-sm font-medium">Status</label>
+            <p className="text-[10px] text-muted-foreground font-mono">active method</p>
           </div>
           {authInfo ? (
             <div className="flex items-center gap-2">
@@ -217,6 +217,20 @@ export function AdminGeneralPage() {
             <span className="text-xs text-muted-foreground">Loading...</span>
           )}
         </div>
+        <ConfigField
+          label="Claude Subscription Token"
+          configKey="CLAUDE_CODE_OAUTH_TOKEN"
+          value={config.CLAUDE_CODE_OAUTH_TOKEN}
+          isSecret
+          onSaved={() => { loadConfig(); getJobAuthMethod().then(setAuthInfo); }}
+        />
+        <ConfigField
+          label="Anthropic API Key"
+          configKey="ANTHROPIC_API_KEY"
+          value={config.ANTHROPIC_API_KEY}
+          isSecret
+          onSaved={() => { loadConfig(); getJobAuthMethod().then(setAuthInfo); }}
+        />
       </ConfigSection>
 
       <ConfigSection title="LLM">
