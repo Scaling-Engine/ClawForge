@@ -42,22 +42,22 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
     getRepos().then(setRepos).catch(() => setRepos([]));
   }, []);
 
-  const handleRepoChange = useCallback(async (slug) => {
-    if (!slug) {
+  const handleRepoChange = useCallback(async (fullSlug) => {
+    if (!fullSlug) {
       setSelectedRepo(null);
       setSelectedBranch(null);
       setBranches([]);
       return;
     }
-    const repo = repos.find((r) => r.slug === slug);
+    const repo = repos.find((r) => `${r.owner}/${r.slug}` === fullSlug);
     if (!repo) return;
     setSelectedRepo(repo);
     setSelectedBranch(null);
     setBranches([]);
     setLoadingBranches(true);
-    branchLoadingForRepo.current = slug;
+    branchLoadingForRepo.current = fullSlug;
     const result = await getBranches(repo.owner, repo.slug);
-    if (branchLoadingForRepo.current === slug) {
+    if (branchLoadingForRepo.current === fullSlug) {
       setBranches(result);
       setLoadingBranches(false);
     }
@@ -247,15 +247,15 @@ export function Chat({ chatId, initialMessages = [], isAdmin = false }) {
         {/* Repo selector — visible only when Code is ON */}
         {codeActive && (
           <select
-            value={selectedRepo?.slug || ''}
+            value={selectedRepo ? `${selectedRepo.owner}/${selectedRepo.slug}` : ''}
             onChange={(e) => handleRepoChange(e.target.value)}
             disabled={isStreaming}
             className="text-xs bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
           >
             <option value="">No repo selected</option>
             {repos.map((r) => (
-              <option key={r.slug} value={r.slug}>
-                {r.name}
+              <option key={`${r.owner}/${r.slug}`} value={`${r.owner}/${r.slug}`}>
+                {r.owner}/{r.name}
               </option>
             ))}
           </select>
