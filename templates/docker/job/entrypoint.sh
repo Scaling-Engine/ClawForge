@@ -582,6 +582,33 @@ fi
 # Read final gate state
 GATE_PASS=$(cat /tmp/gate_pass 2>/dev/null || echo "true")
 
+# === GENERATE PR BODY ===
+if [ "$HAS_NEW_COMMIT" = "true" ]; then
+  {
+    echo "## Job \`${JOB_ID}\`"
+    echo ""
+    echo "### Commits"
+    echo ""
+    echo '```'
+    git log --oneline main..HEAD
+    echo '```'
+    echo ""
+    echo "### Files Changed"
+    echo ""
+    echo '```'
+    git diff --stat main..HEAD
+    echo '```'
+    echo ""
+    echo "### Summary"
+    echo ""
+    ADDITIONS=$(git diff --numstat main..HEAD | awk '{s+=$1} END {print s+0}')
+    DELETIONS=$(git diff --numstat main..HEAD | awk '{s+=$2} END {print s+0}')
+    FILE_COUNT=$(git diff --name-only main..HEAD | wc -l | tr -d ' ')
+    echo "**${FILE_COUNT} files** changed, **+${ADDITIONS}** additions, **-${DELETIONS}** deletions"
+  } > /tmp/pr-body.md
+  echo "Generated PR body: /tmp/pr-body.md"
+fi
+
 # Create PR only if Claude succeeded AND produced commits
 # If gates passed (or no gates configured): normal PR
 # If gates failed after self-correction: PR with needs-fixes label (EXEC-04)

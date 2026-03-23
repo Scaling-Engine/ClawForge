@@ -263,6 +263,33 @@ if [ "$HEAD_BEFORE" != "$HEAD_AFTER" ]; then
     HAS_NEW_COMMIT=true
 fi
 
+# === GENERATE PR BODY ===
+if [ "$HAS_NEW_COMMIT" = "true" ]; then
+  {
+    echo "## Job \`${JOB_ID}\`"
+    echo ""
+    echo "### Commits"
+    echo ""
+    echo '```'
+    git log --oneline main..HEAD
+    echo '```'
+    echo ""
+    echo "### Files Changed"
+    echo ""
+    echo '```'
+    git diff --stat main..HEAD
+    echo '```'
+    echo ""
+    echo "### Summary"
+    echo ""
+    ADDITIONS=$(git diff --numstat main..HEAD | awk '{s+=$1} END {print s+0}')
+    DELETIONS=$(git diff --numstat main..HEAD | awk '{s+=$2} END {print s+0}')
+    FILE_COUNT=$(git diff --name-only main..HEAD | wc -l | tr -d ' ')
+    echo "**${FILE_COUNT} files** changed, **+${ADDITIONS}** additions, **-${DELETIONS}** deletions"
+  } > /tmp/pr-body.md
+  echo "Generated PR body: /tmp/pr-body.md"
+fi
+
 # Create PR only if Claude succeeded AND produced commits
 if [ "$CLAUDE_EXIT" -eq 0 ] && [ "$HAS_NEW_COMMIT" = "true" ]; then
     if [ -f /tmp/pr-body.md ]; then
