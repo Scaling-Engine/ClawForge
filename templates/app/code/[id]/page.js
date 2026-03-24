@@ -1,11 +1,13 @@
 import { auth } from 'clawforge/auth';
 import { redirect } from 'next/navigation';
 import { getWorkspace } from 'clawforge/db/workspaces';
-import CodePageLoader from './code-page-loader.jsx';
+import CodePageClient from './code-page.jsx';
 
 /**
  * Server component for the Code IDE page.
  * Auth-gated, redirects to /chats if workspace not found or not running.
+ * Renders CodePageClient directly (same pattern as chat page) to avoid
+ * hydration mismatches from dynamic(ssr:false) wrapper.
  */
 export default async function CodePage({ params }) {
   const session = await auth();
@@ -19,7 +21,7 @@ export default async function CodePage({ params }) {
   }
 
   return (
-    <CodePageLoader
+    <CodePageClient
       workspaceId={workspace.id}
       repoSlug={workspace.repoSlug}
       featureBranch={workspace.featureBranch}
