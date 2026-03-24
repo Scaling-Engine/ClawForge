@@ -1,10 +1,13 @@
 #!/bin/bash
-set -e
+# ClawForge Workspace Entrypoint
+# NEVER exits early — ttyd MUST start so users can debug.
+
+ERRORS=""
 
 # ── Git setup ─────────────────────────────────────────────────────────
 if [ -n "$GH_TOKEN" ]; then
-  echo "$GH_TOKEN" | gh auth login --with-token
-  gh auth setup-git
+  echo "$GH_TOKEN" | gh auth login --with-token 2>/dev/null || ERRORS="${ERRORS}gh-auth "
+  gh auth setup-git 2>/dev/null || true
 fi
 
 GH_USER_JSON=$(gh api user -q '{name: .name, login: .login, email: .email, id: .id}' 2>/dev/null || echo '{}')
@@ -13,42 +16,35 @@ GH_USER_EMAIL=$(echo "$GH_USER_JSON" | jq -r '.email // "clawforge@noreply.githu
 git config --global user.name "$GH_USER_NAME"
 git config --global user.email "$GH_USER_EMAIL"
 
-WORKSPACE_DIR="/home/claude-code/workspace"
-cd "$WORKSPACE_DIR"
+cd /workspace
 
 # ── Clone or update repo ──────────────────────────────────────────────
-if [ ! -d ".git" ]; then
-  git clone --branch "$BRANCH" "$REPO_URL" .
-else
-  git remote set-url origin "$REPO_URL" 2>/dev/null || true
-  git fetch origin
-  git checkout "$BRANCH"
-  git reset --hard "origin/$BRANCH"
-  git clean -fd
-fi
-
-# ── Feature branch ────────────────────────────────────────────────────
-if [ -n "$FEATURE_BRANCH" ]; then
-  if git ls-remote --heads origin "$FEATURE_BRANCH" | grep -q .; then
-    git checkout -B "$FEATURE_BRANCH" "origin/$FEATURE_BRANCH"
+if [ -n "$REPO_URL" ]; then
+  if [ ! -d ".git" ]; then
+    echo "[entrypoint] cloning $REPO_URL..."
+    git clone --branch "${BRANCH:-main}" "$REPO_URL" . 2>&1 || ERRORS="${ERRORS}clone "
   else
-    git checkout -b "$FEATURE_BRANCH"
-    git push -u origin "$FEATURE_BRANCH" 2>/dev/null || true
+    git remote set-url origin "$REPO_URL" 2>/dev/null || true
+    git fetch origin 2>/dev/null || ERRORS="${ERRORS}fetch "
+  fi
+
+  if [ -n "$FEATURE_BRANCH" ] && [ -d ".git" ]; then
+    if git ls-remote --heads origin "$FEATURE_BRANCH" 2>/dev/null | grep -q .; then
+      git checkout -B "$FEATURE_BRANCH" "origin/$FEATURE_BRANCH" 2>/dev/null || true
+    else
+      git checkout -b "$FEATURE_BRANCH" 2>/dev/null || true
+      git push -u origin "$FEATURE_BRANCH" 2>/dev/null || true
+    fi
   fi
 fi
 
-# ── Chat context injection (from conversational bridge) ───────────────
+# ── Chat context ──────────────────────────────────────────────────────
 if [ -n "$CHAT_CONTEXT" ]; then
   mkdir -p .claude
-  cat > .claude/chat-context.txt << 'CTXHEADER'
-The following is a previous planning conversation between the user and an AI assistant. The user has now switched to this interactive coding session to continue working on this task. Use this conversation as context.
-
-CTXHEADER
-  echo "$CHAT_CONTEXT" >> .claude/chat-context.txt
+  printf 'Previous conversation context:\n\n%s\n' "$CHAT_CONTEXT" > .claude/chat-context.txt
 fi
 
 # ── Claude Code auth ──────────────────────────────────────────────────
-# Support both OAuth token (Claude Max subscription) and API key
 if [ -n "$AGENT_LLM_CLAUDE_CODE_OAUTH_TOKEN" ]; then
   unset ANTHROPIC_API_KEY
   export CLAUDE_CODE_OAUTH_TOKEN="$AGENT_LLM_CLAUDE_CODE_OAUTH_TOKEN"
@@ -57,44 +53,20 @@ elif [ -n "$AGENT_LLM_ANTHROPIC_API_KEY" ]; then
 fi
 
 # ── Claude Code settings ─────────────────────────────────────────────
-mkdir -p ~/.claude
-
-if [ -f "${WORKSPACE_DIR}/.claude/chat-context.txt" ]; then
-  cat > ~/.claude/settings.json << SETTINGSEOF
-{
-  "theme": "dark",
-  "hasTrustDialogAccepted": true,
-  "skipDangerousModePermissionPrompt": true,
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cat ${WORKSPACE_DIR}/.claude/chat-context.txt"
-          }
-        ]
-      }
-    ]
-  }
-}
-SETTINGSEOF
-else
-  cat > ~/.claude/settings.json << 'EOF'
+mkdir -p /root/.claude
+cat > /root/.claude/settings.json << 'EOF'
 {
   "theme": "dark",
   "hasTrustDialogAccepted": true,
   "skipDangerousModePermissionPrompt": true
 }
 EOF
-fi
 
-cat > ~/.claude.json << ENDJSON
+cat > /root/.claude.json << ENDJSON
 {
   "hasCompletedOnboarding": true,
   "projects": {
-    "${WORKSPACE_DIR}": {
+    "/workspace": {
       "allowedTools": ["WebSearch"],
       "hasTrustDialogAccepted": true,
       "hasTrustDialogHooksAccepted": true
@@ -103,12 +75,19 @@ cat > ~/.claude.json << ENDJSON
 }
 ENDJSON
 
-# Signal readiness
 touch /tmp/.workspace-ready
 
-# ── Launch Claude Code in tmux, serve via ttyd ────────────────────────
-# Claude Code runs in a tmux session; ttyd attaches to it as PID 1.
-# Users see Claude Code CLI immediately, not a raw shell.
-tmux -u new-session -d -s claude 'claude --dangerously-skip-permissions'
+[ -n "$ERRORS" ] && echo "[entrypoint] warnings: $ERRORS"
 
-exec ttyd --writable -p "${PORT:-7681}" --ping-interval 30 tmux attach -t claude
+# ── Launch ────────────────────────────────────────────────────────────
+if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] || [ -n "$ANTHROPIC_API_KEY" ]; then
+  echo "[entrypoint] launching Claude Code..."
+  tmux -u new-session -d -s claude "cd /workspace && claude --dangerously-skip-permissions"
+  sleep 1
+  if tmux has-session -t claude 2>/dev/null; then
+    exec ttyd --writable -p "${PORT:-7681}" --ping-interval 30 tmux attach -t claude
+  fi
+fi
+
+echo "[entrypoint] falling back to bash shell"
+exec ttyd --writable -p "${PORT:-7681}" --ping-interval 30 tmux new -A -s workspace
