@@ -31,6 +31,11 @@ const INITIAL_TABS = [
  * @param {object} props.user - Authenticated user object
  */
 export default function CodePageClient({ workspaceId, repoSlug, featureBranch, user }) {
+  // Defer all rendering until after client mount to prevent React #418 hydration mismatch.
+  // The SidebarProvider reads cookies client-side which can differ from server render.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [tabs, setTabs] = useState(INITIAL_TABS);
   const [activeTabId, setActiveTabId] = useState('shell');
   const [showFileTree, setShowFileTree] = useState(false);
@@ -123,6 +128,24 @@ export default function CodePageClient({ workspaceId, repoSlug, featureBranch, u
 
   // Derive active tab index for panel display (survives DnD reorders)
   const activeTabIndex = tabs.findIndex((t) => t.id === activeTabId);
+
+  if (!mounted) {
+    return (
+      <div style={{
+        width: '100%',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#1e1e2e',
+        color: '#585b70',
+        fontSize: '13px',
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      }}>
+        Loading workspace...
+      </div>
+    );
+  }
 
   return (
     <ChatNavProvider value={{ activeChatId: null, navigateToChat: defaultNavigateToChat }}>
