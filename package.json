@@ -20,6 +20,7 @@
     "./chat/actions": "./lib/chat/actions.js",
     "./db/workspaces": "./lib/db/workspaces.js",
     "./ws/actions": "./lib/ws/actions.js",
+    "./code/actions": "./lib/code/actions.js",
     "./middleware": "./lib/auth/middleware.js",
     "./package.json": "./package.json"
   },

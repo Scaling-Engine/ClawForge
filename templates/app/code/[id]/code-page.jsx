@@ -1,430 +1,358 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { SortableCodeTab } from './sortable-code-tab.jsx';
-import TerminalView from './terminal-view.jsx';
-import EditorView from './editor-view.jsx';
-import { requestTerminalTicket, requestGitStatus, closeWorkspaceAction } from 'clawforge/ws/actions';
+import { useState, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { AppSidebar, SidebarProvider, SidebarInset, ChatNavProvider } from 'clawforge/chat';
+import {
+  ensureCodeWorkspaceContainer,
+  closeInteractiveMode,
+  getContainerGitStatus,
+  createTerminalSession,
+  closeTerminalSession,
+  listTerminalSessions,
+} from 'clawforge/code/actions';
+
+const TerminalView = dynamic(() => import('./terminal-view.jsx'), { ssr: false });
 
 function defaultNavigateToChat(id) {
   window.location.href = id ? `/chat/${id}` : '/';
 }
 
-const INITIAL_TABS = [
-  { id: 'code', label: 'Code' },
-  { id: 'shell', label: 'Shell' },
-  { id: 'editor', label: 'Editor' },
-];
+const PRIMARY_TAB_ID = 'code-primary';
 
-/**
- * Code IDE page client component.
- * Three fixed DnD-sortable tabs: Code (AI streaming placeholder), Shell (xterm.js), Editor (file tree).
- * Tab panels rendered simultaneously with display toggle to preserve xterm.js state.
- *
- * @param {object} props
- * @param {string} props.workspaceId - Workspace UUID
- * @param {string} props.repoSlug - Repository slug (owner/repo)
- * @param {string} props.featureBranch - Feature branch name
- * @param {object} props.user - Authenticated user object
- */
 export default function CodePageClient({ workspaceId, repoSlug, featureBranch, user }) {
-  // Defer all rendering until after client mount to prevent React #418 hydration mismatch.
-  // The SidebarProvider reads cookies client-side which can differ from server render.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const [tabs, setTabs] = useState(INITIAL_TABS);
-  const [activeTabId, setActiveTabId] = useState('shell');
-  const [showFileTree, setShowFileTree] = useState(false);
-  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [tabs, setTabs] = useState([
+    { id: PRIMARY_TAB_ID, label: 'Code', type: 'code', primary: true },
+  ]);
+  const [activeTabId, setActiveTabId] = useState(PRIMARY_TAB_ID);
+  const [creatingShell, setCreatingShell] = useState(false);
+  const [closingTabId, setClosingTabId] = useState(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [gitStatus, setGitStatus] = useState(null);
+  const [closing, setClosing] = useState(false);
+  const [closeError, setCloseError] = useState('');
 
-  // Shell tab terminal state
-  const [shellTicket, setShellTicket] = useState(null);
-  const [shellError, setShellError] = useState(null);
-  const [shellLoading, setShellLoading] = useState(true);
-  const [shellDisconnected, setShellDisconnected] = useState(false);
-  const initializedRef = useRef(false);
-
-  // DnD sensors: pointer (desktop), touch (mobile, 250ms delay prevents scroll conflict), keyboard (a11y)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor)
-  );
-
-  const handleDragEnd = useCallback((event) => {
-    const { active, over } = event;
-    if (active.id !== over?.id) {
-      setTabs((prev) => {
-        const oldIndex = prev.findIndex((t) => t.id === active.id);
-        const newIndex = prev.findIndex((t) => t.id === over.id);
-        return arrayMove(prev, oldIndex, newIndex);
-      });
-    }
-  }, []);
-
-  // Request terminal ticket on mount for the Shell tab
+  // Restore existing sessions on mount
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    async function initShell() {
-      setShellLoading(true);
-      setShellError(null);
-      try {
-        const { ticket } = await requestTerminalTicket(workspaceId, 7681);
-        setShellTicket(ticket);
-      } catch (err) {
-        console.error('Failed to initialize shell terminal:', err);
-        setShellError(err.message || 'Failed to get terminal ticket');
-      } finally {
-        setShellLoading(false);
+    listTerminalSessions(workspaceId).then((result) => {
+      if (result?.success && result.sessions?.length > 0) {
+        const restored = [
+          { id: PRIMARY_TAB_ID, label: 'Code', type: 'code', primary: true },
+          ...result.sessions.map((s) => ({ id: s.id, label: s.label, type: s.type || 'shell' })),
+        ];
+        setTabs(restored);
       }
-    }
-    initShell();
+    }).catch(() => {});
   }, [workspaceId]);
 
-  // Browser beforeunload warning
-  useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, []);
-
-  // Check git status and show close warning or close immediately
-  const handleClose = useCallback(async () => {
+  const handleNewShell = useCallback(async () => {
+    setCreatingShell(true);
     try {
-      const status = await requestGitStatus(workspaceId);
-      setGitStatus(status);
-
-      if (status.safe) {
-        // Fire-and-forget: stop container and notify thread with commits
-        closeWorkspaceAction(workspaceId).catch(() => {});
-        // Navigate immediately — don't wait for close to complete
-        window.location.href = '/chats';
-      } else {
-        setShowCloseWarning(true);
+      const result = await createTerminalSession(workspaceId, 'shell');
+      if (result?.success) {
+        const newTab = { id: result.sessionId, label: result.label, type: 'shell' };
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabId(result.sessionId);
       }
     } catch (err) {
-      // On error, show warning anyway
-      setGitStatus({
-        hasUncommitted: false,
-        uncommittedFiles: [],
-        hasUnpushed: false,
-        unpushedCommits: [],
-        safe: false,
-        error: err.message,
-      });
-      setShowCloseWarning(true);
+      console.error('[CodePage] Failed to create shell:', err);
+    } finally {
+      setCreatingShell(false);
     }
   }, [workspaceId]);
 
-  // Derive active tab index for panel display (survives DnD reorders)
-  const activeTabIndex = tabs.findIndex((t) => t.id === activeTabId);
+  const handleCloseTab = useCallback(async (tabId) => {
+    try {
+      await closeTerminalSession(workspaceId, tabId);
+    } catch {
+      // Best effort
+    }
+    setTabs((prev) => prev.filter((t) => t.id !== tabId));
+    setActiveTabId((prev) => (prev === tabId ? PRIMARY_TAB_ID : prev));
+  }, [workspaceId]);
 
-  if (!mounted) {
-    return (
-      <div style={{
-        width: '100%',
-        height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#1e1e2e',
-        color: '#585b70',
-        fontSize: '13px',
-        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      }}>
-        Loading workspace...
-      </div>
-    );
-  }
+  const handleOpenCloseDialog = useCallback(async () => {
+    setShowCloseConfirm(true);
+    try {
+      const status = await getContainerGitStatus(workspaceId);
+      setGitStatus(status);
+    } catch {
+      setGitStatus(null);
+    }
+  }, [workspaceId]);
+
+  const handleConfirmClose = useCallback(async () => {
+    setClosing(true);
+    setCloseError('');
+    try {
+      const result = await closeInteractiveMode(workspaceId, true);
+      if (result?.success) {
+        window.location.href = result.chatId ? `/chat/${result.chatId}` : '/';
+      } else {
+        setCloseError(result?.message || 'Failed to close session');
+        setClosing(false);
+      }
+    } catch (err) {
+      setCloseError(err.message || 'An unexpected error occurred');
+      setClosing(false);
+    }
+  }, [workspaceId]);
 
   return (
     <ChatNavProvider value={{ activeChatId: null, navigateToChat: defaultNavigateToChat }}>
       <SidebarProvider>
         <AppSidebar user={user} />
         <SidebarInset>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100svh',
-            backgroundColor: '#1e1e2e',
-            color: '#cdd6f4',
-            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-            overflow: 'hidden',
-          }}>
-      {/* Top bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 16px',
-        backgroundColor: '#181825',
-        borderBottom: '1px solid #313244',
-        flexShrink: 0,
-      }}>
-        {/* Left: Repo breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '13px', color: '#a6adc8' }}>
-            {repoSlug} <span style={{ color: '#585b70' }}>/</span> {featureBranch}
-          </span>
-        </div>
-
-        {/* Right: DnD tabs + toolbar buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* DnD-sortable tab buttons: each SortableCodeTab renders with role="tab", aria-selected, aria-controls */}
-          <div role="tablist" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-                {tabs.map((tab) => (
-                  <SortableCodeTab
-                    key={tab.id}
-                    id={tab.id}
-                    label={tab.label}
-                    isActive={tab.id === activeTabId}
-                    onClick={() => setActiveTabId(tab.id)}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-          </div>
-
-          {/* Files sidebar toggle */}
-          <button
-            onClick={() => setShowFileTree((prev) => !prev)}
-            style={{
-              padding: '4px 10px',
-              fontSize: '12px',
-              backgroundColor: showFileTree ? '#313244' : 'transparent',
-              color: '#a6adc8',
-              border: '1px solid #585b70',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            {showFileTree ? 'Hide Files' : 'Files'}
-          </button>
-
-          {/* Close Workspace button */}
-          <button
-            onClick={handleClose}
-            aria-label="Close workspace"
-            style={{
-              padding: '4px 12px',
-              fontSize: '12px',
-              backgroundColor: '#f38ba8',
-              color: '#1e1e2e',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginLeft: '8px',
-            }}
-          >
-            Close Workspace
-          </button>
-        </div>
-      </div>
-
-      {/* Unsafe close warning panel */}
-      {showCloseWarning && (
-        <div style={{
-          backgroundColor: '#181825',
-          borderBottom: '1px solid #f38ba8',
-          padding: '12px 16px',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap',
-        }}>
-          <span style={{ color: '#f38ba8', fontSize: '13px', fontWeight: '600' }}>
-            You have unsaved changes
-          </span>
-          {gitStatus?.hasUncommitted && (
-            <span style={{ color: '#fab387', fontSize: '12px' }}>
-              {gitStatus.uncommittedFiles.length} uncommitted file(s).
-            </span>
-          )}
-          {gitStatus?.hasUnpushed && (
-            <span style={{ color: '#fab387', fontSize: '12px' }}>
-              {gitStatus.unpushedCommits.length} unpushed commit(s).
-            </span>
-          )}
-          {gitStatus?.error && (
-            <span style={{ color: '#f38ba8', fontSize: '12px' }}>
-              Could not check git status: {gitStatus.error}
-            </span>
-          )}
-          <span style={{ color: '#a6adc8', fontSize: '12px' }}>Close anyway?</span>
-          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
-            <button
-              onClick={() => setShowCloseWarning(false)}
-              style={{
-                padding: '4px 16px',
-                fontSize: '12px',
-                backgroundColor: '#313244',
-                color: '#cdd6f4',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              Keep Working
-            </button>
-            <button
-              onClick={() => {
-                // Fire-and-forget: stop container and notify thread with commits
-                closeWorkspaceAction(workspaceId).catch(() => {});
-                // Navigate immediately
-                window.location.href = '/chats';
-              }}
-              style={{
-                padding: '4px 16px',
-                fontSize: '12px',
-                backgroundColor: '#f38ba8',
-                color: '#1e1e2e',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              Close Anyway
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Content area: optional file tree sidebar + tab panels */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* File tree sidebar — 240px, toggled by Files button */}
-        {showFileTree && (
-          <div style={{
-            width: '240px',
-            minWidth: '240px',
-            background: '#181825',
-            borderRight: '1px solid #313244',
-            overflowY: 'auto',
-            flexShrink: 0,
-          }}>
-            {/* Inline file tree in sidebar (separate from Editor tab's full file tree) */}
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100svh', overflow: 'hidden' }}>
+            {/* Top bar */}
             <div style={{
-              padding: '6px 8px',
-              borderBottom: '1px solid #313244',
-              color: '#a6adc8',
-              fontSize: '11px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 16px',
+              borderBottom: '1px solid var(--border)',
+              flexShrink: 0,
+              background: 'var(--background)',
             }}>
-              Files
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, color: 'var(--muted-foreground)', fontFamily: 'ui-monospace, monospace' }}>
+                  {repoSlug} / {featureBranch}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* + Shell tab button */}
+                <button
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 12,
+                    background: 'transparent',
+                    color: 'var(--muted-foreground)',
+                    border: '1px dashed var(--border)',
+                    borderRadius: 4,
+                    cursor: creatingShell ? 'default' : 'pointer',
+                    fontFamily: 'ui-monospace, monospace',
+                    opacity: creatingShell ? 0.5 : 1,
+                  }}
+                  onClick={handleNewShell}
+                  disabled={creatingShell}
+                >
+                  {creatingShell ? '...' : '+ Shell'}
+                </button>
+                {/* Close button */}
+                <button
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: 12,
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                  onClick={handleOpenCloseDialog}
+                >
+                  Close Workspace
+                </button>
+              </div>
             </div>
-            <EditorView workspaceId={workspaceId} />
-          </div>
-        )}
 
-        {/* Tab panels — all rendered, only active is visible */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          {tabs.map((tab, i) => (
-            <div
-              key={tab.id}
-              id={`panel-${tab.id}`}
-              role="tabpanel"
-              aria-labelledby={`tab-${tab.id}`}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: tab.id === activeTabId ? 'block' : 'none',
-                backgroundColor: '#1e1e2e',
-              }}
-            >
-              {tab.id === 'code' && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                  color: '#585b70',
-                  fontSize: '13px',
-                }}>
-                  Select a repo and send a message to start coding.
-                </div>
-              )}
-
-              {tab.id === 'shell' && (
-                shellLoading ? (
-                  <div style={{
+            {/* Tab bar */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              padding: '0 16px',
+              background: 'var(--muted)',
+              borderBottom: '1px solid var(--border)',
+              flexShrink: 0,
+              gap: 2,
+            }}>
+              {tabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    color: '#a6adc8',
-                    fontSize: '13px',
-                    gap: '8px',
-                  }}>
-                    <span style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>Connecting to workspace terminal...</span>
-                  </div>
-                ) : shellError ? (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    gap: '12px',
-                  }}>
-                    <span style={{ color: '#f38ba8', fontSize: '14px' }}>Terminal connection failed</span>
-                    <span style={{ color: '#a6adc8', fontSize: '12px', maxWidth: '400px', textAlign: 'center' }}>{shellError}</span>
+                    gap: 6,
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontFamily: 'ui-monospace, monospace',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    borderRadius: '4px 4px 0 0',
+                    borderTop: `1px solid ${activeTabId === tab.id ? 'var(--border)' : 'transparent'}`,
+                    borderLeft: `1px solid ${activeTabId === tab.id ? 'var(--border)' : 'transparent'}`,
+                    borderRight: `1px solid ${activeTabId === tab.id ? 'var(--border)' : 'transparent'}`,
+                    background: activeTabId === tab.id ? 'var(--background)' : 'transparent',
+                    color: activeTabId === tab.id ? 'var(--foreground)' : 'var(--muted-foreground)',
+                    marginBottom: activeTabId === tab.id ? -1 : 0,
+                  }}
+                  onClick={() => setActiveTabId(tab.id)}
+                >
+                  <span>{tab.label}</span>
+                  {!tab.primary && (
                     <button
-                      onClick={async () => {
-                        setShellLoading(true);
-                        setShellError(null);
-                        try {
-                          const { ticket } = await requestTerminalTicket(workspaceId, 7681);
-                          setShellTicket(ticket);
-                        } catch (err) {
-                          setShellError(err.message || 'Failed to get terminal ticket');
-                        } finally {
-                          setShellLoading(false);
-                        }
-                      }}
                       style={{
-                        padding: '8px 24px',
-                        fontSize: '13px',
-                        backgroundColor: '#a6e3a1',
-                        color: '#1e1e2e',
+                        background: 'transparent',
                         border: 'none',
-                        borderRadius: '4px',
                         cursor: 'pointer',
+                        color: 'inherit',
+                        padding: 0,
+                        fontSize: 10,
+                        lineHeight: 1,
+                        opacity: 0.6,
                       }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setClosingTabId(tab.id);
+                      }}
+                      title="Close tab"
                     >
-                      Retry
+                      x
                     </button>
-                  </div>
-                ) : (
-                  <TerminalView
-                    workspaceId={workspaceId}
-                    port={7681}
-                    ticket={shellTicket}
-                    onDisconnect={() => setShellDisconnected(true)}
-                  />
-                )
-              )}
-
-              {tab.id === 'editor' && (
-                <EditorView workspaceId={workspaceId} />
-              )}
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+
+            {/* Tab panels */}
+            {tabs.map((tab) => (
+              <div
+                key={tab.id}
+                style={{
+                  display: activeTabId === tab.id ? 'flex' : 'none',
+                  flex: 1,
+                  flexDirection: 'column',
+                  minHeight: 0,
+                  paddingTop: 8,
+                }}
+              >
+                <TerminalView
+                  codeWorkspaceId={workspaceId}
+                  wsPath={tab.primary
+                    ? `/code/${workspaceId}/ws`
+                    : `/code/${workspaceId}/term/${tab.id}/ws`}
+                  isActive={activeTabId === tab.id}
+                  showToolbar={true}
+                  ensureContainer={tab.primary ? ensureCodeWorkspaceContainer : undefined}
+                  onCloseSession={tab.primary ? handleOpenCloseDialog : () => setClosingTabId(tab.id)}
+                  closeLabel={tab.primary ? 'Close Session' : 'Close Tab'}
+                />
+              </div>
+            ))}
           </div>
+
+          {/* Close workspace confirm */}
+          {showCloseConfirm && (
+            <div style={{
+              position: 'fixed', inset: 0, zIndex: 50,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div
+                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)' }}
+                onClick={() => !closing && setShowCloseConfirm(false)}
+              />
+              <div style={{
+                position: 'relative', zIndex: 51,
+                background: 'var(--background)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '24px',
+                maxWidth: 400,
+                width: '100%',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 16, color: 'var(--foreground)' }}>
+                  Close this session?
+                </h3>
+                {gitStatus?.hasUnsavedWork && (
+                  <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px' }}>
+                    Warning: You have unsaved changes. They will be lost if you close now.
+                  </p>
+                )}
+                {closeError && (
+                  <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px' }}>{closeError}</p>
+                )}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    style={{
+                      padding: '8px 16px', fontSize: 13, background: 'var(--muted)',
+                      color: 'var(--foreground)', border: '1px solid var(--border)',
+                      borderRadius: 6, cursor: 'pointer',
+                    }}
+                    onClick={() => setShowCloseConfirm(false)}
+                    disabled={closing}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    style={{
+                      padding: '8px 16px', fontSize: 13, background: '#ef4444',
+                      color: '#fff', border: 'none', borderRadius: 6,
+                      cursor: closing ? 'wait' : 'pointer', opacity: closing ? 0.7 : 1,
+                    }}
+                    onClick={handleConfirmClose}
+                    disabled={closing}
+                  >
+                    {closing ? 'Closing...' : 'Close Session'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Close tab confirm */}
+          {closingTabId && (
+            <div style={{
+              position: 'fixed', inset: 0, zIndex: 50,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div
+                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)' }}
+                onClick={() => setClosingTabId(null)}
+              />
+              <div style={{
+                position: 'relative', zIndex: 51,
+                background: 'var(--background)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '24px',
+                maxWidth: 360,
+                width: '100%',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 16, color: 'var(--foreground)' }}>
+                  Close this tab?
+                </h3>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: 13, margin: '0 0 16px' }}>
+                  This will end the shell session.
+                </p>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    style={{
+                      padding: '8px 16px', fontSize: 13, background: 'var(--muted)',
+                      color: 'var(--foreground)', border: '1px solid var(--border)',
+                      borderRadius: 6, cursor: 'pointer',
+                    }}
+                    onClick={() => setClosingTabId(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    style={{
+                      padding: '8px 16px', fontSize: 13, background: 'var(--destructive)',
+                      color: 'var(--destructive-foreground)', border: 'none', borderRadius: 6, cursor: 'pointer',
+                    }}
+                    onClick={() => {
+                      handleCloseTab(closingTabId);
+                      setClosingTabId(null);
+                    }}
+                  >
+                    Close Tab
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </SidebarInset>
       </SidebarProvider>
     </ChatNavProvider>

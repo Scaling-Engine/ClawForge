@@ -1,277 +1,431 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { requestTerminalTicket } from 'clawforge/ws/actions';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import '@xterm/xterm/css/xterm.css';
 
-// How long (ms) to wait for ws.onopen before declaring a connection timeout.
-// Covers cases where the HTTP upgrade request hangs with no server response.
-const CONNECT_TIMEOUT_MS = 30_000;
+const STATUS = { connected: '#22c55e', connecting: '#eab308', disconnected: '#ef4444' };
+const RECONNECT_INTERVAL = 3000;
 
-/**
- * Shell tab content: xterm.js terminal connected via WebSocket to workspace container.
- * Self-contained component with dynamic imports to avoid SSR issues.
- * Handles disconnect/reconnect flow via requestTerminalTicket Server Action.
- * Includes a 30s connection timeout so "Connecting to terminal..." never hangs forever.
- *
- * @param {object} props
- * @param {string} props.workspaceId - Workspace UUID
- * @param {number} props.port - ttyd port inside container (default 7681)
- * @param {string} props.ticket - Single-use auth ticket
- * @param {function} [props.onDisconnect] - Called when WebSocket closes or errors
- */
-export default function TerminalView({ workspaceId, port, ticket, onDisconnect }) {
+const TERM_THEMES = {
+  dark: { background: '#1a1b26', foreground: '#a9b1d6', cursor: '#c0caf5', selectionBackground: '#33467c' },
+  light: { background: '#f5f5f5', foreground: '#171717', cursor: '#171717', selectionBackground: '#d4d4d4' },
+};
+
+const TOOLBAR_COLORS = {
+  dark: { color: '#787c99', border: 'rgba(169,177,214,0.15)', hoverColor: '#a9b1d6' },
+  light: { color: '#555555', border: 'rgba(23,23,23,0.15)', hoverColor: '#171717' },
+};
+
+function getSystemTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  return {
+    background: cs.getPropertyValue('--muted').trim() || '#1a1b26',
+    foreground: cs.getPropertyValue('--muted-foreground').trim() || '#a9b1d6',
+    cursor: cs.getPropertyValue('--foreground').trim() || '#c0caf5',
+    selectionBackground: cs.getPropertyValue('--border').trim() || '#33467c',
+  };
+}
+
+function resolveTheme(mode) {
+  if (mode === 'system') return getSystemTheme();
+  return TERM_THEMES[mode] || TERM_THEMES.dark;
+}
+
+const THEME_CYCLE = ['dark', 'light', 'system'];
+
+export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true, showToolbar = true, ensureContainer, onCloseSession, closeLabel = 'Close Session' }) {
+  const containerRef = useRef(null);
   const termRef = useRef(null);
-  const instanceRef = useRef(null);
-  const [isDisconnected, setIsDisconnected] = useState(false);
-  const [disconnectReason, setDisconnectReason] = useState('');
-  const [isConnecting, setIsConnecting] = useState(true);
-  const [currentTicket, setCurrentTicket] = useState(ticket);
-  const [isReconnecting, setIsReconnecting] = useState(false);
+  const fitAddonRef = useRef(null);
+  const wsRef = useRef(null);
+  const retryTimer = useRef(null);
+  const statusRef = useRef(null);
+  const styleRef = useRef(null);
+  const toolbarRef = useRef(null);
+  const disconnectedAtRef = useRef(null);
+  const ensuredRef = useRef(false);
+  const [connected, setConnected] = useState(false);
+  const [containerError, setContainerError] = useState(null);
+  const [termTheme, setTermTheme] = useState('dark');
+
+  const setStatus = useCallback((color) => {
+    if (statusRef.current) statusRef.current.style.backgroundColor = color;
+    setConnected(color === STATUS.connected);
+  }, []);
+
+  const sendResize = useCallback(() => {
+    const fit = fitAddonRef.current;
+    const ws = wsRef.current;
+    const term = termRef.current;
+    if (!fit || !term || !ws || ws.readyState !== WebSocket.OPEN) return;
+    fit.fit();
+    const payload = JSON.stringify({ columns: term.cols, rows: term.rows });
+    ws.send('1' + payload);
+  }, []);
+
+  const applyTheme = useCallback((mode) => {
+    const theme = resolveTheme(mode);
+    const tb = TOOLBAR_COLORS[mode] || TOOLBAR_COLORS.dark;
+    const term = termRef.current;
+    if (term) term.options.theme = theme;
+    if (styleRef.current) {
+      styleRef.current.textContent = `.xterm { padding: 5px; background-color: ${theme.background} !important; } .xterm-viewport { background-color: ${theme.background} !important; }`;
+    }
+    if (containerRef.current) containerRef.current.style.backgroundColor = theme.background;
+    if (toolbarRef.current) {
+      toolbarRef.current.style.background = theme.background;
+      toolbarRef.current.style.setProperty('--tb-color', tb.color);
+      toolbarRef.current.style.setProperty('--tb-border', tb.border);
+      toolbarRef.current.style.setProperty('--tb-hover', tb.hoverColor);
+    }
+  }, []);
+
+  const connect = useCallback(() => {
+    const term = termRef.current;
+    if (!term) return;
+
+    setStatus(STATUS.connecting);
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const path = wsPath || `/code/${codeWorkspaceId}/ws`;
+    const ws = new WebSocket(`${protocol}//${window.location.host}${path}`);
+    wsRef.current = ws;
+
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = () => {
+      const handshake = JSON.stringify({ AuthToken: '', columns: term.cols, rows: term.rows });
+      ws.send(handshake);
+      setStatus(STATUS.connected);
+      disconnectedAtRef.current = null;
+      ensuredRef.current = false;
+    };
+
+    ws.onmessage = (ev) => {
+      const data = typeof ev.data === 'string' ? ev.data : new TextDecoder().decode(ev.data);
+      const type = data[0];
+      const payload = data.slice(1);
+
+      switch (type) {
+        case '0':
+          term.write(payload);
+          break;
+        case '1':
+          // Ignore terminal title changes
+          break;
+        case '2':
+          break;
+      }
+    };
+
+    ws.onclose = () => {
+      setStatus(STATUS.disconnected);
+
+      if (!disconnectedAtRef.current) {
+        disconnectedAtRef.current = Date.now();
+      }
+
+      if (Date.now() - disconnectedAtRef.current > 60_000) {
+        setContainerError('Failed to connect');
+        return;
+      }
+
+      if (!ensuredRef.current && ensureContainer) {
+        ensuredRef.current = true;
+        ensureContainer(codeWorkspaceId).catch(() => {});
+      }
+
+      retryTimer.current = setTimeout(connect, RECONNECT_INTERVAL);
+    };
+
+    ws.onerror = () => {
+      ws.close();
+    };
+  }, [codeWorkspaceId, wsPath, setStatus, ensureContainer]);
 
   useEffect(() => {
-    if (!termRef.current || !currentTicket) return;
+    const saved = localStorage.getItem('terminal-theme') || 'dark';
+    setTermTheme(saved);
 
-    let term = null;
-    let ws = null;
-    let fitAddon = null;
-    let resizeHandler = null;
-    let connectTimeout = null;
-    let disposed = false;
+    const theme = resolveTheme(saved);
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 16,
+      fontFamily: '"Fira Code", "Cascadia Code", "JetBrains Mono", Menlo, monospace',
+      theme,
+      allowProposedApi: true,
+    });
 
-    function handleDisconnect(reason) {
-      if (!disposed) {
-        if (connectTimeout) {
-          clearTimeout(connectTimeout);
-          connectTimeout = null;
-        }
-        setDisconnectReason(reason);
-        setIsDisconnected(true);
-        setIsConnecting(false);
-        onDisconnect?.();
+    const fitAddon = new FitAddon();
+    const searchAddon = new SearchAddon();
+    const webLinksAddon = new WebLinksAddon();
+
+    term.loadAddon(fitAddon);
+    term.loadAddon(searchAddon);
+    term.loadAddon(webLinksAddon);
+
+    termRef.current = term;
+    fitAddonRef.current = fitAddon;
+
+    term.open(containerRef.current);
+
+    const style = document.createElement('style');
+    style.textContent = `.xterm { padding: 5px; background-color: ${theme.background} !important; } .xterm-viewport { background-color: ${theme.background} !important; }`;
+    containerRef.current.appendChild(style);
+    styleRef.current = style;
+
+    containerRef.current.style.backgroundColor = theme.background;
+    const tb = TOOLBAR_COLORS[saved] || TOOLBAR_COLORS.dark;
+    if (toolbarRef.current) {
+      toolbarRef.current.style.background = theme.background;
+      toolbarRef.current.style.setProperty('--tb-color', tb.color);
+      toolbarRef.current.style.setProperty('--tb-border', tb.border);
+      toolbarRef.current.style.setProperty('--tb-hover', tb.hoverColor);
+    }
+
+    fitAddon.fit();
+
+    term.onData((data) => {
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send('0' + data);
       }
+    });
+
+    let resizeTimeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(sendResize, 100);
+    };
+    window.addEventListener('resize', handleResize);
+
+    let cancelled = false;
+
+    if (ensureContainer) {
+      (async () => {
+        try {
+          const result = await ensureContainer(codeWorkspaceId);
+          if (result?.status === 'error') {
+            const msg = result.message || 'Unknown container error';
+            console.error('ensureContainer:', msg);
+            if (!cancelled) setContainerError(msg);
+            return;
+          }
+        } catch (err) {
+          console.error('ensureContainer:', err);
+          if (!cancelled) setContainerError(err.message || String(err));
+          return;
+        }
+        if (!cancelled) connect();
+      })();
+    } else {
+      connect();
     }
-
-    async function init() {
-      // Dynamic imports to avoid SSR issues with xterm.js DOM dependencies
-      const { Terminal } = await import('@xterm/xterm');
-      const { FitAddon } = await import('@xterm/addon-fit');
-
-      // Import xterm CSS
-      await import('@xterm/xterm/css/xterm.css');
-
-      if (disposed) return;
-
-      term = new Terminal({
-        cursorBlink: true,
-        fontSize: 14,
-        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-        theme: {
-          background: '#1e1e2e',
-          foreground: '#cdd6f4',
-          cursor: '#f5e0dc',
-        },
-      });
-
-      fitAddon = new FitAddon();
-      term.loadAddon(fitAddon);
-
-      term.open(termRef.current);
-      fitAddon.fit();
-
-      // Build WebSocket URL from window location
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${proto}//${window.location.host}/ws/terminal/${workspaceId}?ticket=${currentTicket}&port=${port}`;
-      console.log('[terminal] connecting to:', wsUrl);
-      setIsConnecting(true);
-      ws = new WebSocket(wsUrl);
-      ws.binaryType = 'arraybuffer';
-
-      // Connection timeout: if ws.onopen doesn't fire within CONNECT_TIMEOUT_MS,
-      // force-close the WebSocket and show an error with a retry button.
-      // This prevents the "Connecting to terminal..." state from hanging indefinitely
-      // when the server doesn't respond to the HTTP upgrade (e.g. server not running,
-      // reverse proxy issue, or workspace container unreachable).
-      connectTimeout = setTimeout(() => {
-        if (!disposed && ws.readyState !== WebSocket.OPEN) {
-          console.warn('[terminal] connection timeout after', CONNECT_TIMEOUT_MS / 1000, 's');
-          ws.close();
-          handleDisconnect(
-            'Connection timed out — workspace may still be starting. Try reconnecting in a moment.'
-          );
-        }
-      }, CONNECT_TIMEOUT_MS);
-
-      // ttyd binary protocol constants
-      const TTYD_OUTPUT = 0x30;  // '0' — terminal output
-      const TTYD_SET_TITLE = 0x31; // '1' — set window title
-      const TTYD_SET_PREFS = 0x32; // '2' — set preferences
-      const TTYD_INPUT = 0x30;   // '0' — terminal input
-
-      ws.onopen = () => {
-        console.log('[terminal] WebSocket connected');
-        if (connectTimeout) {
-          clearTimeout(connectTimeout);
-          connectTimeout = null;
-        }
-        setIsConnecting(false);
-        // Send initial resize to ttyd
-        const { cols, rows } = term;
-        const resizeMsg = new TextEncoder().encode(`1${JSON.stringify({ columns: cols, rows })}`);
-        ws.send(resizeMsg.buffer);
-      };
-
-      // Handle messages FROM ttyd (type-prefixed binary)
-      ws.onmessage = (event) => {
-        const data = new Uint8Array(event.data);
-        if (data.length === 0) return;
-        const type = data[0];
-        const payload = data.slice(1);
-
-        switch (type) {
-          case TTYD_OUTPUT:
-            term.write(payload);
-            break;
-          case TTYD_SET_TITLE:
-            // Optional: could set document.title here
-            break;
-          case TTYD_SET_PREFS:
-            // Server preferences JSON — ignore
-            break;
-        }
-      };
-
-      // Handle input TO ttyd (prepend '0' type byte)
-      term.onData((data) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        const encoder = new TextEncoder();
-        const payload = encoder.encode(data);
-        const msg = new Uint8Array(1 + payload.length);
-        msg[0] = TTYD_INPUT;
-        msg.set(payload, 1);
-        ws.send(msg.buffer);
-      });
-
-      // Handle resize → ttyd
-      term.onResize(({ cols, rows }) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        const resizeMsg = new TextEncoder().encode(`1${JSON.stringify({ columns: cols, rows })}`);
-        ws.send(resizeMsg.buffer);
-      });
-
-      // Fit again after setup
-      setTimeout(() => fitAddon.fit(), 100);
-
-      ws.onclose = (event) => {
-        const reason = event.reason || (event.code === 4404 ? 'Workspace not found or not running' :
-          event.code === 4500 ? 'Server error connecting to workspace container' :
-          event.code === 1006 ? 'Connection lost (network issue or container stopped)' :
-          event.code === 401 ? 'Authentication failed — ticket expired, click Reconnect' :
-          `Closed (code ${event.code})`);
-        console.log(`[terminal] WebSocket closed: code=${event.code} reason=${reason}`);
-        handleDisconnect(reason);
-      };
-
-      ws.onerror = (event) => {
-        console.error('[terminal] WebSocket error:', event);
-        handleDisconnect('Connection error — check browser console for details');
-      };
-
-      // Handle window resize
-      resizeHandler = () => {
-        if (fitAddon && !disposed) fitAddon.fit();
-      };
-      window.addEventListener('resize', resizeHandler);
-
-      instanceRef.current = { term, ws, fitAddon };
-    }
-
-    init();
 
     return () => {
-      disposed = true;
-      if (connectTimeout) clearTimeout(connectTimeout);
-      if (resizeHandler) window.removeEventListener('resize', resizeHandler);
-      if (ws && ws.readyState <= 1) ws.close();
-      if (term) term.dispose();
-      instanceRef.current = null;
+      cancelled = true;
+      clearTimeout(resizeTimeout);
+      clearTimeout(retryTimer.current);
+      window.removeEventListener('resize', handleResize);
+      if (wsRef.current) wsRef.current.close();
+      term.dispose();
     };
-  }, [currentTicket, workspaceId, port]);
+  }, [connect, sendResize, codeWorkspaceId]);
+
+  useEffect(() => {
+    if (isActive && termRef.current && fitAddonRef.current) {
+      requestAnimationFrame(() => {
+        fitAddonRef.current?.fit();
+        termRef.current?.focus();
+      });
+    }
+  }, [isActive]);
+
+  const sendCommand = useCallback((text) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const encoder = new TextEncoder();
+
+    ws.send(new Uint8Array([0x30, 0x03]));
+
+    setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const buf = new Uint8Array(text.length * 3 + 1);
+      buf[0] = 0x30;
+      const { written } = encoder.encodeInto(text, buf.subarray(1));
+      ws.send(buf.subarray(0, written + 1));
+
+      setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        ws.send(new Uint8Array([0x30, 0x0d]));
+      }, 50);
+    }, 150);
+  }, []);
 
   const handleReconnect = async () => {
-    setIsReconnecting(true);
-    try {
-      const { ticket: newTicket } = await requestTerminalTicket(workspaceId, port);
-      setIsDisconnected(false);
-      setCurrentTicket(newTicket);
-    } catch (err) {
-      console.error('Failed to reconnect terminal:', err);
-      setDisconnectReason(err.message || 'Failed to get a new terminal ticket — workspace may not be running');
-    } finally {
-      setIsReconnecting(false);
+    clearTimeout(retryTimer.current);
+    if (wsRef.current) wsRef.current.close();
+    disconnectedAtRef.current = null;
+    ensuredRef.current = false;
+    if (ensureContainer) {
+      try {
+        setContainerError(null);
+        const result = await ensureContainer(codeWorkspaceId);
+        if (result?.status === 'error') {
+          const msg = result.message || 'Unknown container error';
+          console.error('ensureContainer:', msg);
+          setContainerError(msg);
+          return;
+        }
+      } catch (err) {
+        console.error('ensureContainer:', err);
+        setContainerError(err.message || String(err));
+        return;
+      }
     }
+    connect();
   };
 
-  if (isDisconnected) {
-    return (
-      <div style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-        backgroundColor: '#1e1e2e',
-      }}>
-        <span style={{ color: '#f38ba8', fontSize: '14px' }}>
-          Terminal disconnected
-        </span>
-        {disconnectReason && (
-          <span style={{ color: '#a6adc8', fontSize: '12px', maxWidth: '400px', textAlign: 'center' }}>
-            {disconnectReason}
-          </span>
-        )}
-        <button
-          onClick={handleReconnect}
-          disabled={isReconnecting}
-          aria-label="Reconnect terminal"
-          style={{
-            padding: '8px 24px',
-            fontSize: '13px',
-            backgroundColor: '#a6e3a1',
-            color: '#1e1e2e',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isReconnecting ? 'wait' : 'pointer',
-            opacity: isReconnecting ? 0.7 : 1,
-          }}
-        >
-          {isReconnecting ? 'Reconnecting...' : 'Reconnect'}
-        </button>
-      </div>
-    );
-  }
-
-  if (isConnecting) {
-    return (
-      <div style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#1e1e2e',
-        color: '#a6adc8',
-        fontSize: '13px',
-      }}>
-        Connecting to terminal...
-      </div>
-    );
-  }
+  const cycleTheme = useCallback(() => {
+    setTermTheme((prev) => {
+      const idx = THEME_CYCLE.indexOf(prev);
+      const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
+      localStorage.setItem('terminal-theme', next);
+      applyTheme(next);
+      return next;
+    });
+  }, [applyTheme]);
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      <div ref={termRef} style={{ width: '100%', height: '100%' }} />
-    </div>
+    <>
+      <style>{`
+        .code-toolbar-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: transparent;
+          border: 1px solid var(--tb-border, rgba(169,177,214,0.15));
+          color: var(--tb-color, #787c99);
+          padding: 5px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 12px;
+          font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+          font-weight: 500;
+          letter-spacing: 0.01em;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+          line-height: 1;
+        }
+        .code-toolbar-btn:hover {
+          background: transparent;
+          color: var(--tb-hover, #a9b1d6);
+        }
+        .code-toolbar-btn:active {
+          transform: scale(0.97);
+        }
+        .code-toolbar-btn--reconnect:hover {
+          color: var(--tb-hover, #a9b1d6);
+        }
+        .code-toolbar-btn--theme:hover {
+          border-color: rgba(168,153,215,0.3);
+          color: #a899d7;
+          background: rgba(168,153,215,0.08);
+        }
+        .code-toolbar-btn--close:hover {
+          border-color: rgba(239,68,68,0.3);
+          color: #ef4444;
+          background: rgba(239,68,68,0.08);
+        }
+      `}</style>
+
+      <div style={{ position: 'relative', flex: 1, minHeight: 0, margin: '0 16px 16px' }}>
+        <div style={{ height: '100%', borderRadius: 6, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
+          {(!connected || containerError) && (
+            <div style={{
+              position: 'absolute',
+              top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: containerError ? 'rgba(255,235,235,0.95)' : 'rgba(26,27,38,0.92)',
+              color: containerError ? '#991b1b' : '#a9b1d6',
+              padding: '14px 28px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace",
+              fontWeight: 500,
+              border: '1px solid rgba(169,177,214,0.2)',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+              zIndex: 10,
+              textAlign: 'center',
+              maxWidth: 320,
+              letterSpacing: '0.02em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              {containerError
+                ? `Container error: ${containerError}`
+                : 'Connecting to terminal...'}
+            </div>
+          )}
+
+          {showToolbar && (
+            <div
+              ref={toolbarRef}
+              style={{
+                flexShrink: 0,
+                height: 42,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 16px',
+                background: '#1a1b26',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  className="code-toolbar-btn code-toolbar-btn--theme"
+                  onClick={cycleTheme}
+                >
+                  {termTheme}
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  className="code-toolbar-btn code-toolbar-btn--reconnect"
+                  onClick={handleReconnect}
+                >
+                  <div
+                    ref={statusRef}
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      backgroundColor: STATUS.connecting,
+                      boxShadow: `0 0 6px ${STATUS.connecting}`,
+                      transition: 'all 0.3s ease',
+                    }}
+                  />
+                  Reconnect
+                </button>
+                {onCloseSession && (
+                  <button
+                    className="code-toolbar-btn code-toolbar-btn--close"
+                    onClick={onCloseSession}
+                  >
+                    {closeLabel}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
