@@ -52,8 +52,11 @@ elif [ -n "$AGENT_LLM_ANTHROPIC_API_KEY" ]; then
   export ANTHROPIC_API_KEY="$AGENT_LLM_ANTHROPIC_API_KEY"
 fi
 
-# ── Claude Code settings ─────────────────────────────────────────────
-mkdir -p /root/.claude
+# ── Claude Code settings (for both root and node user) ────────────────
+for UHOME in /root /home/node; do
+  mkdir -p "$UHOME/.claude"
+done
+
 cat > /root/.claude/settings.json << 'EOF'
 {
   "theme": "dark",
@@ -75,6 +78,11 @@ cat > /root/.claude.json << 'ENDJSON'
 }
 ENDJSON
 
+# Copy settings to node user (for Claude Code running as non-root)
+cp /root/.claude/settings.json /home/node/.claude/settings.json
+cp /root/.claude.json /home/node/.claude.json
+chown -R node:node /home/node/.claude /home/node/.claude.json 2>/dev/null || true
+
 touch /tmp/.workspace-ready
 [ -n "$ERRORS" ] && echo "[entrypoint] warnings: $ERRORS"
 
@@ -88,8 +96,12 @@ touch /tmp/.workspace-ready
 
 if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] || [ -n "$ANTHROPIC_API_KEY" ]; then
   echo "[entrypoint] launching Claude Code CLI in tmux..."
-  # Start tmux with a bash shell that launches claude, then falls back to bash on exit
-  tmux -u new-session -d -s workspace "cd /workspace && claude --dangerously-skip-permissions; echo ''; echo 'Claude Code exited. You are in a bash shell.'; exec bash"
+  # Claude Code refuses --dangerously-skip-permissions as root.
+  # Run it as the 'node' user (provided by node:22 base image).
+  # Export auth env vars so they're available in the su session.
+  export CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY
+  tmux -u new-session -d -s workspace \
+    "cd /workspace && su -m node -c 'claude --dangerously-skip-permissions' 2>&1; echo ''; echo 'Claude Code exited. You are in a bash shell.'; exec bash"
 else
   echo "[entrypoint] no Claude auth, starting bash shell in tmux..."
   tmux -u new-session -d -s workspace "cd /workspace && exec bash"
