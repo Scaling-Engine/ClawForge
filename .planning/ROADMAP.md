@@ -339,7 +339,12 @@ Plans:
   2. Each agent card on the picker shows whether the instance is online or offline, the timestamp of the last completed job, and counts of open PRs and active workspaces
   3. Selecting an agent and navigating away, then refreshing the page, returns the user to the same agent context — the last-selected agent persists across browser sessions
   4. Superadmin can open the users admin page, select a user, assign them to one or more agents, and set a per-agent role (viewer/operator/admin) — the assignment takes effect immediately on the user's next request
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 56-01-PLAN.md — Hub DB assignment CRUD + Server Actions (PICK-01, PICK-02, PICK-04, USER-01, USER-02, USER-03)
+- [ ] 56-02-PLAN.md — AgentPickerPage component + /agents page shell (PICK-01, PICK-02, PICK-04, USER-03)
+- [ ] 56-03-PLAN.md — AdminUserDetailPage component + /admin/users/[id] page shell (USER-01, USER-02)
 **UI hint**: yes
 
 ### Phase 57: Agent-Scoped Navigation
@@ -400,7 +405,7 @@ Plans:
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 55 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 56 | v4.0 | 0/TBD | Not started | - |
+| 56 | v4.0 | 0/3 | In progress | - |
 | 57 | v4.0 | 0/TBD | Not started | - |
 | 58 | v4.0 | 0/TBD | Not started | - |
 | 59 | v4.0 | 0/TBD | Not started | - |
@@ -409,4 +414,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-03-24 — v4.0 roadmap added (phases 53-59)*
+*Last updated: 2026-03-25 — Phase 56 plans created (3 plans)*
