@@ -10,7 +10,7 @@ Requirements for v4.0. Each maps to roadmap phases.
 ### Auth
 
 - [ ] **AUTH-01**: User can log in once at clawforge.scalingengine.com and access all assigned agents without re-authenticating
-- [ ] **AUTH-02**: Hub maintains a central user registry (hub SQLite DB) separate from per-instance user tables
+- [x] **AUTH-02**: Hub maintains a central user registry (hub SQLite DB) separate from per-instance user tables
 - [ ] **AUTH-03**: Hub session JWT includes `assignedAgents` claim listing agent slugs the user can access
 - [ ] **AUTH-04**: All instance containers share a standardized AUTH_SECRET for cross-instance token validation
 - [ ] **AUTH-05**: Instance containers are not directly accessible from the internet (no host port bindings in production)
@@ -81,7 +81,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | AUTH-01 | Phase 53 | Pending |
-| AUTH-02 | Phase 53 | Pending |
+| AUTH-02 | Phase 53 | Complete |
 | AUTH-03 | Phase 53 | Pending |
 | AUTH-04 | Phase 53 | Pending |
 | AUTH-05 | Phase 53 | Pending |
