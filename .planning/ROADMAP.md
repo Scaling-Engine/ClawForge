@@ -324,7 +324,11 @@ Plans:
   2. SSE job log streams (`/api/jobs/[id]/stream`) proxy correctly through the hub — the browser receives incremental events from the correct instance without polling gaps or buffering
   3. A spoke instance's `/api/*` routes accept a valid `AGENT_SUPERADMIN_TOKEN` Bearer token as authentication — not just the `/api/superadmin/*` prefix
   4. Slack, Telegram, and GitHub webhook routes remain protected by their existing `x-api-key` / signing secret checks regardless of Bearer token presence
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 55-01-PLAN.md — Spoke Bearer auth: accept AGENT_SUPERADMIN_TOKEN on all /api/* routes (PROXY-05)
+- [ ] 55-02-PLAN.md — Hub HTTP proxy: intercept /agent/[slug]/* and pipe to spoke instances (PROXY-01, PROXY-02, PROXY-04)
 
 ### Phase 56: Agent Picker + User Assignment
 **Goal**: Users see their assigned agents after login and superadmin can control which users access which agents
@@ -395,7 +399,7 @@ Plans:
 | 52 | - | 1/1 | Complete | 2026-03-20 |
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 55 | v4.0 | 0/TBD | Not started | - |
+| 55 | v4.0 | 0/2 | Not started | - |
 | 56 | v4.0 | 0/TBD | Not started | - |
 | 57 | v4.0 | 0/TBD | Not started | - |
 | 58 | v4.0 | 0/TBD | Not started | - |
