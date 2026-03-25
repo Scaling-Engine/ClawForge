@@ -14,7 +14,7 @@ const ADMIN_NAV = [
   { id: 'general', label: 'General', href: '/admin/general', icon: SettingsSliderIcon },
   { id: 'repos', label: 'Repos', href: '/admin/repos', icon: DatabaseIcon },
   { id: 'clusters', label: 'Subagents', href: '/admin/clusters', icon: ClusterIcon },
-  { id: 'instances', label: 'Instances', href: '/admin/instances', icon: ServerIcon },
+  { id: 'instances', label: 'Agents', href: '/admin/instances', icon: ServerIcon },
   { id: 'crons', label: 'Crons', href: '/admin/crons', icon: ClockIcon },
   { id: 'triggers', label: 'Triggers', href: '/admin/triggers', icon: ZapIcon },
   { id: 'secrets', label: 'Secrets', href: '/admin/secrets', icon: KeyIcon },

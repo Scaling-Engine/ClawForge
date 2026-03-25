@@ -81,7 +81,7 @@ export function AdminInstancesPage() {
   return (
     <>
       <p className="text-sm text-muted-foreground mb-4">
-        {!loading && `${instances.length} instance${instances.length !== 1 ? 's' : ''}`}
+        {!loading && `${instances.length} agent${instances.length !== 1 ? 's' : ''}`}
       </p>
 
       {loading ? (
@@ -95,9 +95,9 @@ export function AdminInstancesPage() {
           <div className="rounded-full bg-muted p-4 mb-4">
             <ServerIcon size={24} />
           </div>
-          <p className="text-sm font-medium mb-1">No instances found</p>
+          <p className="text-sm font-medium mb-1">No agents found</p>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Instance directories were not detected. Running in single-instance mode.
+            Agent directories were not detected. Running in single-agent mode.
           </p>
         </div>
       ) : (
