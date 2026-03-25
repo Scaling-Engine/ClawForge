@@ -1,5 +1,5 @@
-import { AdminInstancesPage } from '../../../lib/chat/components/index.js';
+import { redirect } from 'next/navigation';
 
 export default function AdminInstancesRoute() {
-  return <AdminInstancesPage />;
+  redirect('/admin/agents');
 }
