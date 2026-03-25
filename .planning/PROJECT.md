@@ -70,9 +70,18 @@ Agents receive intelligently-constructed prompts with full repo context, so ever
 - **Superadmin portal**: single-login instance switching, health dashboard (30s auto-refresh), cross-instance job search via API proxy
 - **Three-tier roles**: user → admin → superadmin, AGENT_SUPERADMIN_TOKEN for M2M auth between hub and instances
 
-## Current Milestone: None (v1.0 complete)
+## Current Milestone: v4.0 Multi-Tenant Agent Platform
 
-v1.0 milestone complete. All 34 requirements satisfied, 52 phases shipped. Run `/gsd:new-milestone` to start next milestone.
+**Goal:** Transform ClawForge from per-subdomain instances into a single-URL product where users log in, see their assigned agents, and interact with the full platform scoped per agent.
+
+**Target features:**
+- Shared auth layer (central user registry at clawforge.scalingengine.com)
+- Agent picker dashboard (users see assigned agents after login)
+- Request proxy (browser stays on one URL, requests routed to correct instance container)
+- Per-agent scoped UI (chat, PRs, workspaces, sub-agents scoped to selected agent)
+- "All Agents" cross-agent views for PRs, workspaces, sub-agents
+- User-agent assignment (superadmin assigns users to agents)
+- Terminology migration ("instances" → "agents" in all user-facing UI)
 
 ## Requirements
 
@@ -159,7 +168,7 @@ v1.0 milestone complete. All 34 requirements satisfied, 52 phases shipped. Run `
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to define next requirements)
+(Defining requirements for v4.0 Multi-Tenant Agent Platform)
 
 ## Previous Milestones
 
@@ -307,5 +316,22 @@ v1.0 milestone complete. All 34 requirements satisfied, 52 phases shipped. Run `
 - GitHub secrets auto-provisioning — requires broader infrastructure permissions than appropriate
 - Slack app auto-creation — Slack API limitations; manual setup is acceptable
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-21 after v1.0 milestone complete*
+*Last updated: 2026-03-24 after v4.0 milestone started*
