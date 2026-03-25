@@ -215,7 +215,7 @@ export function AdminBillingPage({ user }) {
         </h3>
         <div className="divide-y divide-border">
           <div className="flex items-center justify-between py-2">
-            <span className="text-sm font-medium">Instance</span>
+            <span className="text-sm font-medium">Agent</span>
             <span className="text-sm text-muted-foreground font-mono">{instance}</span>
           </div>
           <div className="flex items-center justify-between py-2">

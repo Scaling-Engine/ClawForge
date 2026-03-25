@@ -49,7 +49,7 @@ export function InstanceSwitcher({ isSuperadminHub }) {
     <div className="mb-3 px-1">
       <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-1">
         <GlobeIcon size={12} />
-        Instance
+        Agent
       </label>
       <select
         value={activeInstance || ''}
