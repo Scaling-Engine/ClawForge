@@ -308,7 +308,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Every sidebar nav label, page heading, button label, and notification message uses "agent" or "agents" — no occurrence of "instance" or "instances" visible to a logged-in user
   2. All URL paths for agent-related navigation use `/agent/[slug]/` structure — no subdomain-based routing remains in any link or redirect
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 54-01-PLAN.md — User-facing text migration: replace all "instance" strings with "agent" in 7 JSX components (TERM-01)
+- [ ] 54-02-PLAN.md — URL route migration: /admin/agents page, /admin/instances redirect, nav href update (TERM-02)
 **UI hint**: yes
 
 ### Phase 55: HTTP Proxy Layer
@@ -390,7 +394,7 @@ Plans:
 | 51 | - | 1/1 | Complete | 2026-03-20 |
 | 52 | - | 1/1 | Complete | 2026-03-20 |
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 54 | v4.0 | 0/TBD | Not started | - |
+| 54 | v4.0 | 0/2 | Not started | - |
 | 55 | v4.0 | 0/TBD | Not started | - |
 | 56 | v4.0 | 0/TBD | Not started | - |
 | 57 | v4.0 | 0/TBD | Not started | - |
