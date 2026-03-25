@@ -29,6 +29,12 @@ export async function register() {
   const { initDatabase } = await import('../lib/db/index.js');
   initDatabase();
 
+  // Initialize hub database (hub_users + agent_assignments) — hub instances only
+  if (process.env.SUPERADMIN_HUB === 'true') {
+    const { initHubDatabase } = await import('../lib/db/hub.js');
+    initHubDatabase();
+  }
+
   // Start cron scheduler
   const { loadCrons } = await import('../lib/cron.js');
   loadCrons();
