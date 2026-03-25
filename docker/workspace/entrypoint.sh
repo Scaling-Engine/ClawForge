@@ -62,7 +62,7 @@ cat > /root/.claude/settings.json << 'EOF'
 }
 EOF
 
-cat > /root/.claude.json << ENDJSON
+cat > /root/.claude.json << 'ENDJSON'
 {
   "hasCompletedOnboarding": true,
   "projects": {
@@ -76,18 +76,28 @@ cat > /root/.claude.json << ENDJSON
 ENDJSON
 
 touch /tmp/.workspace-ready
-
 [ -n "$ERRORS" ] && echo "[entrypoint] warnings: $ERRORS"
 
 # ── Launch ────────────────────────────────────────────────────────────
+# Use a SINGLE tmux session for everything. ttyd connects to it.
+# If Claude Code auth is available, start it. If it exits, user lands in bash.
+# If no auth, user gets bash directly.
+#
+# Key: `tmux new -A -s workspace` creates OR attaches. ttyd always uses this
+# so reconnections work even if the initial session command exits.
+
 if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] || [ -n "$ANTHROPIC_API_KEY" ]; then
-  echo "[entrypoint] launching Claude Code..."
-  tmux -u new-session -d -s claude "cd /workspace && claude --dangerously-skip-permissions"
-  sleep 1
-  if tmux has-session -t claude 2>/dev/null; then
-    exec ttyd --writable -p "${PORT:-7681}" --ping-interval 30 tmux attach -t claude
-  fi
+  echo "[entrypoint] launching Claude Code CLI in tmux..."
+  # Start tmux with a bash shell that launches claude, then falls back to bash on exit
+  tmux -u new-session -d -s workspace "cd /workspace && claude --dangerously-skip-permissions; echo ''; echo 'Claude Code exited. You are in a bash shell.'; exec bash"
+else
+  echo "[entrypoint] no Claude auth, starting bash shell in tmux..."
+  tmux -u new-session -d -s workspace "cd /workspace && exec bash"
 fi
 
-echo "[entrypoint] falling back to bash shell"
+# Give tmux a moment to start
+sleep 1
+
+# ttyd serves the tmux session. `new -A` means: attach if exists, create if not.
+# This ensures reconnections always work even if the session was recreated.
 exec ttyd --writable -p "${PORT:-7681}" --ping-interval 30 tmux new -A -s workspace
