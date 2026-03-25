@@ -294,7 +294,11 @@ Plans:
   3. All instance containers in `docker-compose.yml` have no `ports:` mapping exposed to the host — they are only reachable via Docker internal network
   4. All instance containers share the same `AUTH_SECRET` value as the hub — decoding a hub-issued JWT on any instance returns the correct user without error
   5. Navigating to `/agents/*` without a valid session redirects to the login page
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 53-01-PLAN.md — Hub DB schema, singleton, user functions, startup init (AUTH-02)
+- [ ] 53-02-PLAN.md — JWT assignedAgents claim, hub-aware login, AUTH_SECRET consolidation, middleware guard (AUTH-01, AUTH-03, AUTH-04, AUTH-05)
 **UI hint**: yes
 
 ### Phase 54: Terminology Migration
