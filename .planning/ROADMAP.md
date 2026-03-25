@@ -298,7 +298,7 @@ Plans:
 
 Plans:
 - [x] 53-01-PLAN.md — Hub DB schema, singleton, user functions, startup init (AUTH-02)
-- [ ] 53-02-PLAN.md — JWT assignedAgents claim, hub-aware login, AUTH_SECRET consolidation, middleware guard (AUTH-01, AUTH-03, AUTH-04, AUTH-05)
+- [x] 53-02-PLAN.md — JWT assignedAgents claim, hub-aware login, AUTH_SECRET consolidation, middleware guard (AUTH-01, AUTH-03, AUTH-04, AUTH-05)
 **UI hint**: yes
 
 ### Phase 54: Terminology Migration
@@ -389,7 +389,7 @@ Plans:
 | 50 | - | 1/1 | Complete | 2026-03-20 |
 | 51 | - | 1/1 | Complete | 2026-03-20 |
 | 52 | - | 1/1 | Complete | 2026-03-20 |
-| 53 | v4.0 | 1/2 | In Progress|  |
+| 53 | v4.0 | 2/2 | Complete   | 2026-03-25 |
 | 54 | v4.0 | 0/TBD | Not started | - |
 | 55 | v4.0 | 0/TBD | Not started | - |
 | 56 | v4.0 | 0/TBD | Not started | - |
