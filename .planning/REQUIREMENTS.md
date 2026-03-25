@@ -1,158 +1,118 @@
-# Requirements: ClawForge v3.0 Customer Launch
+# Requirements: ClawForge v4.0 Multi-Tenant Agent Platform
 
-**Defined:** 2026-03-17
+**Defined:** 2026-03-24
 **Core Value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
 
 ## v1 Requirements
 
-### Observability
+Requirements for v4.0. Each maps to roadmap phases.
 
-- [x] **OBS-01**: System writes structured JSON logs to stdout via pino on the custom HTTP server
-- [x] **OBS-02**: Error events are persisted to `error_log` table and survive process restarts
-- [x] **OBS-03**: Sentry captures all server and client errors with source maps
-- [x] **OBS-04**: Health endpoint returns `errorCount24h`, `lastErrorAt`, `dbStatus`, and per-instance job success rate
-- [x] **OBS-05**: Job-level observability events are written to filesystem JSONL files (not DB per-event) to avoid write contention
+### Auth
 
-### Billing & Usage
+- [ ] **AUTH-01**: User can log in once at clawforge.scalingengine.com and access all assigned agents without re-authenticating
+- [ ] **AUTH-02**: Hub maintains a central user registry (hub SQLite DB) separate from per-instance user tables
+- [ ] **AUTH-03**: Hub session JWT includes `assignedAgents` claim listing agent slugs the user can access
+- [ ] **AUTH-04**: All instance containers share a standardized AUTH_SECRET for cross-instance token validation
+- [ ] **AUTH-05**: Instance containers are not directly accessible from the internet (no host port bindings in production)
 
-- [x] **BILL-01**: System records job token usage and duration to `usage_events` table after each dispatch
-- [x] **BILL-02**: Admin can view per-instance usage metrics (job count, tokens, duration) for the current billing period
-- [x] **BILL-03**: System sends Slack warning to operator when instance reaches 80% of configured job limit
-- [x] **BILL-04**: System rejects job dispatch with a clear message (current usage, limit, reset date) when hard limit is exceeded
-- [x] **BILL-05**: Superadmin can configure per-instance billing limits (jobs per month, concurrent jobs)
+### Proxy
 
-### Onboarding
+- [ ] **PROXY-01**: HTTP requests to `/agent/[slug]/*` are proxied to the correct instance container with hub auth token
+- [ ] **PROXY-02**: Browser URL stays on clawforge.scalingengine.com for all navigation — no redirects to instance subdomains
+- [ ] **PROXY-03**: WebSocket connections for terminal sessions are proxied through the hub to the correct instance container
+- [ ] **PROXY-04**: SSE streams for job log streaming work through the proxy layer
+- [ ] **PROXY-05**: Spoke instances accept hub Bearer token on all API routes (not just /api/superadmin/*)
 
-- [x] **ONB-01**: New operator is redirected to onboarding wizard on first login when `ONBOARDING_ENABLED=true`
-- [x] **ONB-02**: Onboarding step progress is persisted in DB and resumes correctly across sessions
-- [x] **ONB-03**: Wizard programmatically verifies: GitHub PAT validity, Docker socket reachability, and Slack webhook connectivity
-- [x] **ONB-04**: Onboarding terminal step dispatches a real job and confirms a PR was created
-- [x] **ONB-05**: Complex admin fields (AGENT_* prefix, mergePolicy, qualityGates) display contextual tooltips
-- [x] **ONB-06**: Repos, secrets, and MCP servers pages display helpful empty states when no items exist
+### Picker
 
-### Monitoring
+- [ ] **PICK-01**: After login, user sees an agent picker dashboard showing all agents they're assigned to
+- [ ] **PICK-02**: Each agent card shows status (online/offline), last job timestamp, open PR count, and active workspace count
+- [ ] **PICK-03**: User can dispatch a job directly from the agent picker without navigating into the agent
+- [ ] **PICK-04**: Selected agent persists across page loads — refresh returns to the same agent context
 
-- [x] **MON-01**: Superadmin portal displays per-instance monitoring cards with error rate, usage vs limits, and onboarding state
-- [x] **MON-02**: Superadmin receives a Slack alert when an instance logs 3+ consecutive job failures (throttled to once per hour per instance)
+### Users
 
-### Documentation
+- [ ] **USER-01**: Superadmin can assign users to specific agents via the admin UI
+- [ ] **USER-02**: Superadmin can set per-agent roles (viewer/operator/admin) for each user-agent assignment
+- [ ] **USER-03**: Users with no agent assignments see an empty state directing them to contact their admin
 
-- [x] **DOCS-01**: Operator docs cover deployment (VPS + Docker Compose), config reference (all env vars + REPOS.json fields), and top 10 troubleshooting errors
+### Scope
 
-### Launch Readiness
+- [ ] **SCOPE-01**: Sidebar navigation is scoped to the selected agent (agent name at top, that agent's resources listed)
+- [ ] **SCOPE-02**: Chat page is scoped to the selected agent's conversation history and job dispatch
+- [ ] **SCOPE-03**: PRs page shows pull requests from the selected agent only (by default)
+- [ ] **SCOPE-04**: Workspaces page shows workspaces from the selected agent only (by default)
+- [ ] **SCOPE-05**: Sub-agents page shows sub-agent definitions from the selected agent only (by default)
+- [ ] **SCOPE-06**: "All Agents" aggregate view shows PRs across all assigned agents with an agent column
+- [ ] **SCOPE-07**: "All Agents" aggregate view shows workspaces across all assigned agents with an agent column
+- [ ] **SCOPE-08**: "All Agents" aggregate view shows sub-agents across all assigned agents with an agent column
 
-- [x] **LAUNCH-01**: Existing operator Slack notification format is audited and confirmed to have zero breaking changes before external customer access is opened
+### Terminology
 
-### Interactive Code IDE
+- [ ] **TERM-01**: All user-facing UI text uses "agents" instead of "instances" (sidebar, headings, buttons, labels)
+- [ ] **TERM-02**: URL paths use `/agent/[slug]/` structure instead of instance-specific subdomains
 
-- **IDE-01**: /code/{id} page renders with Code, Shell, and Editor tabs with DnD reordering via @dnd-kit
-- **IDE-02**: Interactive button in chat input launches a Docker workspace container via ensureWorkspaceContainer and redirects to /code/{id}
-- **IDE-03**: codeWorkspaceId nullable FK column on chats table links chat sessions to their associated workspace
-- **IDE-04**: Shell tab connects to workspace container via WebSocket (xterm.js + addon-attach) with disconnect/reconnect support
-- **IDE-05**: Editor tab displays file tree from workspace container via requestFileTree Server Action
+## Future Requirements
 
-### Code Mode Polish
+### Self-Service
 
-- **POL-01**: Code toggle and Interactive button gated behind `useFeature('codeWorkspace')` ANDed with isAdmin role check
-- **POL-02**: `config/FEATURES.json` template scaffolded with `codeWorkspace` flag for new instances (default false)
-- **POL-03**: /code/{id} DnD tabs support touch input on mobile via TouchSensor and keyboard via KeyboardSensor
+- **SELF-01**: Users can request access to an agent (pending superadmin approval)
+- **SELF-02**: Users can create their own agent instances (requires billing integration)
 
-## v2 Requirements
+### SSE Optimization
 
-### Billing
-
-- **BILL-06**: Stripe integration for payment processing (Checkout, Customer Portal, Billing Meters)
-- **BILL-07**: Stripe webhook handler for payment events (subscription created, payment failed, plan changed)
-- **BILL-08**: Billing limits admin UI at `/admin/billing` for per-instance self-service limit adjustment
-
-### Observability
-
-- **OBS-06**: Alert on job failure rate exceeding threshold across instances (cross-instance health degradation detection)
-
-### Onboarding
-
-- **ONB-07**: Post-first-job guided tour (custom component, 3-5 steps, triggered only after `first_job_run`)
-- **ONB-08**: Transactional email on operator signup (welcome) and billing alerts (resend)
-
-### Monitoring
-
-- **MON-03**: Historical job timeline chart per instance (stacked bar, queries existing `job_outcomes`)
-- **MON-04**: Container CPU and memory utilization captured at job completion via dockerode stats
-
-### Documentation
-
-- **DOCS-02**: Video walkthrough for first-deploy (content, not code)
-- **DOCS-03**: Cross-instance failure pattern detection for 5+ instance deployments
+- **SSE-01**: Real-time cross-agent feed multiplexing SSE streams from all assigned instances
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| OpenTelemetry | Overkill for 2-10 instance scale; pino + Sentry covers all real needs |
-| Lago / Metronome / Flexprice | Stripe Billing Meters handles metering natively; separate metering platform not justified |
-| AI-powered help assistant in admin panel | High complexity, low priority vs. core stability |
-| Demo instance provisioning (v3.0) | Deferred to v3.1 — coordinate when first external customer is ready to onboard |
-| Mobile app | Web-first |
-| Self-hosted Sentry / GlitchTip | Requires PostgreSQL, contradicts SQLite constraint |
-| Automated billing suspension | Too aggressive for early operators; soft limits + manual intervention preferred |
-| Claude subscription auth (OAuth) | No Anthropic OAuth provider exists; scope undefined — deferred until Anthropic publishes an OAuth spec |
+| Shared SQLite DB across all instances | SQLite doesn't support concurrent writes from multiple processes; API proxy pattern is proven |
+| iframe embedding of instance UIs | Breaks xterm.js terminal, WebSocket, keyboard shortcuts |
+| Subdomain-per-agent routing | Defeats the purpose of single-URL product |
+| Automatic user provisioning across all instances | Creates ghost users, violates least privilege |
+| Schema/filesystem rename of "instance" identifiers | Breaking change to running containers; UI-only rename in v4.0 |
+| Self-service agent creation | Requires billing integration; superadmin-only for now |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OBS-01 | Phase 43 | Complete |
-| OBS-02 | Phase 43 | Complete |
-| OBS-03 | Phase 43 | Complete |
-| OBS-04 | Phase 43 | Complete |
-| OBS-05 | Phase 43 | Complete |
-| BILL-01 | Phase 44 | Complete |
-| BILL-02 | Phase 44 | Complete |
-| BILL-03 | Phase 44 | Complete |
-| BILL-04 | Phase 44 | Complete |
-| BILL-05 | Phase 44 | Complete |
-| ONB-01 | Phase 45 | Complete |
-| ONB-02 | Phase 45 | Complete |
-| ONB-03 | Phase 45 | Complete |
-| ONB-04 | Phase 45 | Complete |
-| ONB-05 | Phase 45 | Complete |
-| ONB-06 | Phase 45 | Complete |
-| MON-01 | Phase 46 | Complete |
-| MON-02 | Phase 46 | Complete |
-| DOCS-01 | Phase 47 | Complete |
-| LAUNCH-01 | Phase 47 | Complete |
-| IDE-01 | Phase 49 | Complete |
-| IDE-02 | Phase 49 | Complete |
-| IDE-03 | Phase 49 | Complete |
-| IDE-04 | Phase 49 | Complete |
-| IDE-05 | Phase 49 | Complete |
-| POL-01 | Phase 50 | Complete |
-| POL-02 | Phase 50 | Complete |
-| POL-03 | Phase 50 | Complete |
-| FIX-01 | Phase 51 | Complete |
-| FIX-02 | Phase 51 | Complete |
-| DEBT-01 | Phase 52 | Complete |
-| DEBT-02 | Phase 52 | Complete |
-| DEBT-03 | Phase 52 | Complete |
-| DEBT-04 | Phase 52 | Complete |
-
-### Gap Closure Requirements (Phase 51)
-
-- [x] **FIX-01**: useFeature hook reads from the same React context that FeaturesProvider wraps — Code toggle and Interactive button render when codeWorkspace flag is true and user is admin
-- [x] **FIX-02**: Resume button only appears for running workspaces — clicking Resume never causes a redirect loop back to /chats
-
-### Tech Debt Cleanup Requirements (Phase 52)
-
-- [x] **DEBT-01**: linkChatToWorkspace is awaited in launchWorkspace Server Action for async safety
-- [x] **DEBT-02**: EditorView displays file content when a file is clicked — file-read Server Action wired end-to-end
-- [x] **DEBT-03**: Stale features-context.js esbuild artifact deleted from disk
-- [x] **DEBT-04**: Claude subscription auth gate stubbed with clear extension point for future Anthropic OAuth
+| AUTH-01 | — | Pending |
+| AUTH-02 | — | Pending |
+| AUTH-03 | — | Pending |
+| AUTH-04 | — | Pending |
+| AUTH-05 | — | Pending |
+| PROXY-01 | — | Pending |
+| PROXY-02 | — | Pending |
+| PROXY-03 | — | Pending |
+| PROXY-04 | — | Pending |
+| PROXY-05 | — | Pending |
+| PICK-01 | — | Pending |
+| PICK-02 | — | Pending |
+| PICK-03 | — | Pending |
+| PICK-04 | — | Pending |
+| USER-01 | — | Pending |
+| USER-02 | — | Pending |
+| USER-03 | — | Pending |
+| SCOPE-01 | — | Pending |
+| SCOPE-02 | — | Pending |
+| SCOPE-03 | — | Pending |
+| SCOPE-04 | — | Pending |
+| SCOPE-05 | — | Pending |
+| SCOPE-06 | — | Pending |
+| SCOPE-07 | — | Pending |
+| SCOPE-08 | — | Pending |
+| TERM-01 | — | Pending |
+| TERM-02 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 34 total
-- Mapped to phases: 34 (Phases 43-47, 49-52)
-- Unmapped: 0
+- v1 requirements: 27 total
+- Mapped to phases: 0
+- Unmapped: 27 ⚠️
 
 ---
-*Requirements defined: 2026-03-17*
-*Last updated: 2026-03-20 — Phase 52 tech debt cleanup requirements added*
+*Requirements defined: 2026-03-24*
+*Last updated: 2026-03-24 after initial definition*
