@@ -1,251 +1,195 @@
 # Project Research Summary
 
-**Project:** ClawForge v3.0 Customer Launch
-**Domain:** Commercial SaaS launch additions to an existing AI agent gateway platform
-**Researched:** 2026-03-17
-**Confidence:** HIGH (stack + architecture derived from direct codebase inspection; features + pitfalls MEDIUM on external patterns)
+**Project:** ClawForge v4.0 Multi-Tenant Agent Platform
+**Domain:** Multi-tenant AI agent gateway — shared auth, request proxying, agent picker UI, per-agent scoped navigation
+**Researched:** 2026-03-24
+**Confidence:** HIGH
 
 ## Executive Summary
 
-ClawForge v2.2 is a fully operational two-layer AI agent gateway with Docker isolation, LangGraph orchestration, three-tier RBAC, and a functional superadmin portal. The v3.0 work is not a greenfield build — it is a commercial launch hardening of an existing production system. The four capability areas (observability, billing/access control, self-service onboarding, team monitoring) all integrate as additive extensions to the existing SQLite schema, API route patterns, and superadmin proxy infrastructure. The research consensus is clear: use what exists, extend rather than replace, and resist the pull toward infrastructure over-engineering at a 2-10 instance scale.
+ClawForge v4.0 transforms the existing per-instance architecture (each agent at its own subdomain, separate login, separate session) into a single-URL multi-tenant product. The core insight from architecture research is that this does not require a new gateway service — the Noah instance already functions as a hub via the superadmin pattern (`SUPERADMIN_HUB=true`, `queryAllInstances()`, M2M Bearer auth via `AGENT_SUPERADMIN_TOKEN`). The v4.0 work extends that hub into a user-facing gateway by adding a central user registry, cross-subdomain session cookie, HTTP/WebSocket proxy layer, and an agent picker UI.
 
-The recommended approach is disciplined addition: four new SQLite tables (`error_log`, `usage_events`, `billing_limits`, `onboarding_state`), six new library dependencies (`pino`, `pino-http`, `@sentry/nextjs`, `stripe`, `react-hook-form`, `@hookform/resolvers`), and no changes to any production-critical path that cannot be guarded behind an env var or inserted only before/after the critical operation. The existing superadmin endpoint switch pattern, Drizzle additive migrations, and dockerode stats API cover monitoring without new infrastructure. Billing enforcement reads from local SQLite only — no Stripe calls in the job dispatch critical path.
+The recommended approach is additive: no new dependencies, no new containers, no migration to PostgreSQL. A second SQLite file (`data/hub.sqlite`) holds the central user registry and agent assignments. The existing custom `server.js` HTTP server extends to proxy requests to spoke instances. NextAuth gains a single cookie domain config change. All existing instance infrastructure (separate SQLite DBs, Docker networks, job containers) stays untouched. The superadmin `queryAllInstances()` pattern that already exists gets reused for the agent picker dashboard and cross-agent aggregate views.
 
-The top risk is scope creep masquerading as quality: OpenTelemetry instead of pino, Lago instead of Stripe Billing Meters, a comprehensive 8-step onboarding wizard, and hard billing limits that block operators on day one. Each of these is technically defensible and each one would delay the launch or damage the first operator relationships. The research is unambiguous: at this scale, the simpler option is correct in every case.
-
----
+The primary risk is the auth consolidation step. Every other feature depends on a single `AUTH_SECRET` across hub and all instances, cross-subdomain cookie scoping, and instances accepting the hub's M2M Bearer token on all `/api/*` routes (not just `/api/superadmin/*`). If this foundation is mishandled — different secrets per instance, cookie domain not set, CSWSH origin checks blocking proxied requests — WebSocket terminals fail silently and the proxy breaks in ways that are hard to debug. The WebSocket proxy also requires specific care: the `tty` subprotocol must be forwarded and binary frame type must be preserved, or the terminal renders garbage. These are well-understood problems with known solutions; the risk is execution, not design.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack (Next.js 15, NextAuth v5, Drizzle ORM + better-sqlite3, dockerode v4, LangGraph, Zod v4, Tailwind v4, node-cron) is treated as fixed. v3.0 adds exactly 6-7 new production dependencies, all with confirmed version compatibility against the existing stack.
+No new dependencies are required for v4.0. The entire milestone is achievable with existing stack components plus Node.js built-ins. A second `better-sqlite3` file (`data/hub.sqlite`) with a separate Drizzle schema (`lib/db/hub-schema.js`) holds the central user registry — this keeps hub and instance schemas independently evolvable. The raw Node.js `http` module handles all proxying via `http.request()` + `pipe()`, which is preferable to `http-proxy-middleware` (confirmed ESM incompatibility with `"type": "module"` in vercel/next.js #86434) or `node-http-proxy` (maintenance-mode since 2022). Cross-subdomain sessions require one config change to `lib/auth/edge-config.js`: add `domain: ".scalingengine.com"` on the session token cookie in production.
 
-**Core new technologies:**
+One forward-looking migration to address during v4.0: Next.js 16.0.0 renames `middleware.ts` to `proxy.ts` and the export from `middleware` to `proxy`. A codemod is available (`npx @next/codemod@canary middleware-to-proxy .`). Addressing this now prevents coupling a breaking upgrade to a future feature milestone.
 
-- `pino@^10.3.1` + `pino-http@^11.0.0`: Structured JSON logging to stdout — fastest Node.js logger, mounts on the existing `server.js` custom HTTP server before the Next.js handler. Replaces ad-hoc `console.log('[prefix]', ...)` convention with structured context fields. pino v10 requires Node 20+; Dockerfile uses Node 22 — no conflict.
-- `@sentry/nextjs@^10.44.0`: Client + server error capture with source maps — the only viable error tracking option that does not require PostgreSQL (self-hosted Sentry/GlitchTip both require it, contradicting the SQLite constraint). Free tier covers 5K errors/month. The `onRequestError` hook auto-captures all Server Component and API route errors.
-- `stripe@^20.4.1`: Subscriptions, Checkout, Customer Portal, and Billing Meters — used for payment processing and async usage reporting only, never in the job dispatch critical path. Billing Meters handles metering natively so no separate metering platform (Lago, Metronome, Flexprice) is needed or justified at this scale.
-- `react-hook-form@^7.71.2` + `@hookform/resolvers@^5.x`: Multi-step onboarding wizard with per-step Zod v4 validation. The v5 resolvers are required for Zod v4 compatibility (v4 resolvers only work with Zod v3).
-- `resend@^6.9.4`: Transactional email (welcome, billing alerts) — optional at launch, add when first external customer onboards. 3K emails/month free, 5-line integration, no SMTP server to manage.
-
-Team monitoring and health checks require zero new libraries — dockerode `container.stats({ stream: false })`, existing Drizzle queries, and the existing SSE `ReadableStream` pattern cover all needs.
+**Core technologies:**
+- **better-sqlite3 + Drizzle ORM** (existing): Central user registry via second DB file — no new install, clean schema separation between hub and per-instance tables
+- **NextAuth v5** (existing): Cross-subdomain session via single cookie domain config change — no second NextAuth instance on spokes
+- **Node.js `http` built-in**: Request proxying and SSE streaming — avoids ESM-incompatible proxy libraries
+- **zod + bcrypt-ts + uuid** (existing): Input validation, password hashing, and ID generation for hub user table — no changes needed
 
 ### Expected Features
 
-Full feature research in `.planning/research/FEATURES.md`.
+Research identified a clear P1/P2/P3 structure. The critical path runs through shared auth to agent picker to proxy to scoped navigation. All other features depend on this foundation.
 
-**Must have for v3.0 launch (P1):**
-- Per-instance job and workspace limits — prevents one instance from starving Docker resources on the host
-- Graceful limit error messages with current usage, limit, and reset date — operators must understand why a job was rejected
-- Onboarding checklist with DB-persisted progress state — without it, new operators are lost across multi-day setup
-- Automated step verification (GitHub PAT validity, Docker socket reachability, Slack webhook ping) — prevents "passed wizard but broken in prod" failures
-- First-job dispatch widget as the terminal onboarding milestone — value is confirmed only when a PR is created, not when a form is filled
-- Error events table with persistence across restarts — post-mortem debugging requires error history that survives container restart
-- Contextual tooltips on complex admin panel fields (AGENT_* prefix, mergePolicy, qualityGates) — reduces support burden
-- Helpful empty states on repos, MCP servers, and secrets pages — currently show nothing
-- External docs: deployment runbook + config reference — minimum bar for any production product
-- Job success rate metric on superadmin health cards — single most useful operational health signal
-- Usage tracking (tokens, duration) on job_outcomes — all future billing decisions require this data
+**Must have (P1 — table stakes):**
+- Shared auth layer with central user registry — everything else blocks on this
+- Agent picker dashboard (post-login landing page with assigned agent cards) — primary UX
+- User-agent assignment in superadmin UI — without this, picker shows nothing
+- Request proxy for HTTP routes — required for single URL
+- Per-agent scoped navigation (`/agent/[slug]/...`) — required for single URL
+- Terminology migration ("Instances" to "Agents" in UI strings only) — low cost, do early
 
-**Should have, add post-launch (P2):**
-- Alert on consecutive job failures (3+ threshold, Slack notification to superadmin)
-- Historical job timeline chart (stacked bar, recharts, queries existing job_outcomes)
-- Post-first-job guided tour (custom component, 3-5 steps, triggered only after first_job_run)
-- Soft billing limits with 80% threshold warnings before hard stops
-- Instance health scorecard page (extends onboarding verification into ongoing operations)
-- Container resource utilization tracking (CPU/memory captured at job completion via dockerode stats)
+**Should have (P2 — add after core validation):**
+- WebSocket proxy for terminal — more complex than HTTP; validate HTTP proxy first
+- Cross-agent aggregate views (All PRs, All Workspaces) — reuses `queryAllInstances()` pattern
+- Per-agent role differentiation (viewer/operator/admin per agent) — validate basic assignment model first
+- Agent status cards with recent activity — enriches picker
 
-**Defer to v3.1+ (P3):**
-- Stripe integration for payment processing and subscriptions — build the entitlement layer now, wire Stripe when invoice volume justifies it
-- Video walkthrough for first deploy (content, not code)
-- Cross-instance failure pattern detection (useful at 5+ instances, overkill at 2-3)
-- AI-powered help assistant in admin panel
+**Defer (v4.x+):**
+- Agent quick-launch from picker — power user shortcut; not day-1 essential
+- SSE proxy for job log streaming — complex; direct agent navigation is acceptable short-term
+- Self-service agent creation — requires billing integration (v3.0 entitlement layer)
+
+**Anti-features to avoid:** iframe embedding (breaks terminal/WebSocket), subdomain-per-agent routing (defeats the v4.0 goal), shared SQLite DB across instances (SQLite cannot handle concurrent multi-process writes), real-time cross-agent SSE hub (high ops complexity relative to value).
 
 ### Architecture Approach
 
-All four v3.0 capabilities follow the same three integration patterns established by the existing codebase: (1) additive SQLite table extension via `lib/db/schema.js` + Drizzle migration + dedicated `lib/db/[feature].js` query helper; (2) new cases added to the `handleSuperadminEndpoint()` switch in `api/superadmin.js` — the existing `queryAllInstances()` proxy requires zero changes; (3) feature-flagged middleware extensions behind env var guards so existing instances (Noah, StrategyES) see zero behavior change.
+v4.0 extends the existing hub-spoke pattern rather than introducing new infrastructure. Noah's instance becomes the user-facing gateway — it already has all the machinery needed (`SUPERADMIN_HUB=true`, `queryAllInstances()`, `AGENT_SUPERADMIN_TOKEN`, Docker `proxy-net` connecting all containers). Four architectural patterns govern the implementation: (1) Hub-side proxy with spoke-side M2M auth — all browser requests go through hub, hub re-signs with Bearer token, spokes remain unaware of multi-tenancy. (2) Stateless agent context via URL path — `/agents/[slug]/...` keeps selected agent in the URL, no client-side state store needed. (3) Component reuse without iframe — existing `lib/chat/components/` imported directly with proxied data. (4) Ticket-mediated WebSocket relay — spoke issues terminal ticket, hub relays it to browser, browser opens WS through hub, hub relays upgrade to spoke.
 
-Full architecture research in `.planning/research/ARCHITECTURE.md`.
-
-**Four new tables:**
-1. `error_log` — structured error persistence keyed by context + severity, written by `lib/observability/errors.js`, read by superadmin health and errors endpoints
-2. `usage_events` — append-only billing event log with `periodMonth` text column for cheap monthly GROUP BY, written after job dispatch and terminal session close
-3. `billing_limits` — per-instance configurable limits (one row per `(instanceName, limitType)` pair), read by `lib/billing/enforce.js` before every job dispatch
-4. `onboarding_state` — single row per instance state machine (`pending` → `in_progress` → `complete`), step completion derived from real data checks against existing tables (not user self-reporting)
-
-**Critical Edge Runtime constraint:** `lib/auth/middleware.js` runs in Edge Runtime where `better-sqlite3` is unavailable. The onboarding redirect must use an unconditional redirect when `ONBOARDING_ENABLED=true` env var is set, with completion check in the page's Server Component — not in middleware.
-
-**Billing enforcement data flow:** limit check (synchronous SQLite read, <1ms) happens before the GitHub API call in `lib/tools/create-job.js`; usage event recording happens after successful dispatch (fire-and-forget). Stripe sync happens asynchronously via the existing `lib/cron.js` daily cron — never in the dispatch path.
-
-**Confirmed do-not-touch list:** `lib/superadmin/client.js`, `verifySuperadminToken()` in `api/superadmin.js`, `lib/db/job-outcomes.js` (additive columns only), the `waitAndNotify` detached async pattern in `lib/tools/create-job.js`, existing role guards in `lib/auth/middleware.js`, `lib/ai/agent.js`, `terminalCosts`/`terminalSessions` tables, `lib/ws/` WebSocket proxy, `lib/db/config.js` settings table.
+**Major components:**
+1. **Hub DB (`lib/db/hub-schema.js`)** — `hub_users` and `agent_assignments` tables in `data/hub.sqlite`; owned by hub, invisible to spokes
+2. **HTTP proxy (`lib/proxy/http-proxy.js`)** — forwards REST + SSE requests to spoke containers with M2M Bearer auth injection
+3. **WebSocket proxy (`lib/proxy/ws-proxy.js`)** — relays WS upgrades with `tty` subprotocol forwarding and binary frame preservation
+4. **Agent picker (`templates/app/agents/page.js`)** — post-login dashboard; reads session `assignedAgents[]`, queries health via existing `queryAllInstances()`
+5. **Agent-scoped layout (`templates/app/agents/[agent]/layout.js`)** — assignment gate, validates user has access to selected agent before rendering children
+6. **Agent assignments admin (`templates/app/admin/users/`)** — superadmin UI for assigning users to agents; lives entirely on hub, no proxy needed
 
 ### Critical Pitfalls
 
-Full pitfall research in `.planning/research/PITFALLS.md`.
+1. **Mismatched `AUTH_SECRET` across hub and instances** — JWT decode returns `null` silently; WebSocket terminal rejected with 401 but no error message. Prevention: single `AUTH_SECRET` for all containers, documented in every `.env.example` with explicit comment. Must resolve before any proxy code is written.
 
-1. **SQLite write contention from observability logging** — writing one DB row per job event (40-60 events per job) serializes the SQLite writer against all DB operations. Prevention: write observability data to `logs/jobs/{jobId}.jsonl` filesystem files; write only one summary row to `job_outcomes` per job completion. Never INSERT inside `parseLineToSemanticEvent()` or `streamManager` event handlers.
+2. **WebSocket relay breaks ttyd binary frame protocol** — If hub relay does not forward `Sec-WebSocket-Protocol: tty` or re-encodes binary frames as text, terminal appears to connect but renders garbage. Prevention: forward `['tty']` subprotocol on upstream WS connection; preserve `{ binary: isBinary }` on all frame relays; set `perMessageDeflate: false`. Alternatively, use WS redirect (hub returns signed redirect URL, browser connects directly to instance) to eliminate multi-hop relay entirely.
 
-2. **Billing enforcement blocking the Docker fast path** — adding a Stripe API call to `lib/tools/create-job.js` creates a network-dependent synchronous blocker on the 9-second job dispatch path. Prevention: enforcement reads local SQLite only (`checkUsageLimit()` — synchronous better-sqlite3 query, <1ms); Stripe usage reporting runs in the daily cron job, never in the dispatch path.
+3. **Instance CSWSH check blocks hub-proxied connections** — `lib/ws/server.js` checks `origin === APP_URL`; hub URL fails this check with 403. Prevention: add `TRUSTED_PROXY_ORIGIN` env var to instances; check against both `APP_URL` and `TRUSTED_PROXY_ORIGIN`. One-line change per instance but must be explicit before proxy is live.
 
-3. **Wrong billing unit of consumption** — `jobs_per_month` count misses that a 30-minute cluster run costs 10x a 2-minute single-task job. Prevention: track compute cost (`terminalCosts.estimated_usd` + job duration) as the billing unit. For v3.0 initial, implement usage tracking as read-only visibility first; add soft limits once real usage patterns are understood. Never ship hard limits to initial operators on day one.
+4. **Terminology migration breaks running containers if schema renamed mid-milestone** — `instance_name` columns exist in `code_workspaces`, `cluster_runs`, `cluster_agent_runs`, `usage_events`, `billing_limits`. Prevention: layer 1 (UI strings only, safe anytime) separate from layer 2 (DB columns + env vars + directories, requires maintenance window, defer to post-v4.0). Never in the same PR.
 
-4. **Onboarding wizard abandonment at infrastructure steps** — operators complete steps 1-3 (account, API key, config) and abandon at the Docker Compose deploy step because it requires SSH context switch. Prevention: two-phase design — (1) pre-flight artifact generation in browser (Docker Compose snippet, env var list, Slack manifest as copy-pasteable blocks); (2) async verification after operator returns from infrastructure work. No step should require leaving the browser tab.
-
-5. **Slack notification format breaking existing operator workflows** — Noah and StrategyES operators have Slack search queries and automations built against the current notification format. Prevention: treat `notifySlack()` output as a versioned interface; add new fields only as Slack Block Kit `context` blocks appended to existing messages; audit all `notifySlack()` calls before the commercial launch phase; confirm with Noah and Sam explicitly.
-
-6. **Documentation audience mismatch** — existing `docs/ARCHITECTURE.md` and `CLAUDE.md` are developer reference material, not operator docs. Prevention: write a separate task-oriented operator runbook (one task per page); use first-week support questions to drive additional pages.
-
----
+5. **User-to-agent assignment enforced only at hub — direct instance access bypasses it** — User assigned to Agent A can access Agent B's data by calling instance URLs directly if ports are exposed. Prevention: remove `ports:` mapping from instance containers in production `docker-compose.yml`; bind to Docker internal network only.
 
 ## Implications for Roadmap
 
-The research produces a clear four-phase capability sequence plus a fifth commercial launch hardening phase. The dependency graph is not arbitrary — it reflects real data dependencies between the new tables and the features that read from them.
+Research identifies a clear dependency chain that drives phase order. Shared auth is the critical path gate — nothing else is deliverable without it. The build order from architecture research (10 internal steps) maps to 8 roadmap phases when related steps are grouped.
 
-### Phase 1: Observability Foundation
+### Phase 1: Shared Auth Foundation
+**Rationale:** Every other feature depends on the central user registry and session containing `assignedAgents[]`. Decide and lock in `AUTH_SECRET` sharing strategy, cookie domain config, and Docker network isolation before writing any UI code. This is the only phase that affects production security posture before any new features are visible.
+**Delivers:** Hub SQLite with `hub_users` + `agent_assignments` tables; `lib/db/agent-assignments.js` query helper; NextAuth session extended with `assignedAgents[]`; `/agents/*` routes auth-guarded; instance containers bound to Docker internal network (no `ports:` exposure); `TRUSTED_PROXY_ORIGIN` env var on all instances
+**Addresses:** Shared auth layer, user-to-agent assignment data model, persistent agent context
+**Avoids:** Mismatched `AUTH_SECRET` (Pitfall 1), cookie domain issues (Pitfall 3), cross-tenant access (Pitfall 5)
 
-**Rationale:** No dependencies on other v3.0 work. Immediate production value — errors are currently lost on container restart. Must be in place before billing and onboarding go live because those features introduce new failure modes that will need debugging. Instruments the system before adding new complexity.
+### Phase 2: Terminology Migration (UI Strings Only)
+**Rationale:** No dependencies, low cost, sets vocabulary for all subsequent UI work. Doing it early prevents accumulating new "instance" language during v4.0 development. UI strings only — no DB column or env var renames. Layer 2 (internal identifiers) deferred to post-v4.0.
+**Delivers:** "Agents" everywhere user-facing in existing UI; "Instances" removed from nav, page titles, admin labels; Slack notification copy updated in same change
+**Addresses:** Terminology migration feature
+**Avoids:** Partial migration confusion (Pitfall 4 — layer 1 done cleanly before layer 2 is ever considered)
 
-**Delivers:** `error_log` table, `lib/observability/errors.js` `captureError()` function, structured JSON logging via pino + pino-http mounted on `server.js`, Sentry.io integration for client/server error capture, health endpoint extension (`errorCount24h`, `lastErrorAt`, `dbStatus`), 30-day log pruning cron.
+### Phase 3: HTTP Proxy Layer
+**Rationale:** Required before any agent-scoped UI pages can work. Spoke `api/index.js` gets additive Bearer token acceptance on all `/api/*` routes. Hub gets `lib/proxy/http-proxy.js`. CSWSH origin and `NEXTAUTH_URL` changes verified. This phase is purely infrastructure — no user-visible features.
+**Delivers:** Hub can proxy any REST API call to any spoke; spoke `api/index.js` accepts `AGENT_SUPERADMIN_TOKEN` Bearer on all routes; `NEXTAUTH_URL` on instances updated to hub URL; full login-to-redirect flow tested end-to-end
+**Addresses:** Request proxy (HTTP), per-agent scoped navigation
+**Avoids:** CSWSH check blocking proxied connections (Pitfall 3), `NEXTAUTH_URL` redirect breaking auth flow (Pitfall 6)
 
-**Addresses features:** Error events table with persistence, job success rate metric (extended health endpoint), error context for post-mortem debugging.
+### Phase 4: Agent Picker UI + User Assignment Admin
+**Rationale:** Depends only on Phase 1 (hub DB + auth). No proxy dependency — uses existing `queryAllInstances('health')`. Delivers the entire user-facing value proposition: users can log in, see their agents, and navigate to one. These two sub-features share the same data model and can ship together.
+**Delivers:** `/agents` post-login dashboard with agent cards and status; superadmin assignment UI at `/admin/users`; empty state for unassigned users; agent-scoped layout with assignment gate at `/agents/[agent]/layout.js`
+**Addresses:** Agent picker dashboard, user-agent assignment, agent status cards with recent activity
+**Avoids:** Agent picker showing all agents to all users (UX pitfall); three-navigation-to-start-working flow by auto-navigating to last-selected agent
 
-**Avoids:** SQLite write contention — filesystem JSONL logging for job-level events, one summary row per job to `job_outcomes` only. Alert fatigue — configure only 5 business-outcome alerts (job failure rate, workspace crash, Slack delivery failures, dispatch P95, instance heartbeat).
+### Phase 5: Agent-Scoped Pages — Chat
+**Rationale:** Largest single phase. Chat is the primary feature — proves the proxy layer end-to-end with streaming, job dispatch, and notification polling all routed through Phase 3's HTTP proxy. All other agent-scoped pages depend on the layout and pattern established here.
+**Delivers:** `/agents/[slug]/chat` fully functional through hub proxy; chat streaming, job dispatch, and SSE polling all proxied; component reuse pattern established (import existing `lib/chat/components/`, supply data via proxy — no iframe)
+**Addresses:** Per-agent scoped navigation for primary feature, request proxy for chat
+**Avoids:** Hardcoded instance URLs in frontend components (scan for `strategyes.scalingengine.com` before starting)
 
-**Stack:** `pino@^10.3.1`, `pino-http@^11.0.0`, `@sentry/nextjs@^10.44.0`.
+### Phase 6: WebSocket Proxy (Terminal)
+**Rationale:** Higher complexity than HTTP; isolated to its own phase after HTTP proxy is validated. Two options exist — relay (hub-to-instance-to-ttyd) or redirect (hub validates, returns signed WS URL, browser connects directly). Decision should be made at phase start based on measured latency of relay path.
+**Delivers:** Terminal workspaces accessible through hub URL; `Sec-WebSocket-Protocol: tty` forwarded correctly on upstream connection; binary frame type preserved; `perMessageDeflate: false` confirmed; ticket relay flow verified (spoke issues ticket, hub relays to browser, browser connects through hub)
+**Addresses:** WebSocket proxy for terminal
+**Avoids:** ttyd binary frame protocol breaking (Pitfall 2)
 
-**Research flag:** Sentry Next.js 15 App Router integration is fully documented with official guides — skip research. Standard logging patterns.
+### Phase 7: Remaining Agent-Scoped Pages
+**Rationale:** Depends on Phase 3 (HTTP proxy). Read-heavy list views — lower complexity than chat. PRs, workspaces, sub-agents all reuse the component and proxy pattern proven in Phase 5.
+**Delivers:** `/agents/[slug]/pull-requests`, `/agents/[slug]/workspace`, `/agents/[slug]/swarm` all functional through hub
+**Addresses:** Full per-agent scoped navigation
 
-### Phase 2: Billing and Usage Tracking
-
-**Rationale:** Must exist before Onboarding (Phase 3) because the onboarding `first_job` step check reads from `usage_events`. Establishes the `billing_limits` table that the monitoring dashboard (Phase 4) reads for usage-vs-limit display. Concurrency limit must be in place before any free tier access is opened.
-
-**Delivers:** `usage_events` table (append-only, `periodMonth` text column indexed), `billing_limits` table (per-instance configurable), `lib/billing/enforce.js:checkUsageLimit()` (synchronous SQLite enforcement before job dispatch), `lib/db/usage.js:recordUsageEvent()` (fire-and-forget after dispatch), Stripe integration for payment processing (Checkout, Customer Portal, Billing Meters, webhook handler), daily cron for async Stripe meter sync, admin UI for superadmin to adjust per-instance limits.
-
-**Addresses features:** Per-instance job/workspace limits, graceful limit error messages, usage tracking (tokens + duration on job_outcomes), plan tier stored per instance (superadmin-editable), concurrency limit to prevent burst abuse.
-
-**Avoids:** Stripe in dispatch critical path — local SQLite enforcement only. Hard limits on day one — read-only usage visibility first; soft limits (80% warning threshold) when patterns are confirmed.
-
-**Stack:** `stripe@^20.4.1`. Existing `node-cron` for meter sync cron.
-
-**Research flag:** Workspace-hour usage event implementation (periodic cron vs. on-close event) needs resolution during phase planning — confirm whether workspace billing is in scope for v3.0 or deferred to v3.1.
-
-### Phase 3: Self-Service Onboarding
-
-**Rationale:** Depends on Phase 2 (`usage_events` must exist for `first_job` step verification). Must come before commercial launch (Phase 5). The onboarding flow determines whether external customers can self-serve or require concierge support — this is the primary Phase 5 enabler.
-
-**Delivers:** `onboarding_state` table (single-row-per-instance state machine), `lib/onboarding/steps.js` (step definitions with programmatic completion checks against existing tables), `lib/onboarding/state.js` (state machine with `checkAndAdvance()`), `/app/onboarding/page.js` wizard UI (react-hook-form + Zod v4 + existing shadcn), `ONBOARDING_ENABLED=true` env var gate in middleware, pre-flight artifact generation (Docker Compose snippet, env var list, Slack app manifest as copy-pasteable blocks), contextual tooltips on complex admin fields, helpful empty states on key pages.
-
-**Addresses features:** Onboarding checklist with progress persistence, automated step verification, first-job dispatch widget as terminal milestone, resumable setup across sessions, setup time estimates per step.
-
-**Avoids:** Two-phase design only (artifact generation + async verification) — no infrastructure steps inside the wizard. Onboarding redirect in page Server Component, not middleware (Edge Runtime blocks better-sqlite3). Success = first job dispatched and PR created, not wizard form submitted.
-
-**Stack:** `react-hook-form@^7.71.2`, `@hookform/resolvers@^5.x`. Existing Zod v4, Tailwind, shadcn components.
-
-**Research flag:** Edge Runtime redirect loop risk — unconditional `ONBOARDING_ENABLED` redirect + page-level completion check needs validation that no circular redirect occurs. Flag for phase planning before writing middleware code.
-
-### Phase 4: Team Monitoring Dashboard
-
-**Rationale:** Hard dependency on all three prior phases — aggregates `error_log` (Phase 1), `usage_events` + `billing_limits` (Phase 2), and `onboarding_state` (Phase 3) via new superadmin endpoints. The `queryAllInstances()` proxy client requires zero changes; new endpoint cases are sufficient.
-
-**Delivers:** Three new superadmin endpoint cases (`errors`, `usage`, `onboarding` in `handleSuperadminEndpoint()` switch), `/app/superadmin/monitoring/page.js` (per-instance cards with health, error rate, usage vs. limits, onboarding progress), dockerode `container.stats({ stream: false })` for CPU/memory snapshots at job completion, job success rate per instance (query on existing `job_outcomes`), alert-on-consecutive-failures logic (Slack notification, max once per hour per instance).
-
-**Addresses features:** Cross-instance monitoring in superadmin portal, error tracking visibility, historical job timeline chart, health degradation alerts, container resource utilization tracking.
-
-**Avoids:** Infrastructure-level alerting (CPU/memory thresholds) — business-outcome alerts only. External monitoring services (Datadog, New Relic) — all data stays in existing SQLite. Real-time streaming event feed across all instances — polling at 30-second intervals is correct at this scale.
-
-**Stack:** Zero new libraries. Extends existing dockerode, Drizzle, and SSE ReadableStream patterns.
-
-**Research flag:** Confirm which charting library (recharts vs. chart.js) is already present in the superadmin portal before choosing for the monitoring page — avoid duplicate charting dependency. Otherwise standard patterns — skip additional research.
-
-### Phase 5: Commercial Launch Hardening
-
-**Rationale:** Runs after Phases 1-4 are functional. Protects existing operators (Noah, StrategyES) from regressions introduced by the new features. Provides external operators with the documentation needed to succeed. Verifies demo isolation before external access is opened.
-
-**Delivers:** Task-oriented operator runbook (10 pages covering most common operator actions — not architecture documentation), config reference (every env var, every REPOS.json field, every admin panel setting), deployment runbook (VPS deploy, Docker Compose, DNS, Slack app creation), troubleshooting guide (top 10 errors with fixes), Slack notification format audit (zero breaking changes confirmed with Noah and Sam), demo instance with isolated Docker network, `resend` transactional email (welcome + billing alert), post-first-job guided tour (custom component, 3-5 steps, triggered only after `first_job_run`).
-
-**Addresses features:** External docs, troubleshooting guide, post-first-job guided tour, demo isolation, existing operator regression protection.
-
-**Avoids:** Shipping existing `docs/ARCHITECTURE.md` as operator documentation (audience mismatch). Changing notification format without operator confirmation. Demo instance sharing Docker networks or volumes with production instances.
-
-**Stack:** `resend@^6.9.4` (optional — add when first external customer onboards).
-
-**Research flag:** No technical research needed. Notification format audit and demo instance isolation are coordination and operations tasks.
+### Phase 8: Cross-Agent Aggregate Views
+**Rationale:** Reuses `queryAllInstances()` from Phase 1 foundation. Builds on all proxied pages being functional. Must include staleness metadata per agent — never ship aggregate views without "last updated" indicators.
+**Delivers:** `/agents/all` with tabs for All PRs, All Workspaces, All Sub-Agents; staleness indicators per agent; graceful partial results when any instance is offline; 1-second timeout for user-facing views (vs. 5-second for health dashboard)
+**Addresses:** Cross-agent aggregate views, per-agent role differentiation
+**Avoids:** Per-instance SQLite not queryable cross-agent (Pitfall 4); stale data shown as current without freshness indicators
 
 ### Phase Ordering Rationale
 
-- **Observability first** because all subsequent phases introduce new failure modes that need debugging infrastructure; also delivers immediate production value independent of the commercial features.
-- **Billing before Onboarding** because the onboarding `first_job` step check reads from `usage_events` — if billing tables don't exist, onboarding step verification fails at the data layer.
-- **Onboarding before Monitoring Dashboard** because the monitoring dashboard displays onboarding state from the `onboarding_state` table as one of its three data aggregations.
-- **Commercial Hardening last** because it depends on all four capability areas being functional and is primarily a quality, documentation, and coordination phase.
-- Phases 1 and 2 have no shared tables and can be built in parallel by separate developers. All other phases are sequentially dependent.
+- Phase 1 gates everything: auth consolidation must be complete before any proxy or UI work begins
+- Phase 2 (terminology) is independent but done early to prevent vocabulary drift during development
+- Phases 3 and 4 are parallelizable after Phase 1 — proxy layer and picker/assignment UI have no dependency on each other
+- Phase 5 (chat) is the integration test for Phase 3 — validates the full proxy stack end-to-end before adding more pages
+- Phase 6 (WebSocket) is intentionally isolated — WS proxy complexity should not block HTTP proxy delivery
+- Phase 8 (cross-agent) comes last because it requires all agent-scoped pages to be working first
 
 ### Research Flags
 
-Phases needing deeper research during planning:
-- **Phase 2 (Billing):** Workspace-hour usage event timing — confirm whether workspace session billing is in scope for v3.0 and whether the periodic cron approach (every 15 minutes) or on-close event approach is appropriate.
-- **Phase 3 (Onboarding):** Edge Runtime redirect loop risk — validate that unconditional `ONBOARDING_ENABLED` redirect + page-level completion check does not produce a circular redirect on first load before writing middleware code.
+Phases likely needing deeper research during planning:
+- **Phase 1 (Shared Auth):** Cross-subdomain NextAuth v5 beta cookie behavior has known edge cases (GitHub issues #6881 and #10915 document inconsistencies). Test `domain: ".scalingengine.com"` in staging before locking in approach. If it fails, fallback is shared `AUTH_SECRET` with spoke-side JWT validation (already the WS auth pattern).
+- **Phase 6 (WebSocket Proxy):** Relay vs. redirect decision requires profiling actual latency impact on terminal UX. Relay adds two extra hops; redirect eliminates them but requires signed token infrastructure on hub. Decide at phase start with a measured prototype, not upfront.
 
-Phases with well-documented patterns (skip research-phase):
-- **Phase 1 (Observability):** Sentry Next.js 15 integration has official docs; pino stdout logging is standard.
-- **Phase 4 (Monitoring):** Superadmin endpoint extension pattern is already proven in production; dockerode stats CPU formula is confirmed.
-- **Phase 5 (Documentation):** No technical research needed — content and coordination work only.
-
----
+Phases with standard patterns (skip research-phase):
+- **Phase 2 (Terminology):** Pure string replacement; use explicit file list, not global search-replace
+- **Phase 3 (HTTP Proxy):** Raw `http.request()` + `pipe()` is well-documented; the pattern is already proven in `server.js` WS handling
+- **Phase 4 (Agent Picker):** Reuses `queryAllInstances()` pattern exactly — no new machinery
+- **Phases 7 and 8:** Extend patterns proven in Phases 5 and 6
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All 7 new dependency versions confirmed via npm registry. All integration points verified against actual codebase files (`server.js`, `instrumentation.ts`, `api/index.js`, `lib/tools/create-job.js`). Node.js version compatibility verified (pino v10 requires Node 20+; Dockerfile uses Node 22). |
-| Features | MEDIUM | External SaaS patterns sourced from WebSearch — multiple sources agree on TTV metrics, onboarding completion rates, billing model alignment. ClawForge-specific feature decisions are HIGH confidence — verified against v2.2 shipped capabilities and current `lib/db/schema.js`. |
-| Architecture | HIGH | Derived entirely from direct inspection of 13 codebase files including `lib/db/schema.js`, `api/superadmin.js`, `lib/superadmin/client.js`, `lib/auth/middleware.js`, `lib/tools/create-job.js`, and `.planning/codebase/CONCERNS.md`. All integration points confirmed against real code. Edge Runtime constraint confirmed by Next.js documentation. |
-| Pitfalls | HIGH (codebase) / MEDIUM (external) | SQLite WAL write contention and Edge Runtime `better-sqlite3` constraint confirmed against codebase. Alert fatigue (edgedelta.com), metric cardinality (Honeycomb), billing model alignment (Stripe/Zenskar), and onboarding abandonment (daily.dev) sourced from multiple external references. |
+| Stack | HIGH | All recommendations are existing stack + Node.js built-ins; verified against live codebase; no speculative dependencies; ESM incompatibility of proxy libraries confirmed against official Next.js GitHub |
+| Features | MEDIUM | Feature priorities derived from analogous SaaS products (Vercel, GitHub, Linear, Botpress); no direct reference implementation for this exact model; dependency graph is solid based on codebase inspection |
+| Architecture | HIGH | Primary sources are live codebase archaeology of `lib/ws/`, `lib/superadmin/`, `lib/auth/`, `docker-compose.yml`; build order derived from actual dependency graph; integration points verified against real code |
+| Pitfalls | HIGH | Critical pitfalls verified against specific code paths in `lib/code/ws-proxy.js`, `lib/ws/server.js`, `lib/auth/edge-config.js`; community sources cross-referenced with official docs |
 
-**Overall confidence:** HIGH for implementation-level decisions. MEDIUM for external product/market judgments (feature priority, operator behavior predictions at scale).
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Workspace-hour billing scope:** Research is ambiguous on whether workspace session metering belongs in v3.0 or v3.1. The `workspace_hour` event type is defined in the schema design but the periodic cron implementation adds complexity. Decide during Phase 2 planning — if deferred, remove `workspace_hour` from the `usage_events` schema to avoid dead schema columns.
-
-- **Recharts vs. chart.js in existing codebase:** The monitoring dashboard needs a charting library. FEATURES.md notes recharts as "potentially already in use via superadmin portal." Confirm the actual dependency in `package.json` before Phase 4 to avoid adding a duplicate charting library.
-
-- **Demo instance provisioning timing:** PITFALLS.md identifies demo/production isolation as critical but does not specify when the demo instance should be provisioned. Determine during Phase 5 planning whether it is a new VPS or a Docker network on the existing host, and who provisions it.
-
-- **Billing limits admin UI placement:** ARCHITECTURE.md flags `/admin/billing` (per-instance self-service) vs. `/superadmin/billing` (cross-instance from hub) as an open question. For v3.0 with manual operator configuration, per-instance admin is sufficient. Confirm during Phase 2 planning and do not build the cross-instance UI until it is needed.
-
----
+- **NextAuth v5 beta cross-subdomain cookie behavior:** The `domain` cookie option is documented but v5 is still in beta; behavior may differ from v4. Validate in staging with real hub-to-instance session before committing. Fallback: shared `AUTH_SECRET` with spoke-side JWT validation.
+- **WebSocket relay vs. redirect decision:** Both approaches are viable. Relay is simpler to implement but adds latency per frame. Redirect eliminates multi-hop but requires signed token infrastructure. Make the call explicitly at Phase 6 start based on measured latency.
+- **Spoke `api/index.js` Bearer token scope:** Adding Bearer token acceptance to all `/api/*` routes (not just `/api/superadmin/*`) is additive. Confirm this does not conflict with existing `x-api-key` webhook auth for Slack/Telegram/GitHub endpoints — those should remain key-protected regardless of Bearer presence.
 
 ## Sources
 
-### Primary (HIGH confidence — direct codebase inspection)
+### Primary (HIGH confidence)
+- Codebase: `lib/ws/server.js`, `lib/ws/proxy.js`, `lib/ws/tickets.js` — WebSocket proxy patterns
+- Codebase: `lib/superadmin/client.js`, `lib/superadmin/config.js` — existing hub-spoke HTTP proxy pattern
+- Codebase: `lib/auth/middleware.js`, `lib/auth/edge-config.js`, `lib/auth/config.js` — auth stack
+- Codebase: `lib/db/schema.js` — full data model
+- Codebase: `docker-compose.yml` — container topology, shared proxy-net
+- Codebase: `api/superadmin.js` — M2M auth pattern with AGENT_SUPERADMIN_TOKEN
+- [Next.js proxy.js file convention](https://nextjs.org/docs/app/api-reference/file-conventions/proxy) — middleware renamed to proxy in v16.0.0
+- [NextAuth.js options documentation](https://next-auth.js.org/configuration/options) — `cookies.sessionToken.options.domain` config key
+- [http-proxy-middleware ESM issue](https://github.com/vercel/next.js/issues/86434) — ESM incompatibility confirmed
+- [OWASP WebSocket Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html) — CSWSH origin validation
 
-- `lib/db/schema.js` — all existing tables confirmed; new table designs validated for non-conflict
-- `api/superadmin.js` — endpoint switch pattern, M2M auth, `handleSuperadminEndpoint()` switch confirmed
-- `lib/superadmin/client.js` — `queryAllInstances()` proxy pattern confirmed; zero changes required for new endpoints
-- `lib/auth/middleware.js` — Edge Runtime constraint confirmed; three-tier RBAC guards confirmed
-- `lib/tools/create-job.js` — dispatch critical path confirmed; correct insertion points for enforcement and usage recording confirmed
-- `lib/terminal/cost-tracker.js` — `terminalCosts` + `terminalSessions` accumulation pattern confirmed
-- `.planning/PROJECT.md` — v3.0 target features, out-of-scope decisions (OpenTelemetry, Max subscription auth) confirmed
-- `.planning/codebase/CONCERNS.md` — silent failure paths in `api/index.js` confirmed as primary observability gap
+### Secondary (MEDIUM confidence)
+- [NextAuth v5 cross-subdomain cookie discussion](https://github.com/nextauthjs/next-auth/issues/2414) — cookie domain approach
+- [NextAuth v5 subdomain issues #6881](https://github.com/nextauthjs/next-auth/issues/6881), [#10915](https://github.com/nextauthjs/next-auth/issues/10915) — beta behavior edge cases
+- [WorkOS: Developer's Guide to SaaS Multi-Tenant Architecture](https://workos.com/blog/developers-guide-saas-multi-tenant-architecture) — auth patterns, tenant isolation
+- [Next.js Multi-Zones Guide](https://nextjs.org/docs/pages/guides/multi-zones) — path-based routing across multiple Next.js apps
+- [Vercel Team Management Docs](https://vercel.com/docs/rbac/managing-team-members) — org/team switcher, role assignment patterns
 
-### Primary (HIGH confidence — official documentation)
-
-- [Sentry Next.js docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/) — `onRequestError` hook, Next.js 15 compatibility, Turbopack SDK rewrite
-- [Stripe usage-based billing docs](https://docs.stripe.com/billing/subscriptions/usage-based) — Billing Meters API confirmed
-- [dockerode Container.stats GitHub issue #389](https://github.com/apocas/dockerode/issues/389) — `stream: false` one-shot stats pattern, CPU calculation formula verified
-- npm registry — version confirmations for all 7 new dependencies as of 2026-03-17
-
-### Secondary (MEDIUM confidence — multiple sources agree)
-
-- SaaS onboarding best practices (Design Revision, Everafter.ai, Userpilot) — TTV metric, 3-7 step sweet spot, post-activation tour timing
-- Usage-based billing patterns (Stripe SaaS resource, Zenskar) — enforcement-in-application-code pattern, entitlement layer design
-- Multi-tenant monitoring patterns (New Relic, AWS SaaS Lens) — tenant-aware metrics, systemic vs. localized issue detection
-- SQLite WAL write contention (phiresky blog, oneuptime.com 2026) — writer serialization limits, production setup recommendations
-- Alert fatigue research (edgedelta.com) — 38% of teams cite noise as major incident response challenge
-- Metric cardinality pitfall (Honeycomb observability best practices) — UUID labels create unbounded time series
-- Developer onboarding abandonment (daily.dev) — infrastructure step context switch causes abandonment
+### Tertiary (LOW confidence)
+- [OWASP Multi-Tenant Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Multi_Tenant_Security_Cheat_Sheet.html) — general multi-tenant principles
+- Analogical platform analysis (Vercel, GitHub, Linear, Botpress) — UI patterns for agent/workspace picker; not direct implementations
 
 ---
-*Research completed: 2026-03-17*
+*Research completed: 2026-03-24*
 *Ready for roadmap: yes*

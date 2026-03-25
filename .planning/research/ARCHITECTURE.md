@@ -1,546 +1,432 @@
-# Architecture Research: v3.0 Customer Launch Integration
+# Architecture Research
 
-**Domain:** Commercial launch capabilities for existing AI agent gateway platform
-**Researched:** 2026-03-17
-**Confidence:** HIGH — derived from direct inspection of all referenced files
-
-> **Scope of this document:** ClawForge v2.2 is already shipped. This document covers only the four new v3.0 capability areas and their integration points with the existing architecture: (1) observability layer, (2) billing/usage tracking, (3) onboarding state machine, (4) team monitoring dashboard extension. Prior architecture decisions (two-layer Docker dispatch, LangGraph agent, superadmin API proxy, three-tier RBAC) are treated as preconditions — not duplicated here.
+**Domain:** Multi-tenant agent platform — adding shared auth, request proxy, agent picker, and per-agent scoped UI to an existing multi-instance ClawForge deployment
+**Researched:** 2026-03-24
+**Confidence:** HIGH (primary sources: codebase archaeology, existing patterns in lib/ws/, lib/superadmin/, lib/auth/, docker-compose.yml)
 
 ---
 
-## System Overview: v2.2 Baseline
+## Existing Architecture Baseline
+
+Before documenting what's new, the integration must be grounded in what already exists.
+
+### Current System
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         Browser UI (Next.js)                             │
-│  ┌──────────┐  ┌──────────┐  ┌────────────────┐  ┌────────────────────┐ │
-│  │ Chat UI  │  │ Admin UI │  │ Superadmin UI  │  │ Workspace Terminal │ │
-│  │ /chat/*  │  │ /admin/* │  │ /superadmin/*  │  │  /ws/* (xterm.js)  │ │
-│  └────┬─────┘  └────┬─────┘  └───────┬────────┘  └────────┬───────────┘ │
-│       │ Server      │ Server          │ SA Client           │ WS ticket   │
-│       │ Actions     │ Actions         │ queryAllInstances() │ auth        │
-├───────┴─────────────┴─────────────────┴─────────────────────┴────────────┤
-│                         Event Handler (Next.js)                           │
-│  ┌──────────────────┐  ┌───────────────────┐  ┌─────────────────────┐    │
-│  │ LangGraph ReAct  │  │  Channel Adapters │  │ Superadmin API      │    │
-│  │ lib/ai/agent.js  │  │  Slack/TG/Web     │  │ api/superadmin.js   │    │
-│  └────────┬─────────┘  └───────────────────┘  │ health/stats/jobs   │    │
-│           │ tool calls                          └─────────────────────┘    │
-│  ┌────────▼──────────────────────────────────────────────────────────┐    │
-│  │ Tool Layer: createJob, startCoding, getJobStatus, web_search, ... │    │
-│  └────────┬──────────────────────────────────────────────────────────┘    │
-├───────────┴───────────────────────────────────────────────────────────────┤
-│                          SQLite Database Layer                             │
-│  users │ chats │ messages │ job_origins │ job_outcomes │ settings          │
-│  code_workspaces │ cluster_runs │ terminal_sessions │ terminal_costs       │
-└──────────────────────┬────────────────────────────────────────────────────┘
-                       │ dockerode Engine API
-┌──────────────────────▼───────────────────────────────────────────────────┐
-│                      Docker Containers                                    │
-│  Job containers: clawforge-{instance}-{slug} (9s start via Engine API)   │
-│  Workspace containers: clawforge-ws-{instance}-{id} (ttyd + tmux)        │
-└──────────────────────────────────────────────────────────────────────────┘
+Browser                     Traefik (proxy)              Instance Containers
+─────────────────────────────────────────────────────────────────────────────
+User at clawforge.example.com → Traefik → clawforge-noah  (Next.js + server.js)
+User at strategyes.example.com → Traefik → clawforge-ses  (Next.js + server.js)
+
+Each container:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  PM2 runs server.js (custom HTTP server wrapping Next.js)        │
+  │                                                                  │
+  │  server.js                                                       │
+  │  ├── HTTP → handle(req, res)  [Next.js request handler]          │
+  │  ├── WS /ws/terminal/*        [ticket-based, proxies to ttyd]    │
+  │  └── WS /code/*/ws            [session-cookie auth, proxies ttyd]│
+  │                                                                  │
+  │  Next.js App                                                     │
+  │  ├── lib/auth/        [NextAuth v5, JWT strategy, bcrypt users]  │
+  │  ├── lib/db/          [Drizzle ORM, SQLite, isolated per inst]   │
+  │  ├── lib/ai/          [LangGraph ReAct agent, LLM dispatch]      │
+  │  ├── lib/superadmin/  [HTTP client, instance registry from env]  │
+  │  └── api/superadmin.js [M2M endpoint, AGENT_SUPERADMIN_TOKEN]   │
+  └─────────────────────────────────────────────────────────────────┘
+
+Each instance has completely separate:
+  - SQLite database (data volume: noah-data, ses-data)
+  - Auth session secrets (AUTH_SECRET per instance)
+  - User table (users log in to their instance, not a shared pool)
+  - Docker network (noah-net, strategyES-net)
 ```
 
-**Key constraints that define integration approach:**
-- Single SQLite file at `data/clawforge.sqlite` — additive migrations only
-- `settings` table already used for config/secret/llm_provider types — new types can be added without schema changes
-- Superadmin M2M auth (`AGENT_SUPERADMIN_TOKEN`) + `verifySuperadminToken()` is working and must not be touched
-- `lib/auth/middleware.js` guards three tiers (`user`, `admin`, `superadmin`) — extend with env-var-gated guards only
-- All browser-initiated operations use Server Actions, never direct API route calls
+### Superadmin Pattern (Already Exists)
+
+The hub-spoke pattern for cross-instance queries is already built:
+
+```
+Noah instance (hub, SUPERADMIN_HUB=true)
+  lib/superadmin/client.js
+    ├── Local instance: calls handleSuperadminEndpoint() directly
+    └── Remote instances: fetch /api/superadmin/{endpoint} with Bearer token
+
+Each instance exposes:
+  GET /api/superadmin/health
+  GET /api/superadmin/stats
+  GET /api/superadmin/jobs
+  GET /api/superadmin/usage
+  GET /api/superadmin/onboarding
+  → Auth: timingSafeEqual check on AGENT_SUPERADMIN_TOKEN
+```
 
 ---
 
-## Capability 1: Observability Layer
+## v4.0 Integration Architecture
 
-### Integration Question
+### Core Insight: One Container Becomes the Hub
 
-Where does observability instrumentation live — error boundaries, health check endpoints, structured logging?
+The existing hub-spoke superadmin pattern answers the gateway question definitively.
+**Noah's instance is already the hub.** It already:
+- Has SUPERADMIN_HUB=true
+- Knows all other instances via SUPERADMIN_INSTANCES env
+- Can query any instance via HTTP with Bearer token
+- Serves the superadmin dashboard at /admin/superadmin/
 
-### Answer: Thin wrapper over existing patterns, not a new framework
+v4.0 extends this: the hub becomes the single entry point for users. Traefik continues routing `clawforge.scalingengine.com → noah container`. The other instance URLs (`strategyes.scalingengine.com`) can be kept as direct access for backward compat, but all new multi-tenant users go through the hub.
 
-The codebase already has informal observability: `console.log('[slack]', ...)` prefix conventions, `failure_stage` detection in Docker dispatch, structured `summarizeJob()` LLM summaries, and the superadmin health endpoint (`getHealth()` in `api/superadmin.js`). v3.0 formalizes these without introducing a logging framework dependency.
+No new container needed. No separate gateway service. The hub IS the gateway.
+
+### System Overview (v4.0 Target State)
+
+```
+                        Browser (single URL)
+                               │
+                               ▼
+                  clawforge.scalingengine.com
+                               │
+                        Traefik (TLS termination)
+                               │
+                               ▼
+              ┌────────────────────────────────────┐
+              │   Noah Container (Hub + Gateway)     │
+              │                                     │
+              │  Next.js App                        │
+              │  ├── /login          [shared auth]  │
+              │  ├── /agents         [agent picker] │
+              │  ├── /agents/[name]/* [scoped UI]   │
+              │  │     ├── /chat                    │
+              │  │     ├── /pull-requests            │
+              │  │     ├── /workspace                │
+              │  │     └── /swarm (clusters)         │
+              │  ├── /agents/all/*   [cross-agent]  │
+              │  └── /admin/*        [existing]     │
+              │                                     │
+              │  lib/proxy/          [NEW]           │
+              │  ├── http-proxy.js   [REST → inst]  │
+              │  └── ws-proxy.js     [WS → inst]    │
+              │                                     │
+              │  lib/auth/           [MODIFIED]      │
+              │  └── Added: agentAssignments table  │
+              └────────────────────────────────────┘
+                    │                    │
+          HTTP proxy                 WS proxy
+          + Bearer token             + ticket relay
+                    │                    │
+        ┌───────────┘         ┌──────────┘
+        ▼                     ▼
+  clawforge-ses container   clawforge-ses container
+  (port 80, internal)       (port 80, ws upgrade)
+  ├── /api/superadmin/*     ├── /ws/terminal/*
+  └── /api/* (proxied)      └── /code/*/ws (proxied)
+```
+
+---
+
+## Component Boundaries
+
+### Existing Components (Unchanged)
+
+| Component | Location | Responsibility | Change |
+|-----------|----------|----------------|--------|
+| Custom HTTP server | `lib/ws/server.js` | HTTP + WS upgrade interception, PM2 entrypoint | No change to server.js — proxy attaches here |
+| Ticket auth | `lib/ws/tickets.js` | 30s single-use tokens for terminal WS | No change — proxy relays tickets from spoke |
+| Superadmin client | `lib/superadmin/client.js` | Queries all instances via HTTP | Extend: add generic `proxyRequest()` |
+| Superadmin config | `lib/superadmin/config.js` | Instance registry from env | No change |
+| NextAuth middleware | `lib/auth/middleware.js` | JWT session guard on Next.js routes | Extend: add /agents/* protection, role check |
+| Auth edge config | `lib/auth/edge-config.js` | JWT callbacks, session shape | Extend: add `assignedAgents` to token |
+| Auth config | `lib/auth/config.js` | Credentials provider, DB lookup | No change |
+| Schema | `lib/db/schema.js` | Drizzle SQLite tables | Add: `agent_assignments` table |
+| Users DB | `lib/db/users.js` | CRUD + bcrypt | Add: assignment queries |
 
 ### New Components
 
-| File | Purpose | New or Modify |
-|------|---------|--------------|
-| `lib/observability/logger.js` | Structured log emitter — JSON-to-stdout wrapper over `console.log` with level + context fields | NEW |
-| `lib/observability/errors.js` | `captureError(context, err, meta)` — writes to `error_log` table; callable from any module | NEW |
-| `lib/db/error-log.js` | Query helpers: `writeError()`, `getRecentErrors(hours)`, `pruneOldErrors(days)` | NEW |
-
-### Modified Components
-
-| File | Change | Why This File |
-|------|--------|--------------|
-| `lib/db/schema.js` | Add `errorLog` table | All tables live here; Drizzle migration auto-generated |
-| `api/index.js` | Replace silent `.catch()` on `processChannelMessage()` (line ~162) with `captureError('channel', err)` | CONCERNS.md identifies this as the primary silent failure path |
-| `api/superadmin.js` | Extend `getHealth()` to include `errorCount24h`, `lastErrorAt`, `dbStatus` fields | Only place health data is served to hub |
-| `config/instrumentation.js` | Register pruning cron for `error_log` (30-day retention) via existing `node-cron` scheduler | Server startup already initializes cron here |
-
-### Do NOT Modify
-
-The LangGraph agent error handling (tool errors caught by framework), Docker dispatch failure-stage detection (already surfaces via `failure_stage` in notifications), and GitHub webhook handler (already has try/catch).
-
-### Data Model: error_log Table
-
-```javascript
-// Add to lib/db/schema.js
-export const errorLog = sqliteTable('error_log', {
-  id: text('id').primaryKey(),
-  context: text('context').notNull(),      // 'channel', 'webhook', 'startup', 'db', 'cron'
-  severity: text('severity').notNull(),    // 'error', 'warn', 'info'
-  message: text('message').notNull(),
-  stack: text('stack'),                    // nullable — JS error stacks
-  metadata: text('metadata'),             // nullable JSON string for request context, jobId, etc.
-  instanceName: text('instance_name'),     // from INSTANCE_NAME env var
-  createdAt: integer('created_at').notNull(),
-});
-```
-
-### Health Endpoint Extension
-
-`api/superadmin.js:getHealth()` currently returns `{ instance, status, uptime }`. Extend with DB query:
-
-```
-{
-  instance: INSTANCE_NAME,
-  status: 'online',
-  uptime: process.uptime(),
-  errorCount24h: <count from error_log WHERE createdAt > now-24h>,
-  lastErrorAt: <max(createdAt) from error_log, or null>,
-  dbStatus: 'ok' | 'degraded'   // result of SELECT 1 probe
-}
-```
-
-This feeds the team monitoring dashboard (Capability 4) without any additional HTTP calls.
-
-### Structured Logging Pattern
-
-Follow the existing `[prefix]` convention — do not diverge into a separate log format:
-
-```javascript
-// lib/observability/logger.js
-export function log(level, context, message, meta = {}) {
-  const entry = { level, context, t: Date.now(), msg: message, ...meta };
-  console.log(JSON.stringify(entry));  // Docker captures stdout
-}
-```
-
-No external logging library. The Docker container runtime captures stdout and it is queryable via `docker logs`.
+| Component | Location | Responsibility |
+|-----------|----------|----------------|
+| HTTP proxy | `lib/proxy/http-proxy.js` | Forward API requests from hub to spoke instances, inject Bearer token, stream responses |
+| WS proxy bridge | `lib/proxy/ws-proxy.js` | Forward WebSocket upgrades (terminal + code) from hub to correct spoke server.js |
+| Agent picker page | `templates/app/agents/page.js` | Dashboard showing assigned agents, online status, last activity |
+| Agent layout | `templates/app/agents/[agent]/layout.js` | Agent-scoped sidebar, context provider for which agent is selected |
+| Agent chat page | `templates/app/agents/[agent]/chat/page.js` | Proxied chat UI for selected agent |
+| Agent assignments DB | `lib/db/agent-assignments.js` | CRUD for user-to-agent mapping |
+| Agent assignments admin | `templates/app/admin/users/` | Add assignment UI to existing users admin page |
+| Cross-agent views | `templates/app/agents/all/page.js` | Aggregate PRs, workspaces, sub-agents across all assigned agents |
 
 ---
 
-## Capability 2: Billing and Usage Tracking
+## Data Flow Changes
 
-### Integration Question
+### Authentication Flow (Modified)
 
-How should per-customer billing/usage limits be tracked in SQLite alongside the existing `job_outcomes` table?
+Current: Each instance validates its own session cookie, `AUTH_SECRET` is per-instance.
 
-### Answer: Two new tables — append-only `usage_events` plus configurable `billing_limits`
-
-The existing `terminal_costs` and `terminal_sessions` tables already capture terminal token costs. Billing aggregates from those plus adds job dispatch events. The key insight: the instance name (from `INSTANCE_NAME` env var) is the customer identifier — one instance per customer, one row in `billing_limits` per limit type per instance.
-
-### New Components
-
-| File | Purpose | New or Modify |
-|------|---------|--------------|
-| `lib/db/usage.js` | `recordUsageEvent()`, `getUsageSummary(instanceName, period)`, `getMonthTotal(instanceName, eventType)` | NEW |
-| `lib/billing/enforce.js` | `checkUsageLimit(instanceName, eventType)` — queries limits + current month total, returns `{ allowed, remaining }` | NEW |
-
-### Modified Components
-
-| File | Change | Why This File |
-|------|--------|--------------|
-| `lib/db/schema.js` | Add `usageEvents` and `billingLimits` table definitions | All tables live here |
-| `lib/tools/create-job.js` | After Docker dispatch confirmed: `recordUsageEvent('job_dispatch', instanceName, { refId: jobId })` | All job dispatch flows through this file regardless of Docker vs Actions routing |
-| `lib/terminal/session-manager.js` | On session completion: copy `terminalSessions.totalCostUsd` → `recordUsageEvent('terminal_session', instanceName, { costUsd, refId: sessionId })` | Session lifecycle events originate here |
-| `api/superadmin.js` | Add `usage` case to `handleSuperadminEndpoint()` switch — returns current month rollup | Only place instance data is served to hub |
-
-### Do NOT Modify
-
-`terminalCosts` and `terminalSessions` tables — live and queryable. Aggregate from them into `usage_events` on session close; never rewrite them.
-
-### Data Model: Usage Tables
-
-```javascript
-// Add to lib/db/schema.js
-
-// Append-only event log — never modified after insert
-export const usageEvents = sqliteTable('usage_events', {
-  id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull(),   // customer = instance
-  eventType: text('event_type').notNull(),          // 'job_dispatch', 'terminal_session', 'workspace_hour'
-  quantity: real('quantity').notNull().default(1),  // count for jobs; minutes for terminal; hours for workspace
-  costUsd: real('cost_usd'),                        // nullable — only populated for LLM events
-  refId: text('ref_id'),                            // nullable — jobId, sessionId for tracing
-  periodMonth: text('period_month').notNull(),       // 'YYYY-MM' — cheap monthly GROUP BY
-  createdAt: integer('created_at').notNull(),
-});
-
-// Per-instance limits — one row per (instanceName, limitType)
-export const billingLimits = sqliteTable('billing_limits', {
-  id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull(),
-  limitType: text('limit_type').notNull(),          // 'jobs_per_month', 'terminal_minutes_per_month'
-  limitValue: real('limit_value').notNull(),        // 50 jobs, 600 minutes, etc.
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-```
-
-**Why `periodMonth` as text:** SQLite has no native date functions for monthly grouping. Storing `'2026-03'` means `WHERE period_month = '2026-03'` is a simple indexed string match without date arithmetic. The Event Handler writes the current month at event recording time.
-
-**Why not use the `settings` table for limits:** Billing limits need indexed queries (`WHERE instanceName = X AND limitType = Y`) and aggregation joins. The `settings` table's key-value structure makes these queries awkward. A dedicated table is cleaner.
-
-### Enforcement Data Flow
+v4.0 Hub approach: Hub's `AUTH_SECRET` is used for the shared session. Spoke instances are not directly accessed by browsers for the new UI — the hub proxies on their behalf using M2M auth (`AGENT_SUPERADMIN_TOKEN`). No change to spoke auth needed.
 
 ```
-Job dispatch request
-    ↓
-lib/tools/create-job.js
-    ↓ (BEFORE GitHub API call — fast synchronous SQLite read)
-lib/billing/enforce.js:checkUsageLimit(INSTANCE_NAME, 'jobs_per_month')
-    → SELECT SUM(quantity) FROM usage_events WHERE instanceName=? AND eventType=? AND periodMonth=?
-    → SELECT limitValue FROM billing_limits WHERE instanceName=? AND limitType=?
-    → if over limit: throw new Error('Monthly job limit reached')
-    ↓ (if allowed)
-GitHub API: create branch + push job.md
-    ↓
-dockerode: start container
-    ↓ (AFTER successful dispatch — fire and forget, doesn't block)
-lib/db/usage.js:recordUsageEvent(...)
+Login at /login (hub)
+    │
+    ▼
+Credentials provider → hub's users table
+    │
+    ▼
+JWT token issued (AUTH_SECRET = hub's secret)
+Session includes: { id, email, role, assignedAgents: ['noah', 'strategyES'] }
+    │
+    ▼
+/agents page reads session.assignedAgents
+    │
+    └─► Agent Picker UI
+        └─ Card per agent
+           Status via queryAllInstances() (existing superadmin client)
 ```
 
-The enforcement check is synchronous SQLite (sub-millisecond) — acceptable in the dispatch hot path. Usage recording happens after dispatch to avoid blocking the job.
+### Request Proxy Flow (New)
 
-### Integration with Existing Cost Tracking
+When a user is on `/agents/strategyES/chat` and sends a message:
 
-`terminalCosts` already accumulates token costs per-turn. `terminalSessions.totalCostUsd` is the session total. When a terminal session ends in `lib/terminal/session-manager.js`, copy the final total into `usage_events` with `eventType='terminal_session'`. This provides the aggregate billing view without touching the granular cost tracking tables.
+```
+Browser → POST /agents/strategyES/api/chat (hub)
+    │
+    ▼
+lib/proxy/http-proxy.js
+├── Extract instance name from path: 'strategyES'
+├── Check: user has assignment for 'strategyES'
+├── Rewrite path: /api/chat
+├── Add header: Authorization: Bearer AGENT_SUPERADMIN_TOKEN
+└── fetch() to http://clawforge-ses:80/api/chat
+    │
+    ▼
+Response streamed back to browser
+```
+
+Critical detail: The spoke's `/api/index.js` currently validates `x-api-key` for external requests. The proxy should use the existing `AGENT_SUPERADMIN_TOKEN` path — spokes need a new "hub proxy" auth path that accepts Bearer token on all `/api/*` routes, not just `/api/superadmin/*`. This is an additive change in the spoke's api/index.js — check Bearer token before the x-api-key check.
+
+### WebSocket Proxy Flow (New)
+
+Terminal WebSocket connections currently require the browser to connect directly to the instance's WebSocket endpoint. In the multi-tenant model, the browser connects to the hub, which relays to the spoke.
+
+```
+Browser → WS upgrade: wss://clawforge.scalingengine.com/proxy/strategyES/ws/terminal/{id}?ticket=xxx
+    │
+    ▼
+hub's server.js (upgrade handler, /proxy/{instance}/ws/* path)
+    │
+    ▼
+lib/proxy/ws-proxy.js
+├── Validate: user session has assignment for 'strategyES'
+├── Validate: ticket (issued by spoke — hub relays ticket issuance first)
+└── WebSocket connect: ws://clawforge-ses:80/ws/terminal/{id}?ticket=xxx
+        │
+        ▼
+Binary frame relay (identical to existing proxyToTtyd pattern)
+```
+
+Ticket relay flow: When the hub proxies a "get terminal ticket" Server Action, the spoke issues the ticket in its own memory and returns it. The hub relays it to the browser. The browser opens WS through the hub, which passes the ticket query param to the spoke. The spoke validates and consumes it. Works because ticket validation happens on the spoke side — hub does not touch the ticket's validity.
 
 ---
 
-## Capability 3: Onboarding State Machine
+## New vs Modified — Explicit List
 
-### Integration Question
-
-What is the right data model for onboarding progress state?
-
-### Answer: Single-row-per-instance state machine in a new `onboarding_state` table, with completion checks derived from existing data
-
-Onboarding tracks a new operator's progress through deployment steps. The critical design choice: completion of each step is verified against real data (job_outcomes, channel config) — not just user button clicks. This prevents operators from marking steps complete without actually doing them.
-
-### New Components
-
-| File | Purpose | New or Modify |
-|------|---------|--------------|
-| `lib/onboarding/steps.js` | Step definitions array: `{ id, label, description, check() }` — each `check()` queries existing tables to verify completion | NEW |
-| `lib/onboarding/state.js` | `initOnboarding(instanceName)`, `getOnboardingState(instanceName)`, `advanceOnboarding(instanceName, step)`, `checkAndAdvance(instanceName)` | NEW |
-| `app/onboarding/page.js` | Onboarding wizard page | NEW |
-| `lib/chat/components/onboarding-wizard.js` | Step-by-step React component with progress indicators | NEW |
-
-### Modified Components
-
-| File | Change | Why This File |
-|------|--------|--------------|
-| `lib/db/schema.js` | Add `onboardingState` table | All tables live here |
-| `config/instrumentation.js` | On startup, if `ONBOARDING_ENABLED=true` env var is set: call `initOnboarding(INSTANCE_NAME)` to create initial row if none exists | Server startup is the only place to detect fresh instances |
-| `lib/auth/middleware.js` | If `ONBOARDING_ENABLED=true` AND user is admin AND onboarding status is not 'complete': redirect `/` → `/onboarding` (exempt: `/onboarding`, `/admin`, `/login`, `/api`) | Only place to intercept navigation |
-| `api/superadmin.js` | Add `onboarding` case to `handleSuperadminEndpoint()` switch — returns current step and completion percentage | Hub needs this for monitoring dashboard |
-
-### Do NOT Modify
-
-Existing instance behavior (Noah/StrategyES). The `ONBOARDING_ENABLED=true` env var is opt-in — existing instances do not set it, so the redirect and initialization never trigger for them.
-
-### Data Model: onboarding_state Table
-
-```javascript
-// Add to lib/db/schema.js
-export const onboardingState = sqliteTable('onboarding_state', {
-  id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull().unique(), // one row per instance
-  currentStep: text('current_step').notNull().default('github_connect'),
-  completedSteps: text('completed_steps').notNull().default('[]'), // JSON array of step IDs
-  status: text('status').notNull().default('pending'), // 'pending', 'in_progress', 'complete'
-  metadata: text('metadata'),  // nullable JSON — e.g. { connectedRepo: 'owner/repo' }
-  startedAt: integer('started_at'),
-  completedAt: integer('completed_at'),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-```
-
-### Step Sequence and Completion Checks
-
-Each step's `check()` function queries existing tables — completion is verified, not self-reported:
-
-| Step ID | Label | Completion Check |
-|---------|-------|-----------------|
-| `github_connect` | Connect GitHub | `GH_TOKEN` env present + test GitHub API call succeeds |
-| `instance_configure` | Configure instance | `settings` table has `llm_provider` entry OR LLM env var present |
-| `channel_connect` | Connect messaging channel | `subscriptions` table has at least one row OR Slack/TG env vars present |
-| `first_job` | Dispatch first job | `job_outcomes` table has at least one row with this `INSTANCE_NAME` |
-| `complete` | Complete | All prior steps verified |
-
-The `checkAndAdvance()` function in `lib/onboarding/state.js` runs all checks in sequence and advances `currentStep` to the first incomplete step. Called on page load and after each wizard action.
-
-### Middleware Redirect Guard
-
-The redirect in `lib/auth/middleware.js` must be guarded to avoid breaking existing instances:
-
-```javascript
-// Only intercept if ALL conditions are true:
-// 1. ONBOARDING_ENABLED env var is set to 'true'
-// 2. User role is 'admin' (superadmin skips onboarding)
-// 3. Path is not already /onboarding, /admin, /login, /api
-// The check queries onboarding_state synchronously via better-sqlite3
-```
-
-**Important:** `lib/auth/middleware.js` runs in the Edge Runtime (Next.js middleware). `better-sqlite3` is a native module that does NOT work in Edge Runtime. The onboarding redirect cannot query the database from middleware. Instead, use an approach that doesn't require a DB read at the middleware layer: store onboarding completion as a `settings` key (`onboarding_complete = 'true'`) that is loaded into the server process at startup and cached in memory.
-
-Alternative: redirect to `/onboarding` unconditionally when `ONBOARDING_ENABLED=true` and let the onboarding page itself check if onboarding is complete and redirect to `/` if so. This avoids the Edge Runtime constraint entirely.
-
-**Recommended approach:** Unconditional redirect in middleware when `ONBOARDING_ENABLED=true` — check completion in the onboarding page's Server Component via a Server Action (not middleware). This is architecturally simpler and avoids the Edge Runtime native module limitation.
-
----
-
-## Capability 4: Team Monitoring Dashboard Extension
-
-### Integration Question
-
-How should the team monitoring dashboard extend the existing superadmin API proxy pattern?
-
-### Answer: Three new endpoints in `api/superadmin.js`, one new page in `/superadmin/monitoring/`, zero changes to `lib/superadmin/client.js`
-
-The existing `queryAllInstances()` in `lib/superadmin/client.js` already handles any endpoint name — it does HTTP proxy for remote instances and direct import for the local instance. Adding new endpoints to `api/superadmin.js` automatically makes them available via the proxy without any changes to the client.
-
-### New Components
-
-| File | Purpose | New or Modify |
-|------|---------|--------------|
-| `app/superadmin/monitoring/page.js` | Team monitoring page — separate from existing job search | NEW |
-| `lib/chat/components/superadmin-monitoring.js` | Dashboard React component with per-instance cards: health, errors, usage, onboarding | NEW |
-
-### Modified Components
-
-| File | Change | Why This File |
-|------|--------|--------------|
-| `api/superadmin.js` | Add `errors`, `usage`, `onboarding` cases to `handleSuperadminEndpoint()` switch | All superadmin endpoints route through this switch |
-| `lib/chat/components/app-sidebar.js` | Add Monitoring link under Superadmin section | Navigation entry point |
-
-### Do NOT Modify
-
-`lib/superadmin/client.js` — `queryInstance()` and `queryAllInstances()` work correctly for any endpoint name. `verifySuperadminToken()` in `api/superadmin.js` — M2M auth is working, not a blocker.
-
-### New Superadmin Endpoints
-
-Add three cases to the switch in `api/superadmin.js:handleSuperadminEndpoint()`:
-
-**`errors` endpoint:**
-```javascript
-// Returns error counts and recent errors for dashboard display
-{
-  instance: INSTANCE_NAME,
-  errorCount24h: <count from error_log WHERE createdAt > now-24h>,
-  errorCount7d: <count from error_log WHERE createdAt > now-7d>,
-  recentErrors: [{ context, severity, message, createdAt }]  // last 5 errors
-}
-```
-
-**`usage` endpoint:**
-```javascript
-// Returns current month usage rollup
-{
-  instance: INSTANCE_NAME,
-  period: '2026-03',
-  jobsDispatched: <sum from usage_events WHERE eventType='job_dispatch' AND periodMonth=current>,
-  terminalMinutes: <sum(quantity) from usage_events WHERE eventType='terminal_session' AND periodMonth=current>,
-  totalCostUsd: <sum(costUsd) from usage_events WHERE periodMonth=current>,
-  limits: {
-    jobsPerMonth: <from billing_limits>,
-    terminalMinutesPerMonth: <from billing_limits>
-  }
-}
-```
-
-**`onboarding` endpoint:**
-```javascript
-// Returns onboarding completion state for this instance
-{
-  instance: INSTANCE_NAME,
-  status: 'pending' | 'in_progress' | 'complete',
-  currentStep: 'github_connect' | ...,
-  completedSteps: ['github_connect', 'instance_configure'],
-  completionPercent: 40
-}
-```
-
-### Dashboard Data Flow
+### New Files
 
 ```
-Browser: GET /superadmin/monitoring
-    ↓ Server Component (or Server Action)
-lib/superadmin/client.js:queryAllInstances('health')      // already exists
-lib/superadmin/client.js:queryAllInstances('stats')       // already exists
-lib/superadmin/client.js:queryAllInstances('errors')      // new
-lib/superadmin/client.js:queryAllInstances('usage')       // new
-lib/superadmin/client.js:queryAllInstances('onboarding')  // new
-    ↓ Promise.allSettled — partial results if instances offline
-Aggregate: one entry per instance, error-tolerant
-    ↓
-Render per-instance cards with:
-  - Health indicator (online/offline, uptime, DB status)
-  - Error rate (24h count, last error timestamp)
-  - Usage vs limits (job count bar, cost this month)
-  - Onboarding progress (if not complete: show current step)
+lib/proxy/
+├── http-proxy.js           # Generic HTTP proxy: fetch spoke, stream response, auth injection
+└── ws-proxy.js             # WebSocket proxy: upgrade relay for /proxy/{instance}/ws/* paths
+
+lib/db/
+└── agent-assignments.js    # getUserAssignments(userId), assignUser(userId, agentName),
+                            # unassignUser(userId, agentName), getAssignedUsers(agentName)
+
+templates/app/
+├── agents/
+│   ├── page.js             # Agent picker dashboard (list assigned agents with status)
+│   ├── all/
+│   │   └── page.js         # Cross-agent views (aggregate PRs, workspaces, sub-agents)
+│   └── [agent]/
+│       ├── layout.js       # Agent-scoped layout (sidebar context, agent name header)
+│       ├── page.js         # Redirect to /agents/[agent]/chat
+│       ├── chat/
+│       │   └── page.js     # Chat proxied to spoke
+│       ├── pull-requests/
+│       │   └── page.js     # PRs proxied to spoke
+│       ├── workspace/
+│       │   └── page.js     # Workspace list proxied to spoke
+│       └── swarm/
+│           └── page.js     # Clusters proxied to spoke
 ```
 
-**Auto-refresh:** Existing health dashboard already does 30-second auto-refresh. Monitoring page inherits same pattern — no new polling infrastructure.
-
-**Fan-out latency:** Each `queryAllInstances()` call adds one fan-out cycle (5s timeout per remote instance, all in parallel). Calling 5 endpoints means 5 parallel fan-outs, each completing in ~100ms locally or up to 5s for slow remote instances. At 2-5 instances this is acceptable. Consider a single `summary` endpoint (batching all five) if the instance count grows to 20+.
-
----
-
-## Integration Map: Complete View
+### Modified Files
 
 ```
-New Table         │ Written By                           │ Read By
-──────────────────┼──────────────────────────────────────┼──────────────────────────────
-error_log         │ lib/observability/errors.js          │ api/superadmin.js (health+errors)
-                  │  ← called from api/index.js          │ admin errors UI page
-                  │     config/instrumentation.js        │
-──────────────────┼──────────────────────────────────────┼──────────────────────────────
-usage_events      │ lib/db/usage.js:recordUsageEvent()   │ api/superadmin.js (usage)
-                  │  ← called from create-job.js         │ lib/billing/enforce.js
-                  │     terminal/session-manager.js      │ admin usage UI page
-──────────────────┼──────────────────────────────────────┼──────────────────────────────
-billing_limits    │ admin UI → Server Action             │ lib/billing/enforce.js
-                  │  (operator manually sets limits)     │ api/superadmin.js (usage)
-──────────────────┼──────────────────────────────────────┼──────────────────────────────
-onboarding_state  │ lib/onboarding/state.js              │ api/superadmin.js (onboarding)
-                  │  ← called from instrumentation.js    │ onboarding wizard UI
-                  │     onboarding page Server Action    │
+lib/db/schema.js
+└── + agent_assignments table: { id, userId, agentName, createdAt }
+
+lib/auth/edge-config.js
+└── jwt/session callbacks: add assignedAgents to token (fetch from DB on sign-in via jwt callback)
+
+lib/auth/middleware.js
+└── + /agents/* route protection
+└── + Superadmin sees all agents, regular users see only assigned ones (enforced in layout, not middleware)
+
+lib/ws/server.js
+└── + attachProxyHandler(server) call to register /proxy/* WebSocket paths
+
+api/index.js  (spoke-side change)
+└── + Accept AGENT_SUPERADMIN_TOKEN Bearer on all /api/* routes (not just /api/superadmin/*)
+    This allows hub to proxy any API call on behalf of an authenticated user
+
+templates/app/admin/users/page.js (or new sub-page)
+└── + Agent assignment UI (checkboxes: assign/unassign agents per user)
+
+docker-compose.yml
+└── No structural change — hub already knows spoke container names via SUPERADMIN_INSTANCES
 ```
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Additive Table Extension (HIGH confidence, use for all four capabilities)
+### Pattern 1: Hub-Side Proxy with Spoke-Side M2M Auth
 
-**What:** New SQLite tables via `lib/db/schema.js` + Drizzle migration + dedicated `lib/db/[feature].js` query helper file.
+**What:** All browser requests to spoke functionality go through hub. Hub re-signs requests with `AGENT_SUPERADMIN_TOKEN`. Spoke trusts hub-originated requests unconditionally — no user session needed on spoke.
 
-**When to use:** All v3.0 features follow this pattern. Every existing feature (codeWorkspaces, clusterRuns, terminalSessions, terminalCosts) established this as the canonical approach.
+**When to use:** All proxied API routes (chat, jobs, PRs, workspaces, clusters).
 
-**Trade-offs:** Drizzle migrations are additive and safe to apply against a running production DB. Old code never sees new tables. Run `npm run db:generate` after schema changes.
+**Trade-offs:**
+- Pro: No session synchronization between instances. Spoke remains unaware of multi-tenancy.
+- Pro: Single JWT secret (hub only). Spokes need no config change for the auth model.
+- Con: Hub is a single point of failure for agent UI. Mitigation: direct spoke URLs remain functional for fallback.
+- Con: Spoke needs to accept hub's Bearer token on all API routes. This is a small additive change.
 
-### Pattern 2: Superadmin Endpoint Extension (HIGH confidence, use for all dashboard data)
+### Pattern 2: Stateless Agent Context via URL Path
 
-**What:** Add new case to the switch in `api/superadmin.js:handleSuperadminEndpoint()`. The proxy client requires zero changes.
+**What:** The selected agent is encoded in the URL (`/agents/strategyES/chat`), not in session state. Components read `params.agent` from the URL and pass it down. No global client-side state store needed.
 
-**When to use:** Any data the superadmin hub needs to aggregate across instances. The existing `queryAllInstances()` handles the new endpoint name automatically.
+**When to use:** All agent-scoped pages.
 
-**Trade-offs:** Each new endpoint adds one HTTP fan-out cycle to the monitoring page load. At 2-5 instances this is fast. Consider a batched `summary` endpoint if instance count grows.
+**Trade-offs:**
+- Pro: Bookmarkable, shareable, browser back/forward works correctly.
+- Pro: No React context provider complexity for agent selection.
+- Con: Each page must validate the agent name and assignment — handled cleanly in the layout server component.
 
-### Pattern 3: Feature-Flagged Middleware Extension (HIGH confidence, mandatory for onboarding redirect)
-
-**What:** Guard new `lib/auth/middleware.js` behavior behind an env var check (`ONBOARDING_ENABLED=true`). Existing instances without the env var see zero behavior change.
-
-**When to use:** Any middleware behavior that existing operators must not encounter. Middleware runs on every request — accidental changes break all existing users immediately.
-
-**Trade-offs:** Env var flags are checked synchronously at request time (fast). Avoid DB reads in middleware — runs in Edge Runtime where `better-sqlite3` is unavailable.
-
-### Pattern 4: Write-After-Dispatch for Usage Recording (HIGH confidence)
-
-**What:** Record usage events AFTER the dispatch succeeds, not before. Non-blocking: use fire-and-forget or a simple synchronous SQLite insert after the async dispatch confirms.
-
-**When to use:** All usage recording in the dispatch path. Never make usage recording block the job start.
-
-**Trade-offs:** If the server crashes between dispatch and recording, the event is lost. Acceptable for billing (occasional missed events, recoverable from `job_outcomes` audit trail) — not acceptable for hard enforcement. For enforcement, read the limit BEFORE dispatch (fast synchronous query), record AFTER.
-
----
-
-## Data Flow: Job Dispatch with Billing Enforcement
-
-```
-LangGraph agent calls createJob tool
-    ↓
-lib/tools/create-job.js
-    ↓
-[1] lib/billing/enforce.js:checkUsageLimit(INSTANCE_NAME, 'jobs_per_month')
-      → SQLite: SUM(quantity) FROM usage_events WHERE instance=? AND type='job_dispatch' AND period=?
-      → SQLite: SELECT limitValue FROM billing_limits WHERE instance=? AND limitType='jobs_per_month'
-      → if SUM >= limitValue: throw Error('Monthly job limit reached for this instance')
-    ↓ (limit check passed)
-[2] GitHub API: create job/{uuid} branch + push job.md
-    ↓
-[3] dockerode: pull image + start container (9s path)
-    ↓
-[4] lib/db/usage.js:recordUsageEvent({
-      instanceName: INSTANCE_NAME,
-      eventType: 'job_dispatch',
-      quantity: 1,
-      periodMonth: '2026-03',
-      refId: jobId,
-      createdAt: Date.now()
-    })
-    ↓
-[5] Return job ID to agent (existing behavior unchanged)
+**Example:**
+```javascript
+// templates/app/agents/[agent]/layout.js
+export default async function AgentLayout({ children, params }) {
+  const session = await auth();
+  const { agent } = await params;
+  const assignments = getUserAssignments(session.user.id);
+  if (!assignments.includes(agent)) redirect('/agents');
+  return <AgentShell agentName={agent}>{children}</AgentShell>;
+}
 ```
 
-Steps [1] is synchronous SQLite (sub-millisecond). Step [4] is also synchronous SQLite (better-sqlite3 is always synchronous). The enforcement path adds <1ms to job dispatch overhead.
+### Pattern 3: Component Reuse Without Iframe
+
+**What:** Agent UI pages do NOT iframe the spoke's Next.js app. Instead, they reuse existing lib/chat/components/ and supply data via the hub's proxy layer.
+
+**When to use:** All agent-scoped pages.
+
+**Why not iframe:** Breaks the single-URL product goal. CSP headers block cross-origin frames. Auth context splits between iframe and parent. History API breaks. No control over iframe URL bar.
+
+**Trade-offs:**
+- Pro: Full control over UI, single auth context, works with existing component library.
+- Con: Each spoke API route used by the UI must be explicitly proxied. Known set is small: chat streaming, job list, PR list, workspace list, cluster list, and their mutations.
+
+### Pattern 4: Ticket-Mediated WebSocket Relay
+
+**What:** Terminal WebSocket connections use a two-phase protocol. (1) Hub proxies the "get ticket" Server Action to the spoke — spoke issues ticket in its own memory and returns the ticket string. (2) Browser opens WS to hub's `/proxy/{agent}/ws/*` path with the ticket in the query string. Hub relays the upgrade and all frames to the spoke. Spoke validates ticket and proxies to ttyd as normal.
+
+**When to use:** Terminal workspaces (/ws/terminal/*) and code IDE (/code/*/ws) accessed through the hub.
+
+**Trade-offs:**
+- Pro: No change to spoke ticket system. Tickets remain spoke-side, in-memory, 30s TTL.
+- Pro: No new auth mechanism needed — ticket is the credential.
+- Con: Hub's ws-proxy.js must forward all binary frames without interpretation.
+- Con: Hub and spoke must share a Docker network for internal WS connections (already true — proxy-net connects all containers).
 
 ---
 
 ## Build Order
 
-The four capabilities have the following dependency graph:
+Dependencies drive the order. Each phase must not block on an unbuilt dependency.
 
-```
-Observability (error_log + captureError + health extension)
-  └── No dependencies — build first. Immediate production value.
+### Phase 1: Data Layer (no UI dependency)
 
-Billing/Usage (usage_events + billing_limits + enforce.js)
-  └── No hard dependencies on observability.
-  └── Build second. Must exist before onboarding can check "first job dispatched".
+Add `agent_assignments` table to schema. Write `lib/db/agent-assignments.js`. Additive table — no existing table changes.
 
-Onboarding State Machine (onboarding_state + wizard UI + middleware)
-  └── Soft dependency on billing: the "first_job" step check reads usage_events.
-  └── Build third. Step checks query real data.
+Deliverable: `getUserAssignments(userId)`, `assignUser()`, `unassignUser()`, `getAssignedUsers()`.
 
-Team Monitoring Dashboard (/superadmin/monitoring + new endpoints)
-  └── Hard dependency on all three above: needs errors/, usage/, onboarding/ endpoints to exist on instances.
-  └── Build last.
-```
+### Phase 2: Hub Auth Extension (depends on Phase 1)
 
-**Recommended phase sequence:**
+Extend `lib/auth/edge-config.js` to include `assignedAgents` in the JWT token (fetch from DB on sign-in via jwt callback). Extend middleware to protect `/agents/*` routes. Add redirect from `/` to `/agents` for users without a default instance configured.
 
-| Phase | Feature | Key Deliverable |
-|-------|---------|----------------|
-| 1 | Observability | `error_log` table, `captureError()`, health endpoint + `errorCount24h` |
-| 2 | Billing | `usage_events` + `billing_limits` tables, recording in create-job.js, enforcement in enforce.js |
-| 3 | Onboarding | `onboarding_state` table, step definitions, wizard UI, env-var-gated redirect |
-| 4 | Monitoring Dashboard | New superadmin endpoints, `/superadmin/monitoring` page |
+Deliverable: Session contains agent list. `/agents/*` routes are auth-guarded.
 
-Billing (Phase 2) can be built in parallel with Observability (Phase 1) since they are table-independent. Onboarding (Phase 3) must come after Billing because the `first_job` step check needs `usage_events` data. Dashboard (Phase 4) must come after all three since it aggregates from all three new endpoint types.
+### Phase 3: HTTP Proxy Layer (no UI dependency)
+
+Build `lib/proxy/http-proxy.js`. Write a server-side helper that: accepts instance name + path + request context, validates assignment, rewrites to spoke internal URL with Bearer token, streams response. Also extend spoke's `api/index.js` to accept `AGENT_SUPERADMIN_TOKEN` Bearer on all `/api/*` routes.
+
+Deliverable: Hub can proxy any REST API call to any spoke on behalf of an authenticated user.
+
+### Phase 4: Agent Picker UI (depends on Phase 2)
+
+Build `/agents/page.js` — reads assigned agents from session, queries health via existing `queryAllInstances('health')`, renders agent cards. No proxy dependency — uses existing superadmin client.
+
+Deliverable: Users see their agents after login. Superadmin sees all agents.
+
+### Phase 5: Agent-Scoped Pages — Chat (depends on Phase 3 + Phase 4)
+
+Build `/agents/[agent]/layout.js` (assignment gate, agent context header). Build `/agents/[agent]/chat/page.js` — imports existing `ChatPage` component, but all Server Actions must proxy to spoke. This is the largest single-phase effort. Chat streaming, job dispatch, and notification polling all route through the proxy layer.
+
+Deliverable: Chat works end-to-end through the hub for a spoke agent.
+
+### Phase 6: WebSocket Proxy (depends on Phase 3)
+
+Build `lib/proxy/ws-proxy.js`. Wire into `lib/ws/server.js` via `attachProxyHandler(server)`. Update terminal ticket flow: spoke issues ticket → hub relays to browser → browser opens WS to hub → hub relays upgrade to spoke.
+
+Deliverable: Terminal workspaces accessible through hub URL.
+
+### Phase 7: Remaining Agent-Scoped Pages (depends on Phase 3)
+
+Build `/agents/[agent]/pull-requests`, `/agents/[agent]/workspace`, `/agents/[agent]/swarm`. These reuse existing page components with proxied data — lower complexity than chat because they're mostly read-only list views.
+
+Deliverable: Full agent-scoped UI available.
+
+### Phase 8: Admin — User-Agent Assignments (depends on Phase 1)
+
+Extend existing `/admin/users` page with agent assignment UI. Checkboxes per user showing which agents they have access to. Uses `agent-assignments.js` DB module directly — no proxy needed, admin runs on hub.
+
+Deliverable: Superadmin can assign/unassign agents to users.
+
+### Phase 9: Cross-Agent Views (depends on Phases 5–7)
+
+Build `/agents/all/` pages aggregating PRs, workspaces, and sub-agents across all assigned instances. Uses existing `queryAllInstances()` pattern extended with new endpoints.
+
+Deliverable: "All Agents" view shows cross-instance aggregates.
+
+### Phase 10: Terminology Migration
+
+Rename "instances" → "agents" in all user-facing UI strings. Update sidebar, page titles, admin panel labels. Config files and env vars keep existing names (`INSTANCE_NAME` etc.) — backend names are stable identifiers.
+
+Deliverable: Consistent "agents" language in UI.
 
 ---
 
-## What NOT to Change
+## Integration Points Summary
 
-These systems are working in production. Modifications risk regression with immediate user impact:
-
-| System | Rule | Reason |
-|--------|------|--------|
-| `lib/superadmin/client.js` | Read-only — no code changes | `queryAllInstances()` + M2M auth works. Only add endpoints in `api/superadmin.js`. |
-| `verifySuperadminToken()` in `api/superadmin.js` | Read-only | M2M auth is correct. Adding endpoints never changes the auth path. |
-| `lib/db/job-outcomes.js` + `jobOutcomes` schema | Additive only | Used for prior-context injection and status lookups. Add new columns only if genuinely needed; prefer new tables. |
-| `lib/tools/create-job.js` Docker dispatch path | Prepend checks, append recording only | 9-second Docker dispatch is the core feature. The `waitAndNotify` detached async pattern is fragile — don't insert synchronous awaits in that path. |
-| `lib/auth/middleware.js` existing role guards | Never change existing conditions | `/admin/*` admin check and `/superadmin/*` superadmin check are working. Only add new guards behind env var flags. |
-| `lib/ai/agent.js` | No modifications | SQLite checkpointing + compiled LangGraph graph is fragile. Add tools in `lib/ai/tools.js` if needed; never touch agent compilation. |
-| `terminalCosts` + `terminalSessions` tables | Read-only aggregate | Live cost tracking. Aggregate from them into `usage_events` on session close; never modify their schema. |
-| `lib/ws/` WebSocket proxy | No modifications | Custom HTTP server upgrade interception is the most fragile part of the codebase. Only touch if a WS bug requires it. |
-| `lib/db/config.js` `settings` table | Read-only for new features | Config system works. New features get dedicated tables rather than overloading `settings` with new types. |
+| Integration Point | Existing Hook | v4.0 Change |
+|-------------------|---------------|-------------|
+| Traefik routing | `Host(noah_hostname)` → noah container | No change — hub is already noah |
+| Auth session | Per-instance JWT, `AUTH_SECRET` per instance | Hub session gains `assignedAgents[]` field |
+| Spoke API auth | `x-api-key` header OR superadmin Bearer | Add: accept superadmin Bearer on all `/api/*` |
+| Superadmin health queries | `queryAllInstances('health')` | Reused for agent picker status cards |
+| WebSocket upgrade | `server.on('upgrade')` in server.js | Add: /proxy/* path handled by ws-proxy.js |
+| Ticket system | globalThis._clawforgeTickets in spoke memory | Unchanged — hub relays ticket, spoke validates |
+| Docker networks | noah shares proxy-net with ses | Already connected — no new network needed |
+| Admin users page | `/admin/users` — CRUD | Add: agent assignment checkboxes |
 
 ---
 
@@ -548,46 +434,60 @@ These systems are working in production. Modifications risk regression with imme
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| 2-5 instances (v3.0 target) | Current approach is correct — SQLite, API proxy fan-out, per-request enforcement |
-| 5-20 instances | `queryAllInstances()` fan-out to 5 endpoints × 20 instances = 100 HTTP calls per monitoring page load; batch into single `summary` endpoint |
-| 20+ instances | SQLite `usage_events` write frequency becomes bottleneck (one write per job dispatch); consider periodic rollup table to reduce row count; WAL mode supports ~1,000 writes/sec |
-| 100+ instances | API proxy pull model doesn't scale; shift to push model (instances POST metrics to hub on job completion rather than hub polling) |
-
-For v3.0, SQLite + API proxy is the right fit. Document the 20-instance inflection point but do not build for it.
+| 2 agents (current) | Hub proxies everything — no bottleneck |
+| 5–10 agents | Proxy fanout for "all agents" views may slow; Promise.allSettled timeouts already exist |
+| 20+ agents | Cache spoke responses (30s TTL) for dashboard views; still no infra change for Docker Compose |
+| 50+ agents | SQLite per instance + Docker Compose becomes the constraint; out of v4.0 scope |
 
 ---
 
-## Open Questions for Phase-Specific Research
+## Anti-Patterns to Avoid
 
-1. **Onboarding middleware in Edge Runtime:** The `lib/auth/middleware.js` runs in Edge Runtime — `better-sqlite3` is unavailable. The recommended approach (unconditional redirect + completion check in the page) avoids this, but needs validation that the page-level redirect doesn't create a redirect loop. Flag for Phase 3 research.
+### Anti-Pattern 1: Shared Database for Auth + Agent Data
 
-2. **billing_limits admin UI location:** Should billing limit configuration live in `/admin/billing` (per-instance) or `/superadmin/billing` (cross-instance from hub)? For v3.0 with manual operator configuration, `/admin/billing` is sufficient. Cross-instance billing management can be added in v3.1 if needed.
+**What people do:** Add Postgres, point all instances at it, use a shared users table.
 
-3. **Usage event for workspace hours:** Workspace containers run for up to 30 minutes idle. Recording `workspace_hour` usage events requires a periodic measurement, not just an on-close event. Implementation: cron job every 15 minutes queries `codeWorkspaces` for running containers and records partial `workspace_hour` events. Flag for Phase 2 research if workspace billing is in scope for v3.0.
+**Why it's wrong:** Requires migrating every existing SQLite instance, adds Postgres infra, introduces cross-instance data coupling. The existing superadmin HTTP pattern solves the same problem without shared state.
 
-4. **Error log and PII:** Error metadata may contain user messages or job descriptions. The `metadata` JSON field should be sanitized before storing — strip message content, keep only structural context (jobId, threadId, route). Flag for Phase 1 research.
+**Do this instead:** Hub's SQLite owns user-to-agent assignments. Spokes remain isolated. Hub queries spokes via HTTP when needed.
+
+### Anti-Pattern 2: Replicating Spoke Session to Hub
+
+**What people do:** When user selects an agent, create a session on the spoke via API call and store spoke session cookie in the hub.
+
+**Why it's wrong:** Two-phase auth is fragile. Spoke session TTL must be managed. CORS and cookie scoping become nightmares. AUTH_SECRET mismatches cause silent failures.
+
+**Do this instead:** Hub session is the only session. Hub proves identity to spoke via AGENT_SUPERADMIN_TOKEN on every proxied request. Spoke trusts the token — no per-user session on spoke needed.
+
+### Anti-Pattern 3: Iframe Embedding Spoke UI
+
+**What people do:** `/agents/[agent]` renders `<iframe src="https://strategyes.scalingengine.com">`.
+
+**Why it's wrong:** Breaks the single-URL product goal. CSP headers block it. Auth context splits between iframe and parent. History API breaks.
+
+**Do this instead:** Import existing shared components from lib/chat/components/ and supply data via the proxy layer.
+
+### Anti-Pattern 4: Syncing Users to Spokes for Multi-Tenancy
+
+**What people do:** Add "user sync" that replicates hub users into spoke databases so spokes can do their own session validation.
+
+**Why it's wrong:** Users are managed on the hub. Syncing creates drift, double writes, and no clear source of truth. Deleted hub users may still authenticate on spokes.
+
+**Do this instead:** Spokes remain unaware of individual users. Hub is the identity authority. All user context flows through the hub's proxy layer with M2M credentials.
 
 ---
 
 ## Sources
 
-Direct codebase analysis (all HIGH confidence — files inspected, not assumed):
-
-- `lib/db/schema.js` — all existing tables: users, chats, messages, notifications, jobOrigins, jobOutcomes, settings, codeWorkspaces, clusterRuns, terminalSessions, terminalCosts
-- `api/superadmin.js` — health/stats/jobs endpoints, `verifySuperadminToken()`, `handleSuperadminEndpoint()` switch
-- `lib/superadmin/client.js` — `queryInstance()`, `queryAllInstances()`, M2M proxy pattern
-- `lib/superadmin/config.js` — `getInstanceRegistry()`, `isSuperadminHub()`, `INSTANCE_NAME` env var
-- `lib/db/config.js` — `getConfigValue()`/`setConfigValue()`, `settings` table type discrimination
-- `lib/db/job-outcomes.js` — `saveJobOutcome()`, `getLastMergedJobOutcome()` patterns
-- `lib/db/docker-jobs.js` — `getPendingDockerJobs()`, `saveDockerJob()` patterns
-- `lib/terminal/cost-tracker.js` — `persistCost()`, `terminalCosts` + `terminalSessions` accumulation
-- `lib/auth/middleware.js` — three-tier RBAC, Edge Runtime constraints, `req.auth.user.role` checks
-- `.planning/codebase/ARCHITECTURE.md` — layer responsibilities, data flow, error handling strategy
-- `.planning/codebase/CONCERNS.md` — silent failure paths in `api/index.js`, DB singleton, rate limiter
-- `.planning/codebase/STRUCTURE.md` — file location conventions, where new code goes
-- `.planning/PROJECT.md` — v3.0 target features, existing key decisions, out-of-scope items
+- Codebase: `lib/ws/server.js`, `lib/ws/proxy.js`, `lib/ws/tickets.js` — WebSocket proxy patterns (HIGH confidence)
+- Codebase: `lib/superadmin/client.js`, `lib/superadmin/config.js` — existing hub-spoke HTTP proxy pattern (HIGH confidence)
+- Codebase: `lib/auth/middleware.js`, `lib/auth/edge-config.js`, `lib/auth/config.js` — auth stack (HIGH confidence)
+- Codebase: `lib/db/schema.js` — full data model (HIGH confidence)
+- Codebase: `docker-compose.yml` — container topology, shared proxy-net network (HIGH confidence)
+- Codebase: `api/superadmin.js` — M2M auth pattern with AGENT_SUPERADMIN_TOKEN (HIGH confidence)
+- Project history: `.planning/PROJECT.md` — v4.0 goals, prior milestone decisions (HIGH confidence)
 
 ---
 
-*Architecture research for: ClawForge v3.0 Customer Launch — observability, billing, onboarding, team monitoring*
-*Researched: 2026-03-17*
+*Architecture research for: ClawForge v4.0 Multi-Tenant Agent Platform*
+*Researched: 2026-03-24*

@@ -1,219 +1,141 @@
 # Stack Research
 
-**Domain:** Commercial SaaS launch additions — observability, billing, onboarding, team monitoring
-**Milestone:** v3.0 Customer Launch
-**Researched:** 2026-03-17
-**Confidence:** HIGH (versions confirmed via npm registry; integration patterns verified against existing codebase)
+**Domain:** Multi-tenant agent platform — shared auth layer, request proxying, agent picker dashboard, per-agent scoped UI
+**Milestone:** v4.0 Multi-Tenant Agent Platform
+**Researched:** 2026-03-24
+**Confidence:** HIGH (existing stack verified from codebase; new additions verified against current docs and source)
 
 ---
 
 ## Scope
 
-This document covers **additions needed for v3.0 only**. The full existing stack (Next.js 15.5.12, NextAuth v5 beta, Drizzle ORM + better-sqlite3, dockerode v4, LangGraph, Zod v4, Tailwind v4, node-cron, stripe SDK not yet installed) is treated as fixed.
+This document covers **additions needed for v4.0 only**. The full existing stack (Next.js 15.5.12, NextAuth v5 beta, Drizzle ORM + better-sqlite3, dockerode v4, custom HTTP server, three-tier RBAC, API proxy pattern via `lib/superadmin/client.js`) is treated as fixed.
 
 Four new capability areas:
 
-1. **Observability** — structured error logging, health checks, error tracking
-2. **Billing and access control** — Stripe subscriptions, usage metering, per-customer limits
-3. **Self-service onboarding** — multi-step wizard, transactional email
-4. **Team monitoring dashboard** — cross-instance container stats, job metrics, real-time updates
+1. **Central user registry** — single hub SQLite DB for users + agent assignments
+2. **Auth consolidation** — single NextAuth instance whose session works across subdomains
+3. **Request proxy** — browser sends all requests to hub, hub forwards to correct instance container
+4. **Agent picker UI** — post-login dashboard with per-agent context switching
 
 ---
 
-## New Additions by Feature Area
+## Key Finding: No New Dependencies Required
 
-### 1. Observability
-
-#### Structured Server-Side Logging
-
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| `pino` | `^10.3.1` | Structured JSON logger | Fastest Node.js logger (5x faster than alternatives), zero dependencies, JSON output by default. Stdout-only — PM2/Docker Compose captures to rotating files. No log aggregation service needed at 2-instance scale. |
-| `pino-http` | `^11.0.0` | HTTP request/response logging | Mounts on the existing `server.js` custom HTTP server (one `createServer()` call). Logs every request with latency, status code, and structured context without manual instrumentation. |
-
-**Integration point:** `server.js` is the correct mount point — it wraps Next.js and already handles WebSocket upgrade interception. Add `pinoHttp()` before the Next.js handler. pino v10 requires Node.js 20+; the job container Dockerfile uses Node 22, so there is no compatibility issue.
-
-OpenTelemetry is explicitly out of scope per `PROJECT.md` ("hooks + committed logs sufficient for 2 instances"). Pino alone covers the need.
-
-#### Error Tracking
-
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| `@sentry/nextjs` | `^10.44.0` | Client + server error capture with source maps | Official Next.js integration with App Router. `onRequestError` hook in `instrumentation.ts` auto-captures all Server Component and API route errors. Sentry reworked the SDK specifically to avoid Turbopack bundler dependency (used in Next.js 15 dev). Cloud free tier: 5,000 errors/month — covers launch volume with no infrastructure to run. |
-
-Self-hosted alternatives (GlitchTip, Bugsink) require PostgreSQL, which contradicts the SQLite-only constraint. At launch scale, Sentry.io free tier is correct. Re-evaluate if error volume exceeds 5K/month after launch.
-
-**Integration point:** Add `instrumentation.ts` + `sentry.client.config.ts` + `sentry.server.config.ts` via the Sentry manual setup path. The `onRequestError` hook captures async errors in Server Components that Next.js's default error boundaries would otherwise silently swallow.
-
-#### Health Check Endpoint
-
-No new library. Add `/app/api/health/route.js` (App Router route handler) that:
-1. Checks SQLite with a `SELECT 1` via existing Drizzle instance
-2. Checks Docker socket with `docker.listContainers({ limit: 1 })` via existing dockerode instance
-3. Returns `{ status: 'ok', db: true, docker: true, uptime: process.uptime(), timestamp: Date.now() }`
-4. Returns HTTP 503 if either check fails
-
-The existing superadmin health dashboard already polls each instance's health endpoint via the API proxy pattern (`queryAllInstances`). This endpoint is what it polls. No new library needed.
+All four v4.0 capabilities are achievable with the existing stack plus Node.js built-ins. The rationale for each is below.
 
 ---
 
-### 2. Billing and Per-Customer Access Control
+## Recommended Stack — New Additions
 
-#### Payment Processing
+### Core Technologies
 
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| `stripe` | `^20.4.1` | Subscriptions, Checkout, Customer Portal, Billing Meters, webhooks | Industry standard for SaaS. Stripe Checkout handles PCI compliance entirely — no card form to build. Stripe Billing Meters aggregate usage events natively — no separate metering service. Stripe Customer Portal handles plan changes and cancellation with one `billingPortal.sessions.create()` call. |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **better-sqlite3** | ^12.6.2 (existing) | Central user registry + agent assignments | Already in stack. Add a second DB file (`data/hub.sqlite`) at a distinct path. One `getHubDb()` singleton alongside existing `getDb()`. SQLite WAL mode handles concurrent auth-lookup reads without contention at this scale. No new dependency. |
+| **Drizzle ORM** | ^0.44.0 (existing) | Schema + queries for hub DB | Already in stack. Hub tables live in a separate schema file (`lib/db/hub-schema.js`) with a separate Drizzle instance. Keeps hub and instance schemas independently evolvable — hub migrations never touch per-instance tables. |
+| **NextAuth v5** | ^5.0.0-beta.30 (existing) | Single auth instance on hub with cross-subdomain cookie | Already in stack. One config change: set `domain: ".scalingengine.com"` on the session cookie so the JWT is readable on all subdomains. No second NextAuth instance. Instance containers verify the hub-issued JWT via the existing AGENT_SUPERADMIN_TOKEN M2M channel. |
+| **Node.js `http` module** | built-in | HTTP + SSE + WebSocket request proxying | The custom `server.js` already uses raw `http` events to intercept WebSocket upgrades for ttyd. Extend the same file to forward HTTP requests to target instance containers using `http.request()` + `pipe()`. Handles SSE streaming (no buffering layer), WebSocket upgrades, and regular JSON. Zero new dependencies. |
 
-**What to use:**
-- **Stripe Checkout** (`mode: 'subscription'`) for initial signup — redirect-based, no card form to build
-- **Stripe Customer Portal** for plan changes and cancellation — one API call to generate a session URL
-- **Stripe Billing Meters** for metered usage (job runs, terminal turns) — emit events with `stripe.billing.meterEvents.create()`, Stripe aggregates for the billing period
-- **Stripe Webhooks** to sync subscription state back to local DB — listen for `customer.subscription.updated`, `invoice.paid`, `invoice.payment_failed`
+### Supporting Libraries (Existing, No Change)
 
-**Integration point:** Add `/app/api/webhooks/stripe/route.js`. Verify `stripe-signature` header with `stripe.webhooks.constructEvent()`. The webhook handler updates the `billing_accounts` table (see schema below). Existing `api/index.js` catch-all already handles other webhooks — follow the same verification pattern.
+| Library | Version | Purpose | v4.0 Role |
+|---------|---------|---------|-----------|
+| **zod** | ^4.3.6 | Input validation | Validate `POST /api/hub/assignments` and agent-routing request params |
+| **bcrypt-ts** | ^6.0.0 | Password hashing | Hub `users` table reuses same hash pattern as per-instance users |
+| **uuid** | ^9.0.0 | ID generation | Hub user UUIDs follow same pattern as existing users |
 
-**Why not a billing platform (Lago, Flexprice, Metronome):** Those platforms are built for millions of usage events per day and ship their own databases and event pipelines. At 10 customers and 1K job runs/month, they are infrastructure with no payoff. Stripe Billing Meters does metering natively — no separate platform justified.
+---
 
-#### Local Usage Tracking and Access Control
+## Hub DB Schema (New Tables in `lib/db/hub-schema.js`)
 
-No new library. Two new SQLite tables via Drizzle schema extension:
+Two new tables. These live in `data/hub.sqlite`, not in per-instance `data/clawforge.sqlite`:
 
 ```javascript
-// New table: billing_accounts
-// One row per instance — tracks Stripe state and plan limits
-export const billingAccounts = sqliteTable('billing_accounts', {
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+
+// Central user registry — canonical identity across all agents
+export const hubUsers = sqliteTable('hub_users', {
   id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull().unique(),
-  stripeCustomerId: text('stripe_customer_id'),
-  stripeSubscriptionId: text('stripe_subscription_id'),
-  plan: text('plan').notNull().default('free'),       // 'free' | 'pro' | 'team'
-  jobLimitMonthly: integer('job_limit_monthly').default(50),
-  workspaceLimitConcurrent: integer('workspace_limit_concurrent').default(2),
-  status: text('status').notNull().default('active'), // 'active' | 'past_due' | 'canceled'
-  currentPeriodEnd: integer('current_period_end'),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  role: text('role').notNull().default('user'),   // 'user' | 'admin' | 'superadmin'
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
 
-// New table: usage_events
-// Lightweight event log for monthly aggregation and Stripe meter forwarding
-export const usageEvents = sqliteTable('usage_events', {
+// Many-to-many: which users can access which agents
+export const agentAssignments = sqliteTable('agent_assignments', {
   id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull(),
-  eventType: text('event_type').notNull(),  // 'job_run' | 'terminal_turn' | 'workspace_hour'
-  quantity: real('quantity').notNull().default(1),
-  metadata: text('metadata'),               // JSON, nullable — e.g. { targetRepo, cost }
-  createdAt: integer('created_at').notNull(),
+  userId: text('user_id').notNull(),    // FK to hub_users.id
+  agentSlug: text('agent_slug').notNull(), // e.g. 'noah', 'strategyES'
+  assignedAt: integer('assigned_at').notNull(),
 });
 ```
 
-Monthly aggregates via SQL: `SELECT COUNT(*) FROM usage_events WHERE instance_name = ? AND event_type = 'job_run' AND created_at >= ?`. SQLite handles this comfortably at 10K events/month with a simple `(instance_name, event_type, created_at)` index.
-
-**Stripe meter event forwarding:** Add a `node-cron` (already in dependencies) daily job in `lib/billing/meter-sync.js` that aggregates yesterday's `usage_events` and calls `stripe.billing.meterEvents.create()` per customer. This batches Stripe API calls to once per day — clean and within rate limits.
-
-**Access control enforcement:** New `lib/billing/limits.js` module exposes:
-- `checkJobLimit(instanceName)` — reads `billing_accounts`, counts this month's `usage_events` for `job_run`, returns `{ allowed: bool, reason: string }`
-- `checkWorkspaceLimit(instanceName)` — counts active workspaces in `code_workspaces`
-
-Called from `lib/tools/create-job.js` before dispatch and from workspace creation. Returns early with a channel notification if the limit is exceeded (same pattern as existing error notifications).
-
 ---
 
-### 3. Self-Service Onboarding Flow
+## Auth Consolidation Pattern (Config Change Only)
 
-#### Multi-Step Form
-
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| `react-hook-form` | `^7.71.2` | Multi-step onboarding wizard with per-step validation | Standard for complex React forms. Uncontrolled inputs — no re-renders on every keystroke. Works with existing Zod v4 via `@hookform/resolvers`. Active maintenance: v7.71.2 was published March 2026. |
-| `@hookform/resolvers` | `^5.x` | Zod v4 integration for react-hook-form | Required bridge between react-hook-form and Zod v4. `@hookform/resolvers` v5 is the Zod v4 compatible version (v4 resolvers only worked with Zod v3). Zero runtime overhead — schema validation runs at submit/blur only. |
-
-**Onboarding wizard steps:**
-
-1. Account creation (email + password → existing `lib/db/users.js`)
-2. Instance name + channel selection (Slack/Telegram/Web Chat)
-3. GitHub PAT entry with live validation (via existing `lib/github-api.js` — `GET /user` to verify token scope)
-4. Billing plan selection (free/pro/team) → Stripe Checkout redirect on paid plans
-5. Success page with operator setup checklist
-
-**No Zustand.** Onboarding state is transient and scoped to one browser session. `useState` in the parent wizard component carries accumulated step data. Zustand adds a dependency and architectural pattern for what is a simple local form.
-
-**Integration point:** New `/app/onboarding/*` page directory. Uses existing Tailwind + shadcn components. No changes to existing pages.
-
-#### Transactional Email
-
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| `resend` | `^6.9.4` | Welcome email, billing alerts | Minimal SDK (5-line integration). 3,000 emails/month free — covers 10-50 customers. HTTP API, no SMTP server to manage. Send call: `resend.emails.send({ from, to, subject, html })`. |
-
-Use cases: (1) welcome email on account creation, (2) payment failure notification when Stripe webhook fires `invoice.payment_failed`. Inline HTML strings are sufficient for 2-3 email types — no template engine needed.
-
-`resend` is optional at launch if the team prefers to start without email. The `stripe` webhook handler is the primary notification path for billing events. Add `resend` when the first external customer onboards.
-
----
-
-### 4. Team Monitoring Dashboard
-
-No new libraries. All monitoring capabilities extend existing dockerode, Drizzle ORM, and SSE patterns.
-
-**Container stats via dockerode:** `container.stats({ stream: false })` returns a one-shot snapshot of CPU %, memory usage (bytes used / limit), and network I/O per container. The existing dockerode instance in `lib/tools/docker.js` already has socket access. Add `getContainerStats(containerId)` to `lib/tools/docker.js` — no new dependency.
-
-**CPU calculation from raw stats:**
+One change to `lib/auth/edge-config.js`:
 
 ```javascript
-function calculateCpuPercent(stats) {
-  const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-  const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
-  const numCpus = stats.cpu_stats.online_cpus;
-  return (cpuDelta / systemDelta) * numCpus * 100;
+// Add cookie domain scoping for cross-subdomain session sharing
+cookies: {
+  sessionToken: {
+    options: {
+      domain: process.env.NODE_ENV === 'production' ? '.scalingengine.com' : undefined,
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+    }
+  }
 }
 ```
 
-This is the standard dockerode stats formula — available in dockerode GitHub issue #389 and confirmed working.
-
-**Job metrics from existing tables:** The `job_origins`, `job_outcomes`, and `usage_events` tables have all needed data. Add `lib/db/metrics.js` with queries:
-- `getJobMetrics(instanceName, windowHours)` — success rate, failure rate, avg duration
-- `getActiveContainers(instanceName)` — count by type (job/workspace/cluster)
-- `getErrorCount(instanceName, windowHours)` — from Sentry webhook events stored in `notifications` table or a new `error_events` table
-
-**SSE for real-time dashboard updates:** The existing `streamManager` pub/sub (already in production for headless job streaming) can be extended with a `monitoringStreamManager` that emits container lifecycle events. The `/api/admin/stream` SSE endpoint follows the exact same `ReadableStream` pattern as `/api/jobs/[id]/stream`. No new WebSocket library needed.
-
-**Cross-instance aggregation:** The existing `queryAllInstances` pattern in the superadmin portal makes HTTP requests to each instance's API via `AGENT_SUPERADMIN_TOKEN` Bearer auth. Extend it to call `/api/health` and `/api/admin/metrics` on each instance. `Promise.allSettled` (already used) handles offline instances gracefully.
+JWT callbacks embed `agentSlugs: string[]` (the user's assigned agents) — this is read by the agent picker UI without a DB call per page load.
 
 ---
 
-## Complete New Dependency List
+## Request Proxy Pattern (Extends `server.js`)
 
-| Library | Version | Feature Area | Status |
-|---------|---------|-------------|--------|
-| `pino` | `^10.3.1` | Observability | Required |
-| `pino-http` | `^11.0.0` | Observability | Required |
-| `@sentry/nextjs` | `^10.44.0` | Observability | Required |
-| `stripe` | `^20.4.1` | Billing | Required |
-| `react-hook-form` | `^7.71.2` | Onboarding | Required |
-| `@hookform/resolvers` | `^5.x` | Onboarding | Required |
-| `resend` | `^6.9.4` | Onboarding email | Optional at launch |
+The custom HTTP server in `server.js` currently handles WebSocket upgrades for ttyd. Extend the `request` handler:
 
-**Total new production dependencies: 6-7.** Team monitoring and health checks are pure extensions of existing dockerode + Drizzle ORM + SSE patterns — zero new libraries.
+```javascript
+server.on('request', (req, res) => {
+  const agentSlug = resolveAgentFromSession(req);   // from cookie-decoded JWT
+  if (agentSlug && isProxiable(req.url)) {
+    const targetUrl = getInstanceUrl(agentSlug);    // from instances registry
+    const proxyReq = http.request(targetUrl + req.url, {
+      method: req.method,
+      headers: { ...req.headers, 'x-forwarded-host': req.headers.host },
+    });
+    req.pipe(proxyReq);
+    proxyReq.on('response', (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);  // SSE streams work naturally here — no buffering
+    });
+  } else {
+    nextHandler(req, res);  // fall through to Next.js
+  }
+});
+```
+
+SSE and WebSocket both work through `pipe()` without special handling. WebSocket upgrades continue to use the existing `server.on('upgrade', ...)` path.
 
 ---
 
-## Installation
+## Important: Next.js Middleware → Proxy Rename
+
+**Breaking change in Next.js 16.0.0:** `middleware.ts` is deprecated and renamed to `proxy.ts`. The export function must also be renamed from `middleware` to `proxy`.
+
+The existing `lib/auth/middleware.js` needs to be migrated. Next.js provides a codemod:
 
 ```bash
-# Observability
-npm install pino pino-http @sentry/nextjs
-
-# Billing
-npm install stripe
-
-# Onboarding form
-npm install react-hook-form @hookform/resolvers
-
-# Transactional email (add when first customer onboards)
-npm install resend
+npx @next/codemod@canary middleware-to-proxy .
 ```
+
+This rename should be addressed during the v4.0 milestone. It is not a feature — it prevents a future breaking upgrade from being coupled to a feature milestone.
 
 ---
 
@@ -221,32 +143,56 @@ npm install resend
 
 | Recommended | Alternative | Why Not |
 |-------------|-------------|---------|
-| `@sentry/nextjs` cloud free tier | GlitchTip self-hosted | GlitchTip requires PostgreSQL — introduces a second DB engine, contradicts SQLite constraint |
-| `@sentry/nextjs` cloud free tier | Bugsink self-hosted | Same PostgreSQL dependency problem |
-| `pino` to stdout | OpenTelemetry SDK | Explicitly out of scope in `PROJECT.md`; requires collector sidecar; 5+ packages for what pino does in 1 |
-| Stripe direct | Lago / Flexprice / Metronome | Built for 1B+ events/day, ship their own databases; zero justification at 10 customers |
-| Stripe direct | Lago / Flexprice + Stripe | Separate metering service is redundant — Stripe Billing Meters does metering natively |
-| SQLite `usage_events` | Separate metering DB | 10K events/month fits comfortably in SQLite with a simple index; no separate DB justified at this scale |
-| `resend` | SendGrid | Higher complexity, no benefit for 3 email types |
-| `resend` | Nodemailer + SMTP | Requires mail server management; `resend` is a pure HTTP API call |
-| `react-hook-form` | Formik | Formik is in maintenance mode; react-hook-form has better TypeScript support and active development |
-| `useState` for wizard step state | Zustand | Zustand is for cross-component shared state; wizard state is local and ephemeral — `useState` is correct |
-| dockerode `stats()` | cAdvisor + Prometheus | Sidecar stack for 2 containers is operational overhead with no payoff; `stats()` gives the same data with zero infrastructure |
-| dockerode `stats()` | Express Status Monitor | Application-level metrics only; `stats()` gives container-level resource usage which is what a multi-container platform needs |
+| Second SQLite file (`hub.sqlite`) | PostgreSQL central DB | Ops overhead unjustified at 2 instances + small user count. PostgreSQL requires a separate server, connection pooling, different migration tooling. SQLite WAL handles concurrent reads at this scale. Re-evaluate at 50+ users or 10+ instances. |
+| Second SQLite file (`hub.sqlite`) | Supabase | External service dependency, billing surface, added auth complexity. Existing SQLite pattern is proven and zero-cost. |
+| Second SQLite file (`hub.sqlite`) | Shared single SQLite (merge hub + instance into one file) | Hub and instance containers are separate processes. Sharing one SQLite file across processes risks WAL lock contention. Separate files with explicit boundaries is safer and maps cleanly to the hub-and-spoke architecture. |
+| Built-in `http` module proxy | `http-proxy-middleware` ^3.0.5 | Confirmed ESM incompatibility with `"type": "module"` Next.js projects (vercel/next.js issue #86434). The project uses ESM throughout. The custom server already uses raw `http` for WS; extending it for HTTP proxying is ~40 lines with zero dependency risk. |
+| Built-in `http` module proxy | `node-http-proxy` | Effectively maintenance-mode since 2022 (`http-party` fork). Same ESM concerns. |
+| Single NextAuth on hub | Separate NextAuth per instance | Defeats the purpose of shared auth. Each instance validating the hub-issued JWT via AGENT_SUPERADMIN_TOKEN is the existing proven M2M pattern. |
+| Cookie domain scoping | JWT in Authorization header | Browser clients cannot set Authorization headers on page navigations. Cookie-based sessions with scoped domain is the standard web approach and what NextAuth is designed for. |
+| `@hookform/resolvers` v5 (existing) | No resolver | Zod v4 integration for the agent assignment form requires the resolver bridge. Already in dependencies. |
 
 ---
 
-## What NOT to Add
+## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| OpenTelemetry SDK | Explicit out-of-scope in `PROJECT.md`; requires collector sidecar; overkill for 2 instances | `pino` for logs, `@sentry/nextjs` for errors |
-| Self-hosted Sentry | Requires 58+ services including Redis, Kafka, ClickHouse | Sentry.io free tier (5K errors/month) |
-| Prometheus + Grafana | Sidecar stack for 2 containers; operational overhead with no payoff at this scale | dockerode `container.stats()` + SSE to existing dashboard |
-| Lago / Metronome / Flexprice | Built for 1B+ events/month; each ships its own database | Stripe Billing Meters + SQLite `usage_events` |
-| Zustand for onboarding wizard | Adds a library for what `useState` handles in 5 lines | React `useState` for step + accumulated form data |
-| Separate session store (Redis) for onboarding | Onboarding is a single-page multi-step form — ephemeral browser state only | React component state |
-| Socket.io for monitoring dashboard | Existing SSE via `ReadableStream` handles unidirectional push; bidirectional not needed for dashboards | Existing SSE pattern from `lib/jobs/stream-api.js` |
+| `http-proxy-middleware` | ESM incompatibility with `"type": "module"` projects confirmed in vercel/next.js #86434; third-party dependency for what Node.js handles natively | Raw `http.request()` + `pipe()` in `server.js` |
+| `node-http-proxy` | Maintenance-mode since 2022; no ESM exports | Raw `http.request()` + `pipe()` in `server.js` |
+| PostgreSQL or Supabase | Ops overhead unjustified at current scale; introduces external service dependency | Second `better-sqlite3` DB file (`hub.sqlite`) |
+| Separate NextAuth instance per instance container | Requires each instance to maintain its own user table; defeats central auth goal | Single NextAuth on hub with cross-subdomain cookie domain config |
+| `@auth/drizzle-adapter` | Switches NextAuth from JWT strategy to DB-backed sessions; JWT strategy is simpler and works across subdomains without a DB read per request | Extend existing JWT callbacks to embed `agentSlugs[]` claim |
+| Zustand or Jotai for agent picker state | Adds a library for what `useState` + URL params handles cleanly | React `useState` + `useSearchParams` for selected agent context |
+
+---
+
+## Installation
+
+No new packages required.
+
+```bash
+# No new installs needed for v4.0 core features.
+# All proxy, auth, and DB capabilities covered by existing stack + Node.js built-ins.
+```
+
+---
+
+## Stack Patterns by Variant
+
+**If running as multi-subdomain (current):**
+- Cookie domain `.scalingengine.com` with `sameSite: "lax"` is sufficient
+- Hub at `clawforge.scalingengine.com`, instances at `noah.scalingengine.com`, `es.scalingengine.com`
+- Session cookie set on hub login, readable on all subdomains
+
+**If migrating to single-URL (v4.0 goal):**
+- All requests land on `clawforge.scalingengine.com`
+- `server.js` proxy layer routes `/agent/[slug]/api/*` to instance containers
+- No subdomain cookie config needed in pure single-URL mode, but keeping it doesn't break anything
+
+**If adding a third instance later:**
+- Add row to instances registry (existing `lib/superadmin/config.js` pattern)
+- No code changes to proxy or auth layers — both are data-driven
 
 ---
 
@@ -254,84 +200,24 @@ npm install resend
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| `@sentry/nextjs@10.44.0` | Next.js 15.x | Verified — `onRequestError` hook requires Next.js 15; Sentry reworked SDK to remove Turbopack bundler dependency in v9+ |
-| `pino@10.3.1` | Node.js 20+ | pino v10 drops Node 18; ClawForge Dockerfile uses Node 22 — no conflict |
-| `pino-http@11.0.0` | `pino@10.x` | pino-http v11 requires pino v9+; compatible with pino v10 |
-| `react-hook-form@7.71.2` | React 18/19, Zod v4 | v7.71.2 current as of March 2026; Zod v4 requires `@hookform/resolvers` v5 (v4 resolvers only worked with Zod v3) |
-| `stripe@20.4.1` | Node.js 16+, ESM | Pure HTTP client; compatible with `"type": "module"` (project uses ESM throughout) |
-| `resend@6.9.4` | Node.js 18+ | Pure HTTP client; no bundler constraints |
-
----
-
-## DB Schema Changes Required
-
-```javascript
-// lib/db/schema.js additions for v3.0
-
-// billing_accounts — one row per instance
-export const billingAccounts = sqliteTable('billing_accounts', {
-  id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull().unique(),
-  stripeCustomerId: text('stripe_customer_id'),
-  stripeSubscriptionId: text('stripe_subscription_id'),
-  plan: text('plan').notNull().default('free'),        // 'free' | 'pro' | 'team'
-  jobLimitMonthly: integer('job_limit_monthly').default(50),
-  workspaceLimitConcurrent: integer('workspace_limit_concurrent').default(2),
-  status: text('status').notNull().default('active'),  // 'active' | 'past_due' | 'canceled'
-  currentPeriodEnd: integer('current_period_end'),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-
-// usage_events — lightweight event log for metering
-export const usageEvents = sqliteTable('usage_events', {
-  id: text('id').primaryKey(),
-  instanceName: text('instance_name').notNull(),
-  eventType: text('event_type').notNull(),  // 'job_run' | 'terminal_turn' | 'workspace_hour'
-  quantity: real('quantity').notNull().default(1),
-  metadata: text('metadata'),               // JSON, nullable
-  createdAt: integer('created_at').notNull(),
-});
-// Index: (instance_name, event_type, created_at) for monthly aggregation queries
-```
-
----
-
-## Integration Points with Existing Stack
-
-| New Capability | Integrates With | How |
-|----------------|----------------|-----|
-| `pino-http` | `server.js` (custom HTTP server) | Mount before Next.js handler in the existing `createServer()` call |
-| `@sentry/nextjs` | `instrumentation.ts` (Next.js built-in) | `onRequestError` hook auto-captures all Server Component and API route errors |
-| Stripe webhooks | `api/index.js` (existing catch-all router) | New `/webhooks/stripe` route; verify `stripe-signature`; update `billing_accounts` |
-| Billing limits | `lib/tools/create-job.js`, workspace creation | Call `lib/billing/limits.js` before dispatch; return error message to channel if exceeded |
-| `react-hook-form` + `@hookform/resolvers` | `/app/onboarding/*` pages | New pages only; no changes to existing pages |
-| `resend` | `lib/billing/stripe-webhook.js` | Called on `invoice.paid` (welcome) and `invoice.payment_failed` (alert) |
-| Container stats | `lib/tools/docker.js` (existing dockerode) | Add `getContainerStats(id)` function using `container.stats({ stream: false })` |
-| Usage events | `lib/tools/create-job.js`, `lib/chat/terminal-api.js` | Emit to `usage_events` table on job dispatch and terminal turn completion |
-| Monitoring SSE | Existing `streamManager` pattern | New `monitoringStreamManager` + `/api/admin/stream` endpoint following same `ReadableStream` pattern |
+| better-sqlite3 ^12.6.2 | drizzle-orm ^0.44.0 | Existing combination confirmed working in production with custom migration runner |
+| next-auth ^5.0.0-beta.30 | next >=15.5.12 | Cross-subdomain cookie domain config is documented in NextAuth v5 — test in staging before deploy |
+| Node.js `http` (built-in) | Node >=18 | `pipe()` + streaming works without version-specific concerns; project already requires Node 18+ |
+| next-auth ^5.0.0-beta.30 | middleware → proxy rename | NextAuth's `auth()` wrapper works identically in `proxy.js`; only the file and export names change |
 
 ---
 
 ## Sources
 
-- [pino npm](https://www.npmjs.com/package/pino) — v10.3.1 confirmed current; v10 drops Node 18
-- [pino-http GitHub](https://github.com/pinojs/pino-http) — v11.0.0 confirmed current; requires pino v9+
-- [Sentry Next.js docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/) — `onRequestError` hook, Next.js 15 compatibility, Turbopack SDK rewrite
-- [@sentry/nextjs npm](https://www.npmjs.com/package/@sentry/nextjs) — v10.44.0 confirmed current
-- [Sentry self-hosting requirements](https://docs.sentry.io/self-hosted/) — 58+ services confirmed; rules out self-hosting at this scale
-- [Stripe usage-based billing docs](https://docs.stripe.com/billing/subscriptions/usage-based) — Billing Meters API confirmed; `meterEvents.create()` endpoint
-- [Stripe Node SDK npm](https://www.npmjs.com/package/stripe) — v20.4.1 confirmed current; ESM compatible
-- [react-hook-form npm](https://www.npmjs.com/package/react-hook-form) — v7.71.2 confirmed current as of March 2026
-- [resend npm](https://www.npmjs.com/package/resend) — v6.9.4 confirmed current
-- [dockerode Container.stats](https://github.com/apocas/dockerode/issues/389) — `stream: false` one-shot stats pattern confirmed; CPU calculation formula verified
-- [GlitchTip installation docs](https://glitchtip.com/documentation/install/) — PostgreSQL requirement confirmed; rules out for SQLite project
-- ClawForge `lib/db/schema.js` — existing tables analyzed to design non-conflicting new tables (HIGH confidence — direct codebase inspection)
-- ClawForge `lib/tools/create-job.js` — identified as correct integration point for billing limit checks (HIGH confidence — direct codebase inspection)
-- ClawForge `package.json` — full dependency baseline confirmed; `node-cron` already present for meter sync cron job (HIGH confidence — direct codebase inspection)
-- ClawForge `PROJECT.md` — "Out of Scope" section confirms OpenTelemetry explicitly excluded (HIGH confidence — direct codebase inspection)
+- [Next.js proxy.js file convention](https://nextjs.org/docs/app/api-reference/file-conventions/proxy) — Confirmed `middleware` renamed to `proxy` in Next.js v16.0.0; Node.js runtime stable as of v15.5.0 (HIGH confidence — official docs)
+- [NextAuth v5 cross-subdomain cookie discussion](https://github.com/nextauthjs/next-auth/issues/2414) — Cookie domain scoping approach; apex domain + leading dot convention (MEDIUM confidence — community discussion, cross-referenced with official options docs)
+- [NextAuth.js options documentation](https://next-auth.js.org/configuration/options) — `cookies.sessionToken.options.domain` config key confirmed (HIGH confidence — official docs)
+- [http-proxy-middleware ESM issue](https://github.com/vercel/next.js/issues/86434) — Confirmed ESM incompatibility with `"type": "module"` Next.js; reason to avoid (HIGH confidence — official Next.js GitHub)
+- [http-proxy-middleware npm](https://www.npmjs.com/package/http-proxy-middleware) — Latest version 3.0.5, last published ~1 year ago (HIGH confidence — npm registry)
+- [node-http-proxy GitHub](https://github.com/http-party/node-http-proxy) — Maintenance-mode status confirmed (HIGH confidence — GitHub activity)
+- Codebase inspection: `lib/db/index.js`, `lib/db/schema.js`, `lib/auth/middleware.js`, `lib/auth/config.js`, `lib/auth/edge-config.js`, `lib/superadmin/client.js`, `server.js` (implied from PROJECT.md), `package.json` — All existing patterns verified against live code (HIGH confidence — direct codebase inspection)
 
 ---
 
-*Stack research for: ClawForge v3.0 Customer Launch — observability, billing, onboarding, team monitoring*
-*Researched: 2026-03-17*
+*Stack research for: ClawForge v4.0 Multi-Tenant Agent Platform — shared auth, request proxy, agent picker, per-agent scoped UI*
+*Researched: 2026-03-24*
