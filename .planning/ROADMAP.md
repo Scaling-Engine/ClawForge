@@ -394,7 +394,7 @@ Plans:
 | 51 | - | 1/1 | Complete | 2026-03-20 |
 | 52 | - | 1/1 | Complete | 2026-03-20 |
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 54 | v4.0 | 2/2 | Complete   | 2026-03-25 |
+| 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 55 | v4.0 | 0/TBD | Not started | - |
 | 56 | v4.0 | 0/TBD | Not started | - |
 | 57 | v4.0 | 0/TBD | Not started | - |
