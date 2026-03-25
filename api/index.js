@@ -102,6 +102,22 @@ function safeCompare(a, b) {
 function checkAuth(routePath, request) {
   if (PUBLIC_ROUTES.includes(routePath)) return null;
 
+  // Bearer token auth (hub-to-spoke M2M) — accepted on all /api/* routes
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const expected = process.env.AGENT_SUPERADMIN_TOKEN;
+    if (expected && token) {
+      const bufA = Buffer.from(token);
+      const bufB = Buffer.from(expected);
+      if (bufA.length === bufB.length && timingSafeEqual(bufA, bufB)) {
+        return null; // Authorized
+      }
+    }
+    // Bearer present but invalid — fall through to x-api-key check
+  }
+
+  // Existing x-api-key auth (unchanged)
   const apiKey = request.headers.get('x-api-key');
   if (!apiKey) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
