@@ -5,6 +5,9 @@
 #   cp .env.example .env   # Fill in all values
 #   docker compose up -d
 
+# AUTH_SECRET is shared across all containers so hub-issued JWTs are valid everywhere.
+# Rotating AUTH_SECRET will invalidate all existing sessions (expected behavior).
+
 networks:
   noah-net:
     driver: bridge
@@ -40,6 +43,7 @@ services:
     restart: unless-stopped
 
   # ─── Noah's Event Handler ────────────────────────────────────────────
+  # No ports: mapping — only reachable via Traefik reverse proxy (AUTH-05)
   noah-event-handler:
     container_name: clawforge-noah
     build:
@@ -53,7 +57,7 @@ services:
     environment:
       APP_URL: ${NOAH_APP_URL}
       APP_HOSTNAME: ${NOAH_APP_HOSTNAME}
-      AUTH_SECRET: ${NOAH_AUTH_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET}
       AUTH_TRUST_HOST: "true"
       GH_TOKEN: ${NOAH_GH_TOKEN}
       GH_OWNER: ${NOAH_GH_OWNER}
@@ -96,6 +100,7 @@ services:
     restart: unless-stopped
 
   # ─── StrategyES Event Handler ────────────────────────────────────────
+  # No ports: mapping — only reachable via Traefik reverse proxy (AUTH-05)
   ses-event-handler:
     container_name: clawforge-ses
     build:
@@ -109,7 +114,7 @@ services:
     environment:
       APP_URL: ${SES_APP_URL}
       APP_HOSTNAME: ${SES_APP_HOSTNAME}
-      AUTH_SECRET: ${SES_AUTH_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET}
       AUTH_TRUST_HOST: "true"
       GH_TOKEN: ${SES_GH_TOKEN}
       GH_OWNER: ${SES_GH_OWNER:-ScalingEngine}
