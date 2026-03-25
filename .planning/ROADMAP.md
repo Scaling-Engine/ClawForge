@@ -328,7 +328,7 @@ Plans:
 
 Plans:
 - [x] 55-01-PLAN.md — Spoke Bearer auth: accept AGENT_SUPERADMIN_TOKEN on all /api/* routes (PROXY-05)
-- [ ] 55-02-PLAN.md — Hub HTTP proxy: intercept /agent/[slug]/* and pipe to spoke instances (PROXY-01, PROXY-02, PROXY-04)
+- [x] 55-02-PLAN.md — Hub HTTP proxy: intercept /agent/[slug]/* and pipe to spoke instances (PROXY-01, PROXY-02, PROXY-04)
 
 ### Phase 56: Agent Picker + User Assignment
 **Goal**: Users see their assigned agents after login and superadmin can control which users access which agents
@@ -399,7 +399,7 @@ Plans:
 | 52 | - | 1/1 | Complete | 2026-03-20 |
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 55 | v4.0 | 1/2 | In Progress|  |
+| 55 | v4.0 | 2/2 | Complete   | 2026-03-25 |
 | 56 | v4.0 | 0/TBD | Not started | - |
 | 57 | v4.0 | 0/TBD | Not started | - |
 | 58 | v4.0 | 0/TBD | Not started | - |
