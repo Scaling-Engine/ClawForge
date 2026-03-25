@@ -136,12 +136,12 @@ export function SuperadminDashboard() {
       <div className="rounded-lg border bg-card p-4">
         <div className="flex items-center gap-3 mb-3">
           <GlobeIcon size={20} />
-          <h2 className="font-semibold">Cross-Instance Overview</h2>
+          <h2 className="font-semibold">Cross-Agent Overview</h2>
         </div>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <div className="text-3xl font-bold">{instances.length}</div>
-            <div className="text-xs text-muted-foreground">Instances</div>
+            <div className="text-xs text-muted-foreground">Agents</div>
           </div>
           <div>
             <div className="text-3xl font-bold">{totalJobs}</div>
@@ -165,7 +165,7 @@ export function SuperadminDashboard() {
 
       {instances.length === 0 && (
         <div className="text-center text-sm text-muted-foreground py-8">
-          No instances configured. Set SUPERADMIN_INSTANCES environment variable.
+          No agents configured. Set SUPERADMIN_INSTANCES environment variable.
         </div>
       )}
     </div>

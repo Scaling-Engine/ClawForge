@@ -192,11 +192,11 @@ export function MonitoringDashboard() {
     <div className="space-y-6">
       {/* Summary bar */}
       <div className="rounded-lg border bg-card p-4">
-        <h2 className="font-semibold mb-3">Instance Health Monitor</h2>
+        <h2 className="font-semibold mb-3">Agent Health Monitor</h2>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <div className="text-3xl font-bold">{instances.length}</div>
-            <div className="text-xs text-muted-foreground">Instances</div>
+            <div className="text-xs text-muted-foreground">Agents</div>
           </div>
           <div>
             <div className={`text-3xl font-bold ${getHealthColor(avgRate !== null ? avgRate / 100 : null)}`}>
@@ -222,7 +222,7 @@ export function MonitoringDashboard() {
 
       {instances.length === 0 && (
         <div className="text-center text-sm text-muted-foreground py-8">
-          No instances configured.
+          No agents configured.
         </div>
       )}
     </div>

@@ -154,7 +154,7 @@ export function SuperadminSearch() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/30">
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Instance</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Agent</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">Repo</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">Status</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">Summary</th>
