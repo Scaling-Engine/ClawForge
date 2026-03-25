@@ -103,7 +103,7 @@ export function SuperadminSearch() {
       <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <SearchIcon size={16} />
-          <h2 className="font-semibold text-sm">Cross-Instance Job Search</h2>
+          <h2 className="font-semibold text-sm">Cross-Agent Job Search</h2>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-4">

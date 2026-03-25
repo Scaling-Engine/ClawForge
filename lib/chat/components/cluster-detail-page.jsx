@@ -87,7 +87,7 @@ export function ClusterDetailPage({ session, runId }) {
               <StatusBadge status={run.status} />
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span>Instance: <span className="font-medium text-foreground">{run.instanceName}</span></span>
+              <span>Agent: <span className="font-medium text-foreground">{run.instanceName}</span></span>
               <span>Agents: <span className="font-medium text-foreground">{run.totalAgentRuns}</span></span>
               <span>Started: {formatTs(run.createdAt)}</span>
               {run.completedAt && <span>Completed: {formatTs(run.completedAt)}</span>}
