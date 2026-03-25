@@ -50,7 +50,7 @@ Requirements for v4.0. Each maps to roadmap phases.
 ### Terminology
 
 - [x] **TERM-01**: All user-facing UI text uses "agents" instead of "instances" (sidebar, headings, buttons, labels)
-- [ ] **TERM-02**: URL paths use `/agent/[slug]/` structure instead of instance-specific subdomains
+- [x] **TERM-02**: URL paths use `/agent/[slug]/` structure instead of instance-specific subdomains
 
 ## Future Requirements
 
@@ -106,7 +106,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCOPE-07 | Phase 59 | Pending |
 | SCOPE-08 | Phase 59 | Pending |
 | TERM-01 | Phase 54 | Complete |
-| TERM-02 | Phase 54 | Pending |
+| TERM-02 | Phase 54 | Complete |
 
 **Coverage:**
 - v1 requirements: 27 total

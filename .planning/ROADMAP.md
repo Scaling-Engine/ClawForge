@@ -312,7 +312,7 @@ Plans:
 
 Plans:
 - [x] 54-01-PLAN.md — User-facing text migration: replace all "instance" strings with "agent" in 7 JSX components (TERM-01)
-- [ ] 54-02-PLAN.md — URL route migration: /admin/agents page, /admin/instances redirect, nav href update (TERM-02)
+- [x] 54-02-PLAN.md — URL route migration: /admin/agents page, /admin/instances redirect, nav href update (TERM-02)
 **UI hint**: yes
 
 ### Phase 55: HTTP Proxy Layer
@@ -394,7 +394,7 @@ Plans:
 | 51 | - | 1/1 | Complete | 2026-03-20 |
 | 52 | - | 1/1 | Complete | 2026-03-20 |
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 54 | v4.0 | 1/2 | In Progress|  |
+| 54 | v4.0 | 2/2 | Complete   | 2026-03-25 |
 | 55 | v4.0 | 0/TBD | Not started | - |
 | 56 | v4.0 | 0/TBD | Not started | - |
 | 57 | v4.0 | 0/TBD | Not started | - |
