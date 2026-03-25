@@ -52,6 +52,12 @@ function UserCard({ user, onRoleChange }) {
             {isAdmin && <ShieldIcon size={10} />}
             {user.role}
           </span>
+          <a
+            href={`/admin/users/${user.id}`}
+            className="text-[11px] px-2 py-1 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            Assign agents
+          </a>
           {confirming ? (
             <div className="flex items-center gap-1">
               <button
