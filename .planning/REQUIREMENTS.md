@@ -21,7 +21,7 @@ Requirements for v4.0. Each maps to roadmap phases.
 - [ ] **PROXY-02**: Browser URL stays on clawforge.scalingengine.com for all navigation — no redirects to instance subdomains
 - [ ] **PROXY-03**: WebSocket connections for terminal sessions are proxied through the hub to the correct instance container
 - [ ] **PROXY-04**: SSE streams for job log streaming work through the proxy layer
-- [ ] **PROXY-05**: Spoke instances accept hub Bearer token on all API routes (not just /api/superadmin/*)
+- [x] **PROXY-05**: Spoke instances accept hub Bearer token on all API routes (not just /api/superadmin/*)
 
 ### Picker
 
@@ -89,7 +89,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROXY-02 | Phase 55 | Pending |
 | PROXY-03 | Phase 58 | Pending |
 | PROXY-04 | Phase 55 | Pending |
-| PROXY-05 | Phase 55 | Pending |
+| PROXY-05 | Phase 55 | Complete |
 | PICK-01 | Phase 56 | Pending |
 | PICK-02 | Phase 56 | Pending |
 | PICK-03 | Phase 59 | Pending |
