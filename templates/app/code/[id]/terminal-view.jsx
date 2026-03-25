@@ -209,14 +209,20 @@ export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true,
       (async () => {
         try {
           const result = await ensureContainer(codeWorkspaceId);
+          console.log('[terminal] ensureContainer result:', JSON.stringify(result));
           if (result?.status === 'error') {
             const msg = result.message || 'Unknown container error';
-            console.error('ensureContainer:', msg);
+            console.error('[terminal] ensureContainer error:', msg);
             if (!cancelled) setContainerError(msg);
             return;
           }
+          // If container was just created/started, wait for ttyd to be ready
+          if (result?.status === 'created' || result?.status === 'started') {
+            console.log('[terminal] container just created/started, waiting 5s for ttyd...');
+            await new Promise(r => setTimeout(r, 5000));
+          }
         } catch (err) {
-          console.error('ensureContainer:', err);
+          console.error('[terminal] ensureContainer error:', err);
           if (!cancelled) setContainerError(err.message || String(err));
           return;
         }
@@ -275,14 +281,19 @@ export default function TerminalView({ codeWorkspaceId, wsPath, isActive = true,
       try {
         setContainerError(null);
         const result = await ensureContainer(codeWorkspaceId);
+        console.log('[terminal] reconnect ensureContainer result:', JSON.stringify(result));
         if (result?.status === 'error') {
           const msg = result.message || 'Unknown container error';
-          console.error('ensureContainer:', msg);
+          console.error('[terminal] reconnect error:', msg);
           setContainerError(msg);
           return;
         }
+        if (result?.status === 'created' || result?.status === 'started') {
+          console.log('[terminal] container recreated, waiting 5s for ttyd...');
+          await new Promise(r => setTimeout(r, 5000));
+        }
       } catch (err) {
-        console.error('ensureContainer:', err);
+        console.error('[terminal] reconnect error:', err);
         setContainerError(err.message || String(err));
         return;
       }
