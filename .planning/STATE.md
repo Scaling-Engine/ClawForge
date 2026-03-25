@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Multi-Tenant Agent Platform
-status: defining_requirements
-stopped_at: Milestone v4.0 started
+status: roadmap_complete
+stopped_at: Roadmap created — 7 phases (53-59), 27/27 requirements mapped
 last_updated: "2026-03-24T00:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,21 +19,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Defining requirements for v4.0 Multi-Tenant Agent Platform
+**Current focus:** v4.0 Multi-Tenant Agent Platform — roadmap complete, ready for Phase 53 planning
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 53 (next to plan)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-24 — Milestone v4.0 started
+Status: Roadmap complete — ready for `/gsd:plan-phase 53`
+Last activity: 2026-03-24 — v4.0 roadmap created (7 phases, 27 requirements mapped)
 
 ## Performance Metrics
 
-| Metric | v2.2 | v3.0 Target |
+| Metric | v3.0 | v4.0 Target |
 |--------|------|-------------|
-| Phases | 42 complete | 5 planned (43-47) |
-| Requirements | 81 plans shipped | 20 v1 requirements to satisfy |
+| Phases | 52 complete (43-52) | 7 planned (53-59) |
+| Requirements | 100 plans shipped | 27 v1 requirements to satisfy |
 | Milestone cadence | 1-2 days per milestone | TBD |
 | Phase 43 P02 duration | 2 min | 2 tasks, 7 files |
 | Phase 43 P01 | 5 | 2 tasks | 10 files |
@@ -96,17 +96,28 @@ Last activity: 2026-03-24 — Milestone v4.0 started
 - **Dynamic import for monitoring/alerts.js:** Consistent with getHealth() pattern, avoids circular dependency risk at module load time.
 - **MonitoringDashboard UI patterns:** getHealthColor returns muted color for null rate (no-data vs zero-rate distinction); UsageBar shows plain text when limit is null (unlimited); OnboardingBadge uses three states: Complete (green), in-progress with currentStep (yellow), N/A (gray).
 
+### Decisions Made (v4.0)
+
+- **Hub DB:** Second SQLite file `data/hub.sqlite` with separate Drizzle schema `lib/db/hub-schema.js` — hub and instance schemas independently evolvable
+- **No new dependencies:** Entire v4.0 built on existing stack + Node.js `http` built-in for proxying. `http-proxy-middleware` explicitly ruled out (ESM incompatibility confirmed against Next.js #86434)
+- **Cross-subdomain session:** `domain: ".scalingengine.com"` on NextAuth session cookie config — fallback is shared `AUTH_SECRET` with spoke-side JWT validation if v5 beta cookie behavior is inconsistent
+- **HTTP proxy pattern:** `http.request()` + `pipe()` from Node.js built-in, not a library — avoids ESM issues, same pattern as existing `server.js`
+- **Spoke Bearer auth:** Additive — spoke `/api/*` routes accept `AGENT_SUPERADMIN_TOKEN` Bearer on all routes, not just `/api/superadmin/*`. Existing webhook auth (x-api-key, signing secret) unchanged.
+- **Terminology layer 1 only:** UI strings renamed to "agent/agents" in v4.0. DB column names (`instance_name`), env var names, and directory names unchanged — breaking rename deferred post-v4.0.
+- **WS proxy decision:** Relay vs. redirect decision deferred to Phase 58 planning — measure actual relay latency before committing. Relay is simpler; redirect eliminates multi-hop but requires signed token infrastructure.
+- **Instance port isolation:** Remove `ports:` mappings from all instance containers in production `docker-compose.yml` in Phase 53 — prerequisite for security model.
+
 ### Roadmap Evolution
 
 - Phase 48 added: Code Mode Unification — collapse three chat toggles into one unified Code toggle routing to /stream/terminal SDK bridge
 - Phase 49 added: Interactive Code IDE — cherry-pick upstream /code/{id} tabbed IDE page with Code+Shell+Editor tabs
 - Phase 50 added: Code Mode Polish — feature flags, mobile session continuity, Claude subscription auth
+- v4.0 roadmap added 2026-03-24: Phases 53-59 (Shared Auth, Terminology, HTTP Proxy, Agent Picker, Scoped Nav, WS Proxy, Aggregate Views)
 
 ### Research Flags for Phase Planning
 
-- **Phase 44 (Billing):** Confirm whether workspace-hour billing is in v3.0 or deferred. If deferred, omit `workspace_hour` from `usage_events` schema to avoid dead columns.
-- **Phase 45 (Onboarding):** Validate Edge Runtime redirect loop risk before writing middleware code. Confirm unconditional env var redirect + page-level check does not produce circular redirect on first load.
-- **Phase 46 (Monitoring):** Confirm charting library in `package.json` before choosing recharts vs. chart.js for monitoring page.
+- **Phase 53 (Shared Auth):** Cross-subdomain NextAuth v5 beta cookie behavior has known edge cases (GitHub issues #6881 and #10915). Test `domain: ".scalingengine.com"` in staging before locking in. Fallback: shared `AUTH_SECRET` with spoke-side JWT validation (already the WS auth pattern).
+- **Phase 58 (WebSocket Proxy):** Relay vs. redirect decision requires profiling actual latency impact on terminal UX. Relay adds two extra hops; redirect eliminates them but requires signed token infrastructure. Decide at phase start with a measured prototype, not upfront.
 
 ### Do-Not-Touch List
 
@@ -154,7 +165,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-23T20:38:07Z
-Stopped at: Completed quick task 260323-n1e
+Last session: 2026-03-24T00:00:00Z
+Stopped at: v4.0 roadmap created — 7 phases (53-59), 27/27 requirements mapped
 Resume file: None
-Next action: `/gsd:plan-phase 45`
+Next action: `/gsd:plan-phase 53`

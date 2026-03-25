@@ -80,39 +80,39 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| PROXY-01 | — | Pending |
-| PROXY-02 | — | Pending |
-| PROXY-03 | — | Pending |
-| PROXY-04 | — | Pending |
-| PROXY-05 | — | Pending |
-| PICK-01 | — | Pending |
-| PICK-02 | — | Pending |
-| PICK-03 | — | Pending |
-| PICK-04 | — | Pending |
-| USER-01 | — | Pending |
-| USER-02 | — | Pending |
-| USER-03 | — | Pending |
-| SCOPE-01 | — | Pending |
-| SCOPE-02 | — | Pending |
-| SCOPE-03 | — | Pending |
-| SCOPE-04 | — | Pending |
-| SCOPE-05 | — | Pending |
-| SCOPE-06 | — | Pending |
-| SCOPE-07 | — | Pending |
-| SCOPE-08 | — | Pending |
-| TERM-01 | — | Pending |
-| TERM-02 | — | Pending |
+| AUTH-01 | Phase 53 | Pending |
+| AUTH-02 | Phase 53 | Pending |
+| AUTH-03 | Phase 53 | Pending |
+| AUTH-04 | Phase 53 | Pending |
+| AUTH-05 | Phase 53 | Pending |
+| PROXY-01 | Phase 55 | Pending |
+| PROXY-02 | Phase 55 | Pending |
+| PROXY-03 | Phase 58 | Pending |
+| PROXY-04 | Phase 55 | Pending |
+| PROXY-05 | Phase 55 | Pending |
+| PICK-01 | Phase 56 | Pending |
+| PICK-02 | Phase 56 | Pending |
+| PICK-03 | Phase 59 | Pending |
+| PICK-04 | Phase 56 | Pending |
+| USER-01 | Phase 56 | Pending |
+| USER-02 | Phase 56 | Pending |
+| USER-03 | Phase 56 | Pending |
+| SCOPE-01 | Phase 57 | Pending |
+| SCOPE-02 | Phase 57 | Pending |
+| SCOPE-03 | Phase 57 | Pending |
+| SCOPE-04 | Phase 57 | Pending |
+| SCOPE-05 | Phase 57 | Pending |
+| SCOPE-06 | Phase 59 | Pending |
+| SCOPE-07 | Phase 59 | Pending |
+| SCOPE-08 | Phase 59 | Pending |
+| TERM-01 | Phase 54 | Pending |
+| TERM-02 | Phase 54 | Pending |
 
 **Coverage:**
 - v1 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27 ⚠️
+- Mapped to phases: 27
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-24*
-*Last updated: 2026-03-24 after initial definition*
+*Last updated: 2026-03-24 — traceability complete (27/27 mapped to phases 53-59)*
