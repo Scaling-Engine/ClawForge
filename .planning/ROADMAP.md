@@ -374,8 +374,10 @@ Plans:
   1. Opening a workspace terminal from the workspaces page connects via `wss://clawforge.scalingengine.com` — the browser's Network tab shows no direct connection to an instance subdomain
   2. The terminal renders correctly and accepts keyboard input without garbage characters — the `tty` subprotocol is correctly forwarded through the hub relay
   3. A terminal session survives a page refresh and reconnects to the same running workspace container without spawning a duplicate ttyd process
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+
+Plans:
+- [ ] 58-01-PLAN.md — WS relay in http-proxy.js + agent-scoped terminal page shell (PROXY-03)
 
 ### Phase 59: Cross-Agent Aggregate Views + Quick Launch
 **Goal**: Users assigned to multiple agents can see all their PRs, workspaces, and sub-agents in one view — and can dispatch a job without navigating into an agent first
