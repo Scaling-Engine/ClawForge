@@ -405,7 +405,7 @@ Plans:
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 55 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 56 | v4.0 | 3/3 | Complete   | 2026-03-26 |
+| 56 | v4.0 | 4/4 | Complete   | 2026-03-26 |
 | 57 | v4.0 | 0/TBD | Not started | - |
 | 58 | v4.0 | 0/TBD | Not started | - |
 | 59 | v4.0 | 0/TBD | Not started | - |
