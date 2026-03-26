@@ -360,7 +360,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 57-01-PLAN.md — Route group layout + legacy redirects (SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05)
+- [x] 57-01-PLAN.md — Route group layout + legacy redirects (SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05)
 - [ ] 57-02-PLAN.md — Agent-scoped chat pages (SCOPE-02)
 - [ ] 57-03-PLAN.md — Agent-scoped PRs + workspaces + clusters pages (SCOPE-03, SCOPE-04, SCOPE-05)
 - [ ] 57-04-PLAN.md — Sidebar agent context + scoped history filtering (SCOPE-01, SCOPE-02)
@@ -412,7 +412,7 @@ Plans:
 | 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 55 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 56 | v4.0 | 4/4 | Complete    | 2026-03-26 |
-| 57 | v4.0 | 0/4 | Not started | - |
+| 57 | v4.0 | 1/4 | In Progress|  |
 | 58 | v4.0 | 0/TBD | Not started | - |
 | 59 | v4.0 | 0/TBD | Not started | - |
 

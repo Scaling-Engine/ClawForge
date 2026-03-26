@@ -25,24 +25,24 @@ Requirements for v4.0. Each maps to roadmap phases.
 
 ### Picker
 
-- [ ] **PICK-01**: After login, user sees an agent picker dashboard showing all agents they're assigned to
-- [ ] **PICK-02**: Each agent card shows status (online/offline), last job timestamp, open PR count, and active workspace count
+- [x] **PICK-01**: After login, user sees an agent picker dashboard showing all agents they're assigned to
+- [x] **PICK-02**: Each agent card shows status (online/offline), last job timestamp, open PR count, and active workspace count
 - [ ] **PICK-03**: User can dispatch a job directly from the agent picker without navigating into the agent
-- [ ] **PICK-04**: Selected agent persists across page loads — refresh returns to the same agent context
+- [x] **PICK-04**: Selected agent persists across page loads — refresh returns to the same agent context
 
 ### Users
 
-- [ ] **USER-01**: Superadmin can assign users to specific agents via the admin UI
-- [ ] **USER-02**: Superadmin can set per-agent roles (viewer/operator/admin) for each user-agent assignment
-- [ ] **USER-03**: Users with no agent assignments see an empty state directing them to contact their admin
+- [x] **USER-01**: Superadmin can assign users to specific agents via the admin UI
+- [x] **USER-02**: Superadmin can set per-agent roles (viewer/operator/admin) for each user-agent assignment
+- [x] **USER-03**: Users with no agent assignments see an empty state directing them to contact their admin
 
 ### Scope
 
-- [ ] **SCOPE-01**: Sidebar navigation is scoped to the selected agent (agent name at top, that agent's resources listed)
-- [ ] **SCOPE-02**: Chat page is scoped to the selected agent's conversation history and job dispatch
-- [ ] **SCOPE-03**: PRs page shows pull requests from the selected agent only (by default)
-- [ ] **SCOPE-04**: Workspaces page shows workspaces from the selected agent only (by default)
-- [ ] **SCOPE-05**: Sub-agents page shows sub-agent definitions from the selected agent only (by default)
+- [x] **SCOPE-01**: Sidebar navigation is scoped to the selected agent (agent name at top, that agent's resources listed)
+- [x] **SCOPE-02**: Chat page is scoped to the selected agent's conversation history and job dispatch
+- [x] **SCOPE-03**: PRs page shows pull requests from the selected agent only (by default)
+- [x] **SCOPE-04**: Workspaces page shows workspaces from the selected agent only (by default)
+- [x] **SCOPE-05**: Sub-agents page shows sub-agent definitions from the selected agent only (by default)
 - [ ] **SCOPE-06**: "All Agents" aggregate view shows PRs across all assigned agents with an agent column
 - [ ] **SCOPE-07**: "All Agents" aggregate view shows workspaces across all assigned agents with an agent column
 - [ ] **SCOPE-08**: "All Agents" aggregate view shows sub-agents across all assigned agents with an agent column
@@ -90,18 +90,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROXY-03 | Phase 58 | Pending |
 | PROXY-04 | Phase 55 | Complete |
 | PROXY-05 | Phase 55 | Complete |
-| PICK-01 | Phase 56 | Pending |
-| PICK-02 | Phase 56 | Pending |
+| PICK-01 | Phase 56 | Complete |
+| PICK-02 | Phase 56 | Complete |
 | PICK-03 | Phase 59 | Pending |
-| PICK-04 | Phase 56 | Pending |
-| USER-01 | Phase 56 | Pending |
-| USER-02 | Phase 56 | Pending |
-| USER-03 | Phase 56 | Pending |
-| SCOPE-01 | Phase 57 | Pending |
-| SCOPE-02 | Phase 57 | Pending |
-| SCOPE-03 | Phase 57 | Pending |
-| SCOPE-04 | Phase 57 | Pending |
-| SCOPE-05 | Phase 57 | Pending |
+| PICK-04 | Phase 56 | Complete |
+| USER-01 | Phase 56 | Complete |
+| USER-02 | Phase 56 | Complete |
+| USER-03 | Phase 56 | Complete |
+| SCOPE-01 | Phase 57 | Complete |
+| SCOPE-02 | Phase 57 | Complete |
+| SCOPE-03 | Phase 57 | Complete |
+| SCOPE-04 | Phase 57 | Complete |
+| SCOPE-05 | Phase 57 | Complete |
 | SCOPE-06 | Phase 59 | Pending |
 | SCOPE-07 | Phase 59 | Pending |
 | SCOPE-08 | Phase 59 | Pending |

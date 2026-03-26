@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to plan
-stopped_at: Completed 56-04-PLAN.md
-last_updated: "2026-03-26T03:50:48.510Z"
+stopped_at: Completed 57-01-PLAN.md
+last_updated: "2026-03-26T15:28:29.515Z"
 progress:
   total_phases: 17
   completed_phases: 14
-  total_plans: 29
-  completed_plans: 29
+  total_plans: 33
+  completed_plans: 30
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Agents receive intelligently-constructed prompts with full repo context, so every job starts warm and produces high-quality results
-**Current focus:** Phase 56 — agent-picker-+-user-assignment
+**Current focus:** Phase 57 — agent-scoped-navigation
 
 ## Current Position
 
 Phase: 57
-Plan: Not started
+Plan: 01 complete
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Plan: Not started
 | Phase 56-agent-picker-+-user-assignment P01 | 0 | 2 tasks | 2 files |
 | Phase 56 P02 | 2 | 2 tasks | 3 files |
 | Phase 56 P04 | 5 | 1 tasks | 1 files |
+| Phase 57-agent-scoped-navigation P01 | 48 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,8 @@ Plan: Not started
 - **Terminology layer 1 only:** UI strings renamed to "agent/agents" in v4.0. DB column names (`instance_name`), env var names, and directory names unchanged — breaking rename deferred post-v4.0.
 - **WS proxy decision:** Relay vs. redirect decision deferred to Phase 58 planning — measure actual relay latency before committing. Relay is simpler; redirect eliminates multi-hop but requires signed token infrastructure.
 - **Instance port isolation:** Remove `ports:` mappings from all instance containers in production `docker-compose.yml` in Phase 53 — prerequisite for security model.
+- **Agent layout server+client split (Phase 57):** Server component handles auth/redirect; `AgentLayoutClient` client component handles ChatNavProvider+SidebarProvider — cannot pass server-defined functions as React context values.
+- **hasAccess check (Phase 57):** `!isHubMode || isAdmin || assignedAgents.includes(slug)` — spoke-mode instances (SUPERADMIN_HUB unset) allow all agent slugs so single-instance deployments continue working without assignment setup.
 
 ### Roadmap Evolution
 
@@ -174,7 +177,7 @@ The following files must not be modified structurally — additive changes only:
 
 ## Session Continuity
 
-Last session: 2026-03-26T03:48:23.151Z
-Stopped at: Completed 56-04-PLAN.md
+Last session: 2026-03-26T15:28:29.511Z
+Stopped at: Completed 57-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 53`
