@@ -55,6 +55,37 @@ export async function handleSuperadminEndpoint(endpoint, params) {
       const { getOnboardingState } = await import('../lib/onboarding/state.js');
       return { onboarding: getOnboardingState() };
     }
+    case 'prs': {
+      const { githubApi } = await import('../lib/tools/github.js');
+      const { loadAllowedRepos } = await import('../lib/tools/repos.js');
+      const state = params?.state || 'open';
+      const validStates = ['open', 'closed', 'all'];
+      const safeState = validStates.includes(state) ? state : 'open';
+      const repos = loadAllowedRepos();
+      const allPrs = [];
+      for (const { owner, slug } of repos) {
+        try {
+          const prs = await githubApi(`/repos/${owner}/${slug}/pulls?state=${safeState}&per_page=50&sort=updated&direction=desc`);
+          if (Array.isArray(prs)) allPrs.push(...prs.map(pr => ({ ...pr, _repo: `${owner}/${slug}` })));
+        } catch {}
+      }
+      return { prs: allPrs };
+    }
+    case 'workspaces': {
+      const { listWorkspaces } = await import('../lib/db/workspaces.js');
+      const instanceName = process.env.INSTANCE_NAME || 'default';
+      const workspaces = listWorkspaces(instanceName);
+      return { workspaces: Array.isArray(workspaces) ? workspaces : [] };
+    }
+    case 'clusters': {
+      const { getSwarmStatus } = await import('../lib/tools/github.js');
+      try {
+        const result = await getSwarmStatus(1);
+        return { runs: result?.runs || [] };
+      } catch {
+        return { runs: [] };
+      }
+    }
     default:
       throw new Error(`Unknown superadmin endpoint: ${endpoint}`);
   }
