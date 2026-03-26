@@ -43,7 +43,7 @@ Requirements for v4.0. Each maps to roadmap phases.
 - [x] **SCOPE-03**: PRs page shows pull requests from the selected agent only (by default)
 - [x] **SCOPE-04**: Workspaces page shows workspaces from the selected agent only (by default)
 - [x] **SCOPE-05**: Sub-agents page shows sub-agent definitions from the selected agent only (by default)
-- [ ] **SCOPE-06**: "All Agents" aggregate view shows PRs across all assigned agents with an agent column
+- [x] **SCOPE-06**: "All Agents" aggregate view shows PRs across all assigned agents with an agent column
 - [ ] **SCOPE-07**: "All Agents" aggregate view shows workspaces across all assigned agents with an agent column
 - [ ] **SCOPE-08**: "All Agents" aggregate view shows sub-agents across all assigned agents with an agent column
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCOPE-03 | Phase 57 | Complete |
 | SCOPE-04 | Phase 57 | Complete |
 | SCOPE-05 | Phase 57 | Complete |
-| SCOPE-06 | Phase 59 | Pending |
+| SCOPE-06 | Phase 59 | Complete |
 | SCOPE-07 | Phase 59 | Pending |
 | SCOPE-08 | Phase 59 | Pending |
 | TERM-01 | Phase 54 | Complete |
