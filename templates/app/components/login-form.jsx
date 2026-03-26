@@ -32,7 +32,8 @@ export function LoginForm() {
       if (result?.error) {
         setError('Invalid email or password.');
       } else {
-        router.push('/');
+        const lastAgent = document.cookie.split('; ').find(r => r.startsWith('lastAgent='))?.split('=')[1];
+        router.push(lastAgent ? `/agent/${lastAgent}/chat` : '/agents');
       }
     } catch {
       setError('Something went wrong. Please try again.');
