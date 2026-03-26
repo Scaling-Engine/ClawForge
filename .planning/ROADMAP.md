@@ -357,7 +357,13 @@ Plans:
   3. The PRs page lists only pull requests created by the selected agent — no PRs from other agents appear in the default view
   4. The workspaces page shows only workspace containers belonging to the selected agent — no containers from other agents appear
   5. The sub-agents page lists only sub-agent definitions configured for the selected agent
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 57-01-PLAN.md — Route group layout + legacy redirects (SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05)
+- [ ] 57-02-PLAN.md — Agent-scoped chat pages (SCOPE-02)
+- [ ] 57-03-PLAN.md — Agent-scoped PRs + workspaces + clusters pages (SCOPE-03, SCOPE-04, SCOPE-05)
+- [ ] 57-04-PLAN.md — Sidebar agent context + scoped history filtering (SCOPE-01, SCOPE-02)
 **UI hint**: yes
 
 ### Phase 58: WebSocket Proxy
@@ -406,7 +412,7 @@ Plans:
 | 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 55 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 56 | v4.0 | 4/4 | Complete    | 2026-03-26 |
-| 57 | v4.0 | 0/TBD | Not started | - |
+| 57 | v4.0 | 0/4 | Not started | - |
 | 58 | v4.0 | 0/TBD | Not started | - |
 | 59 | v4.0 | 0/TBD | Not started | - |
 
@@ -414,4 +420,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-03-25 — Phase 56 plans created (3 plans)*
+*Last updated: 2026-03-26 — Phase 57 plans created (4 plans)*
