@@ -1,0 +1,1 @@
+{"clusters":[{"name":"test-cluster","roles":[{"name":"researcher","systemPrompt":"You are a researcher.","allowedTools":["Read","Grep"]},{"name":"writer","systemPrompt":"You are a writer.","allowedTools":["Write","Edit"]}]}]}
