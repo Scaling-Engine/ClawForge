@@ -27,7 +27,7 @@ Requirements for v4.0. Each maps to roadmap phases.
 
 - [x] **PICK-01**: After login, user sees an agent picker dashboard showing all agents they're assigned to
 - [x] **PICK-02**: Each agent card shows status (online/offline), last job timestamp, open PR count, and active workspace count
-- [ ] **PICK-03**: User can dispatch a job directly from the agent picker without navigating into the agent
+- [x] **PICK-03**: User can dispatch a job directly from the agent picker without navigating into the agent
 - [x] **PICK-04**: Selected agent persists across page loads — refresh returns to the same agent context
 
 ### Users
@@ -44,8 +44,8 @@ Requirements for v4.0. Each maps to roadmap phases.
 - [x] **SCOPE-04**: Workspaces page shows workspaces from the selected agent only (by default)
 - [x] **SCOPE-05**: Sub-agents page shows sub-agent definitions from the selected agent only (by default)
 - [x] **SCOPE-06**: "All Agents" aggregate view shows PRs across all assigned agents with an agent column
-- [ ] **SCOPE-07**: "All Agents" aggregate view shows workspaces across all assigned agents with an agent column
-- [ ] **SCOPE-08**: "All Agents" aggregate view shows sub-agents across all assigned agents with an agent column
+- [x] **SCOPE-07**: "All Agents" aggregate view shows workspaces across all assigned agents with an agent column
+- [x] **SCOPE-08**: "All Agents" aggregate view shows sub-agents across all assigned agents with an agent column
 
 ### Terminology
 
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROXY-05 | Phase 55 | Complete |
 | PICK-01 | Phase 56 | Complete |
 | PICK-02 | Phase 56 | Complete |
-| PICK-03 | Phase 59 | Pending |
+| PICK-03 | Phase 59 | Complete |
 | PICK-04 | Phase 56 | Complete |
 | USER-01 | Phase 56 | Complete |
 | USER-02 | Phase 56 | Complete |
@@ -103,8 +103,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCOPE-04 | Phase 57 | Complete |
 | SCOPE-05 | Phase 57 | Complete |
 | SCOPE-06 | Phase 59 | Complete |
-| SCOPE-07 | Phase 59 | Pending |
-| SCOPE-08 | Phase 59 | Pending |
+| SCOPE-07 | Phase 59 | Complete |
+| SCOPE-08 | Phase 59 | Complete |
 | TERM-01 | Phase 54 | Complete |
 | TERM-02 | Phase 54 | Complete |
 
