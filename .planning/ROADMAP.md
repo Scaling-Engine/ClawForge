@@ -342,7 +342,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 56-01-PLAN.md — Hub DB assignment CRUD + Server Actions (PICK-01, PICK-02, PICK-04, USER-01, USER-02, USER-03)
+- [x] 56-01-PLAN.md — Hub DB assignment CRUD + Server Actions (PICK-01, PICK-02, PICK-04, USER-01, USER-02, USER-03)
 - [ ] 56-02-PLAN.md — AgentPickerPage component + /agents page shell (PICK-01, PICK-02, PICK-04, USER-03)
 - [x] 56-03-PLAN.md — AdminUserDetailPage component + /admin/users/[id] page shell (USER-01, USER-02)
 **UI hint**: yes
@@ -405,7 +405,7 @@ Plans:
 | 53 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 54 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 55 | v4.0 | 2/2 | Complete    | 2026-03-25 |
-| 56 | v4.0 | 1/3 | In Progress|  |
+| 56 | v4.0 | 2/3 | In Progress|  |
 | 57 | v4.0 | 0/TBD | Not started | - |
 | 58 | v4.0 | 0/TBD | Not started | - |
 | 59 | v4.0 | 0/TBD | Not started | - |
