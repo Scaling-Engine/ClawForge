@@ -1,7 +1,5 @@
-import { auth } from '../lib/auth/index.js';
-import { ChatPage } from '../lib/chat/components/index.js';
+import { redirect } from 'next/navigation';
 
-export default async function Home() {
-  const session = await auth();
-  return <ChatPage session={session} needsSetup={false} />;
+export default function Home() {
+  redirect('/agents');
 }
