@@ -19,8 +19,10 @@ const MAX_EXTRA_PORT = 7685;
  * @param {string} props.workspaceId
  * @param {string} props.repoSlug
  * @param {string} props.featureBranch
+ * @param {string} [props.agentSlug] - When present, routes WS connections through the hub relay
+ *   at /agent/[slug]/ws/terminal/[workspaceId] instead of connecting directly to the spoke.
  */
-export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBranch }) {
+export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBranch, agentSlug }) {
   const [tabs, setTabs] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
@@ -47,12 +49,19 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
     }
   }, []);
 
-  // Construct WebSocket URL from current page location
+  // Construct WebSocket URL from current page location.
+  // Hub mode: routes through /agent/[slug]/ws/terminal/[workspaceId] when agentSlug is set.
+  // Spoke mode (legacy): direct /ws/terminal/[workspaceId] connection.
   const getWsUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    if (agentSlug) {
+      // Hub mode: route through /agent/[slug]/ws/terminal/[workspaceId]
+      return `${proto}//${window.location.host}/agent/${agentSlug}/ws/terminal/${workspaceId}`;
+    }
+    // Spoke mode (direct connection, legacy): /ws/terminal/[workspaceId]
     return `${proto}//${window.location.host}/ws/terminal/${workspaceId}`;
-  }, [workspaceId]);
+  }, [workspaceId, agentSlug]);
 
   // Request initial terminal ticket on mount
   useEffect(() => {
@@ -169,7 +178,7 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
         // Fire-and-forget: stop container and notify thread with commits
         closeWorkspaceAction(workspaceId).catch(() => {});
         // Navigate immediately -- don't wait for close to complete
-        window.location.href = '/workspaces';
+        window.location.href = agentSlug ? `/agent/${agentSlug}/workspaces` : '/workspaces';
       } else {
         setShowCloseWarning(true);
       }
@@ -424,7 +433,7 @@ export default function WorkspaceTerminalPage({ workspaceId, repoSlug, featureBr
                   // Fire-and-forget: stop container and notify thread with commits
                   closeWorkspaceAction(workspaceId).catch(() => {});
                   // Navigate immediately -- don't wait for close to complete
-                  window.location.href = '/workspaces';
+                  window.location.href = agentSlug ? `/agent/${agentSlug}/workspaces` : '/workspaces';
                 }}
                 style={{
                   padding: '8px 20px',
