@@ -44,7 +44,7 @@ function groupChatsByDate(chats) {
   return groups;
 }
 
-export function SidebarHistory() {
+export function SidebarHistory({ agentSlug }) {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const { activeChatId, navigateToChat } = useChatNav();
@@ -52,7 +52,11 @@ export function SidebarHistory() {
   const loadChats = async () => {
     try {
       const result = await getChats();
-      setChats(result);
+      // Filter to this agent's chats only. Chats without agentSlug are shown in all agents (legacy).
+      const filtered = agentSlug
+        ? result.filter((c) => !c.agentSlug || c.agentSlug === agentSlug)
+        : result;
+      setChats(filtered);
     } catch (err) {
       console.error('Failed to load chats:', err);
     } finally {
@@ -60,10 +64,10 @@ export function SidebarHistory() {
     }
   };
 
-  // Load chats on mount and refresh when navigating between pages
+  // Load chats on mount and refresh when navigating between pages or switching agents
   useEffect(() => {
     loadChats();
-  }, [activeChatId]);
+  }, [activeChatId, agentSlug]);
 
   // Reload when chats change (new chat created or title updated)
   useEffect(() => {
