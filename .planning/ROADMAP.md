@@ -388,7 +388,11 @@ Plans:
   2. An "All Agents" view shows workspaces from all assigned agents in a single list with an agent column
   3. An "All Agents" view shows sub-agent definitions from all assigned agents in a single list with an agent column
   4. From the agent picker, a user can type a job description and dispatch it directly to a specific agent — without first navigating into that agent's chat page
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 59-01-PLAN.md — Superadmin endpoints (prs/workspaces/clusters) + aggregate Server Actions + dispatchAgentJob (SCOPE-06, SCOPE-07, SCOPE-08, PICK-03)
+- [ ] 59-02-PLAN.md — AllAgents* page components + QuickLaunchModal on picker cards + route shells (SCOPE-06, SCOPE-07, SCOPE-08, PICK-03)
 **UI hint**: yes
 
 ## Progress
@@ -416,10 +420,10 @@ Plans:
 | 56 | v4.0 | 4/4 | Complete    | 2026-03-26 |
 | 57 | v4.0 | 4/4 | Complete    | 2026-03-26 |
 | 58 | v4.0 | 1/1 | Complete    | 2026-03-26 |
-| 59 | v4.0 | 0/TBD | Not started | - |
+| 59 | v4.0 | 0/2 | In progress | - |
 
 **Total shipped:** 52 phases, 100 plans — all complete through v3.0 + phases 48-52
 
 ---
 
-*Last updated: 2026-03-26 — Phase 57 plans created (4 plans)*
+*Last updated: 2026-03-25 — Phase 59 plans created (2 plans)*
