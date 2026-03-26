@@ -415,7 +415,7 @@ Plans:
 | 55 | v4.0 | 2/2 | Complete    | 2026-03-25 |
 | 56 | v4.0 | 4/4 | Complete    | 2026-03-26 |
 | 57 | v4.0 | 4/4 | Complete    | 2026-03-26 |
-| 58 | v4.0 | 1/1 | Complete   | 2026-03-26 |
+| 58 | v4.0 | 1/1 | Complete    | 2026-03-26 |
 | 59 | v4.0 | 0/TBD | Not started | - |
 
 **Total shipped:** 52 phases, 100 plans — all complete through v3.0 + phases 48-52
