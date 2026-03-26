@@ -21,7 +21,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip.js';
 import { useChatNav } from './chat-nav-context.js';
 
-export function AppSidebar({ user }) {
+export function AppSidebar({ user, agentSlug }) {
   const { navigateToChat } = useChatNav();
   const { state, open, setOpenMobile, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
@@ -54,9 +54,17 @@ export function AppSidebar({ user }) {
       <SidebarHeader>
         {/* Top row: brand name + toggle icon (open) or just toggle icon (collapsed) */}
         <div className={collapsed ? 'flex justify-center' : 'flex items-center justify-between'}>
-          {!collapsed && (
+          {!collapsed && (agentSlug ? (
+            <button
+              className="px-2 font-semibold text-lg flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
+              onClick={() => { window.location.href = '/agents'; }}
+              title="Switch agent"
+            >
+              {agentName}<span className="text-xs text-muted-foreground">&#x2197;</span>
+            </button>
+          ) : (
             <span className="px-2 font-semibold text-lg">{agentName}{version && <span className="text-[11px] font-normal text-muted-foreground"> v{version}</span>}</span>
-          )}
+          ))}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -100,7 +108,7 @@ export function AppSidebar({ user }) {
                 <SidebarMenuButton
                   className={collapsed ? 'justify-center' : ''}
                   onClick={() => {
-                    window.location.href = '/chats';
+                    window.location.href = agentSlug ? `/agent/${agentSlug}/chat` : '/chats';
                   }}
                 >
                   <MessageIcon size={16} />
@@ -120,7 +128,7 @@ export function AppSidebar({ user }) {
                 <SidebarMenuButton
                   className={collapsed ? 'justify-center' : ''}
                   onClick={() => {
-                    window.location.href = '/swarm';
+                    window.location.href = agentSlug ? `/agent/${agentSlug}/workspaces` : '/swarm';
                   }}
                 >
                   <SwarmIcon size={16} />
@@ -140,7 +148,7 @@ export function AppSidebar({ user }) {
                 <SidebarMenuButton
                   className={collapsed ? 'justify-center' : ''}
                   onClick={() => {
-                    window.location.href = '/clusters';
+                    window.location.href = agentSlug ? `/agent/${agentSlug}/clusters` : '/clusters';
                   }}
                 >
                   <ClusterIcon size={16} />
@@ -161,7 +169,7 @@ export function AppSidebar({ user }) {
                   className={collapsed ? 'justify-center' : ''}
                   onClick={() => {
                     setOpenMobile(false);
-                    window.location.href = '/pull-requests';
+                    window.location.href = agentSlug ? `/agent/${agentSlug}/pull-requests` : '/pull-requests';
                   }}
                 >
                   <GitPullRequestIcon size={16} />
@@ -345,7 +353,7 @@ export function AppSidebar({ user }) {
           <SidebarGroup className="pt-0">
             <SidebarGroupLabel>Chats</SidebarGroupLabel>
           </SidebarGroup>
-          <SidebarHistory />
+          <SidebarHistory agentSlug={agentSlug} />
         </SidebarContent>
       )}
 
