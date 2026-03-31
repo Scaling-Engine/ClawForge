@@ -1,6 +1,6 @@
-import { auth } from '../../lib/auth/index.js';
+import { auth } from '../../../lib/auth/index.js';
 import { redirect } from 'next/navigation';
-import { AgentLayoutClient } from '../../lib/chat/components/agent-layout-client.jsx';
+import { AgentLayoutClient } from '../../../lib/chat/components/agent-layout-client.jsx';
 
 export default async function AgentLayout({ children, params }) {
   const { slug } = await params;
